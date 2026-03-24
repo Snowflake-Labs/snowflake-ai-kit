@@ -36,12 +36,14 @@ cp snowflake-ai-kit/snowflake-skills/snowpipe-streaming-python/SKILL.md .cursor/
 | [cortex-ai-pipeline](cortex-ai-pipeline/) | Build AI enrichment pipelines using Snowflake Cortex AI Functions (AI_CLASSIFY, AI_SENTIMENT, AI_SUMMARIZE, AI_EXTRACT, AI_COMPLETE, AI_TRANSLATE, AI_AGG) |
 | [cortex-mcp-server](cortex-mcp-server/) | Create Snowflake-managed MCP servers to expose Cortex tools (Analyst, Search, Agents, SQL, UDFs) to any MCP client |
 | [cortex-search-rag](cortex-search-rag/) | Build Retrieval-Augmented Generation (RAG) pipelines using Snowflake Cortex Search and Cortex AI Functions |
+| [data-product-sharing](data-product-sharing/) | Share data products across Snowflake accounts using listings, shares, and the marketplace |
 | [dynamic-tables-pipeline](dynamic-tables-pipeline/) | Build declarative data pipelines with Snowflake Dynamic Tables using the medallion architecture (bronze/silver/gold) |
 | [iceberg-tables](iceberg-tables/) | Create and manage Apache Iceberg tables on Snowflake with Snowflake-managed or external catalogs |
 | [ml-model-registry](ml-model-registry/) | Train, register, and deploy ML models using Snowflake Model Registry |
 | [snowpipe-streaming-java](snowpipe-streaming-java/) | Stream data into Snowflake using the Java Snowpipe Streaming SDK |
 | [snowpipe-streaming-python](snowpipe-streaming-python/) | Stream data into Snowflake using the Python Snowpipe Streaming SDK |
 | [ssis-to-dbt-replatform-migration](ssis-to-dbt-replatform-migration/) | Validates, deploys, and operationalizes SnowConvert AI (SCAI) Replatform output — SSIS to dbt and Snowflake TASKs migrations |
+| [streamlit-in-snowflake](streamlit-in-snowflake/) | Deploy Streamlit apps to Snowflake with warehouse or container runtimes |
 | [tasks-and-streams](tasks-and-streams/) | Build change data capture pipelines with Snowflake Streams and Tasks |
 <!-- END_SKILLS_TABLE -->
 

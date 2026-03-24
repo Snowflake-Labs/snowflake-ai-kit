@@ -28,7 +28,7 @@ SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
 
 # Snowflake-specific skills
-SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag dynamic-tables-pipeline iceberg-tables ml-model-registry snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration tasks-and-streams"
+SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
@@ -50,12 +50,14 @@ get_skill_description() {
     "cortex-ai-pipeline") echo "Build AI enrichment pipelines with Cortex AI Functions (classify, sentiment, summarize)" ;;
     "cortex-mcp-server") echo "Create managed MCP servers to expose Snowflake tools to AI clients" ;;
     "cortex-search-rag") echo "Build RAG pipelines with Cortex Search and AI_COMPLETE" ;;
+    "data-product-sharing") echo "Share data products via secure shares, listings, and the Snowflake Marketplace" ;;
     "dynamic-tables-pipeline") echo "Build declarative data pipelines with Dynamic Tables (medallion architecture)" ;;
     "iceberg-tables") echo "Create and manage Apache Iceberg tables on Snowflake" ;;
     "ml-model-registry") echo "Train, register, and deploy ML models with Snowflake Model Registry" ;;
     "snowpipe-streaming-java") echo "Stream data into Snowflake via Java Snowpipe Streaming SDK" ;;
     "snowpipe-streaming-python") echo "Stream data into Snowflake via Python Snowpipe Streaming SDK" ;;
     "ssis-to-dbt-replatform-migration") echo "Migrate SSIS packages to dbt + Snowflake" ;;
+    "streamlit-in-snowflake") echo "Deploy Streamlit apps to Snowflake with warehouse or container runtimes" ;;
     "tasks-and-streams") echo "Build CDC pipelines with Snowflake Streams and Tasks" ;;
     *) echo "Unknown skill" ;;
   esac
@@ -71,12 +73,14 @@ get_skill_files() {
     "cortex-ai-pipeline") echo "templates/setup.sql templates/enrich-pipeline.sql templates/batch-insights.sql" ;;
     "cortex-mcp-server") echo "templates/setup.sql templates/create-mcp-server.sql templates/connect-client.sql" ;;
     "cortex-search-rag") echo "templates/setup.sql templates/search-service.sql templates/rag-query.sql" ;;
+    "data-product-sharing") echo "templates/setup.sql templates/create-share.sql templates/create-listing.sql templates/consumer-access.sql" ;;
     "dynamic-tables-pipeline") echo "templates/setup.sql templates/bronze.sql templates/silver.sql templates/gold.sql" ;;
     "iceberg-tables") echo "templates/setup.sql templates/snowflake-managed.sql templates/external-catalog.sql" ;;
     "ml-model-registry") echo "templates/setup.sql templates/train-and-register.py templates/deploy-service.py" ;;
     "snowpipe-streaming-java") echo "" ;;
     "snowpipe-streaming-python") echo "src/config_manager.py src/data_generator.py src/models.py src/parallel_streaming_orchestrator.py src/reconciliation_manager.py src/snowpipe_streaming_manager.py src/streaming_app.py" ;;
     "ssis-to-dbt-replatform-migration") echo "references/phase0-briefing.md references/replatform-output-structure.md references/session-diary.md references/snowflake-sql-patterns.md" ;;
+    "streamlit-in-snowflake") echo "templates/setup.sql templates/deploy-warehouse.sql templates/deploy-container.sql templates/streamlit_app.py" ;;
     "tasks-and-streams") echo "templates/setup.sql templates/cdc-pipeline.sql templates/task-graph.sql" ;;
     *) echo "" ;;
   esac

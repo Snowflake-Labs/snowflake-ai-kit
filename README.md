@@ -11,6 +11,8 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 - **RAG Search** — Cortex Search + AI_COMPLETE for retrieval-augmented generation over your docs
 - **MCP Servers** — Expose Snowflake tools to any MCP-compatible AI client
 - **ML Model Registry** — Train, register, and deploy models with `snowflake-ml-python`
+- **Streamlit in Snowflake** — Deploy interactive apps with warehouse or container runtimes
+- **Data Product Sharing** — Share data via secure shares, listings, and the Snowflake Marketplace
 - **Declarative Data Pipelines** — Dynamic Tables with bronze/silver/gold medallion architecture
 - **Open Table Format** — Iceberg tables with Snowflake-managed or external catalogs
 - **Change Data Capture** — Streams and Tasks for incremental processing and task DAGs
@@ -152,7 +154,7 @@ See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
 
 | Component | Description |
 |-----------|-------------|
-| [`snowflake-skills/`](snowflake-skills/) | Snowflake-specific skills (Cortex Agents, AI Functions, RAG, MCP, ML Registry, Dynamic Tables, Iceberg, Streams/Tasks, Snowpipe, ETL migration) |
+| [`snowflake-skills/`](snowflake-skills/) | Snowflake-specific skills (Cortex Agents, AI Functions, RAG, MCP, ML Registry, Streamlit, Data Sharing, Dynamic Tables, Iceberg, Streams/Tasks, Snowpipe, ETL migration) |
 | [`general-skills/`](general-skills/) | General-purpose skills (Docker, Drizzle ORM, Supabase) |
 | [`builder-apps/claude-agent/`](builder-apps/claude-agent/) | Claude Code agent UI with Snowflake MCP tools |
 | [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) | Cortex Agent chat UI — no API key needed |
