@@ -32,7 +32,9 @@ cp snowflake-ai-kit/snowflake-skills/snowpipe-streaming-python/SKILL.md .cursor/
 <!-- BEGIN_SKILLS_TABLE -->
 | Skill | What it does |
 |-------|-------------|
+| [cortex-agents](cortex-agents/) | Create Cortex Agents that orchestrate across structured and unstructured data using Cortex Analyst, Cortex Search, and custom tools |
 | [cortex-ai-pipeline](cortex-ai-pipeline/) | Build AI enrichment pipelines using Snowflake Cortex AI Functions (AI_CLASSIFY, AI_SENTIMENT, AI_SUMMARIZE, AI_EXTRACT, AI_COMPLETE, AI_TRANSLATE, AI_AGG) |
+| [cortex-mcp-server](cortex-mcp-server/) | Create Snowflake-managed MCP servers to expose Cortex tools (Analyst, Search, Agents, SQL, UDFs) to any MCP client |
 | [cortex-search-rag](cortex-search-rag/) | Build Retrieval-Augmented Generation (RAG) pipelines using Snowflake Cortex Search and Cortex AI Functions |
 | [dynamic-tables-pipeline](dynamic-tables-pipeline/) | Build declarative data pipelines with Snowflake Dynamic Tables using the medallion architecture (bronze/silver/gold) |
 | [iceberg-tables](iceberg-tables/) | Create and manage Apache Iceberg tables on Snowflake with Snowflake-managed or external catalogs |

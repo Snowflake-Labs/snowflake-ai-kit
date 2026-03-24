@@ -28,7 +28,7 @@ SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
 
 # Snowflake-specific skills
-SNOWFLAKE_SKILLS="cortex-ai-pipeline cortex-search-rag dynamic-tables-pipeline iceberg-tables ml-model-registry snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration tasks-and-streams"
+SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag dynamic-tables-pipeline iceberg-tables ml-model-registry snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
@@ -46,7 +46,9 @@ get_skill_description() {
     "docker-dev-setup") echo "Containerize apps with Dockerfile, Compose, and Dev Containers" ;;
     "drizzle-orm-setup") echo "Scaffold Drizzle ORM with TypeScript schema and migrations" ;;
     "supabase-auth-rls") echo "Scaffold Supabase with schema, RLS policies, and auth" ;;
+    "cortex-agents") echo "Create Cortex Agents with Analyst, Search, and custom tools" ;;
     "cortex-ai-pipeline") echo "Build AI enrichment pipelines with Cortex AI Functions (classify, sentiment, summarize)" ;;
+    "cortex-mcp-server") echo "Create managed MCP servers to expose Snowflake tools to AI clients" ;;
     "cortex-search-rag") echo "Build RAG pipelines with Cortex Search and AI_COMPLETE" ;;
     "dynamic-tables-pipeline") echo "Build declarative data pipelines with Dynamic Tables (medallion architecture)" ;;
     "iceberg-tables") echo "Create and manage Apache Iceberg tables on Snowflake" ;;
@@ -65,7 +67,9 @@ get_skill_files() {
     "docker-dev-setup") echo "references/compose-patterns.md references/dockerfile-patterns.md references/troubleshooting.md templates/compose.yaml templates/devcontainer.json templates/Dockerfile.go templates/Dockerfile.node templates/Dockerfile.python templates/dockerignore" ;;
     "drizzle-orm-setup") echo "references/query-patterns.md references/schema-patterns.md references/troubleshooting.md templates/db.ts templates/drizzle.config.ts templates/schema.ts" ;;
     "supabase-auth-rls") echo "references/auth-helpers.md references/rls-patterns.md references/troubleshooting.md templates/migration-rls.sql templates/migration-schema.sql" ;;
+    "cortex-agents") echo "templates/setup.sql templates/create-agent.sql templates/invoke-agent.sql" ;;
     "cortex-ai-pipeline") echo "templates/setup.sql templates/enrich-pipeline.sql templates/batch-insights.sql" ;;
+    "cortex-mcp-server") echo "templates/setup.sql templates/create-mcp-server.sql templates/connect-client.sql" ;;
     "cortex-search-rag") echo "templates/setup.sql templates/search-service.sql templates/rag-query.sql" ;;
     "dynamic-tables-pipeline") echo "templates/setup.sql templates/bronze.sql templates/silver.sql templates/gold.sql" ;;
     "iceberg-tables") echo "templates/setup.sql templates/snowflake-managed.sql templates/external-catalog.sql" ;;
