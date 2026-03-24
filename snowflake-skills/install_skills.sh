@@ -28,7 +28,7 @@ SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
 
 # Snowflake-specific skills
-SNOWFLAKE_SKILLS="snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration"
+SNOWFLAKE_SKILLS="dynamic-tables-pipeline iceberg-tables snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
@@ -46,9 +46,12 @@ get_skill_description() {
     "docker-dev-setup") echo "Containerize apps with Dockerfile, Compose, and Dev Containers" ;;
     "drizzle-orm-setup") echo "Scaffold Drizzle ORM with TypeScript schema and migrations" ;;
     "supabase-auth-rls") echo "Scaffold Supabase with schema, RLS policies, and auth" ;;
+    "dynamic-tables-pipeline") echo "Build declarative data pipelines with Dynamic Tables (medallion architecture)" ;;
+    "iceberg-tables") echo "Create and manage Apache Iceberg tables on Snowflake" ;;
     "snowpipe-streaming-java") echo "Stream data into Snowflake via Java Snowpipe Streaming SDK" ;;
     "snowpipe-streaming-python") echo "Stream data into Snowflake via Python Snowpipe Streaming SDK" ;;
     "ssis-to-dbt-replatform-migration") echo "Migrate SSIS packages to dbt + Snowflake" ;;
+    "tasks-and-streams") echo "Build CDC pipelines with Snowflake Streams and Tasks" ;;
     *) echo "Unknown skill" ;;
   esac
 }
@@ -59,9 +62,12 @@ get_skill_files() {
     "docker-dev-setup") echo "references/compose-patterns.md references/dockerfile-patterns.md references/troubleshooting.md templates/compose.yaml templates/devcontainer.json templates/Dockerfile.go templates/Dockerfile.node templates/Dockerfile.python templates/dockerignore" ;;
     "drizzle-orm-setup") echo "references/query-patterns.md references/schema-patterns.md references/troubleshooting.md templates/db.ts templates/drizzle.config.ts templates/schema.ts" ;;
     "supabase-auth-rls") echo "references/auth-helpers.md references/rls-patterns.md references/troubleshooting.md templates/migration-rls.sql templates/migration-schema.sql" ;;
+    "dynamic-tables-pipeline") echo "templates/setup.sql templates/bronze.sql templates/silver.sql templates/gold.sql" ;;
+    "iceberg-tables") echo "templates/setup.sql templates/snowflake-managed.sql templates/external-catalog.sql" ;;
     "snowpipe-streaming-java") echo "" ;;
     "snowpipe-streaming-python") echo "src/config_manager.py src/data_generator.py src/models.py src/parallel_streaming_orchestrator.py src/reconciliation_manager.py src/snowpipe_streaming_manager.py src/streaming_app.py" ;;
     "ssis-to-dbt-replatform-migration") echo "references/phase0-briefing.md references/replatform-output-structure.md references/session-diary.md references/snowflake-sql-patterns.md" ;;
+    "tasks-and-streams") echo "templates/setup.sql templates/cdc-pipeline.sql templates/task-graph.sql" ;;
     *) echo "" ;;
   esac
 }
