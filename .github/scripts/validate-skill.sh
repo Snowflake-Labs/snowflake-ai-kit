@@ -93,5 +93,17 @@ if [[ $errors -gt 0 ]]; then
   exit 1
 else
   echo "ALL PASSED: ${#dirs[@]} skill(s) validated."
-  exit 0
+fi
+
+# ---------- check agent rules sync ----------
+
+SYNC_SCRIPT="$(git rev-parse --show-toplevel)/.github/scripts/sync-agent-rules.sh"
+if [[ -x "$SYNC_SCRIPT" ]]; then
+  "$SYNC_SCRIPT" > /dev/null 2>&1
+  if ! git diff --quiet .cursor/rules/ .claude/rules/ .windsurf/rules/ .gemini/ 2>/dev/null; then
+    echo ""
+    echo "WARNING: Agent rule files are out of sync with SKILL.md sources."
+    echo "Run: .github/scripts/sync-agent-rules.sh"
+    git checkout -- .cursor/rules/ .claude/rules/ .windsurf/rules/ .gemini/ 2>/dev/null || true
+  fi
 fi

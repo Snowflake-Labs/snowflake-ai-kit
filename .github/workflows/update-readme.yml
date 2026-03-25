@@ -29,6 +29,6 @@ jobs:
           git diff --quiet && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add snowflake-skills/README.md general-skills/README.md .cursor/rules/ .windsurf/rules/ .claude/rules/
+          git add snowflake-skills/README.md general-skills/README.md .cursor/rules/ .windsurf/rules/ .claude/rules/ .gemini/
           git commit -m "Sync skills table and agent rules [skip ci]"
           git push

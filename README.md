@@ -28,12 +28,12 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 
 ## Pick Your Path
 
-| Adventure | Best For | Start Here |
-|-----------|----------|------------|
-| **Install Skills** | Add Snowflake skills to your agents | [Install](#install-skills) |
-| **Browse Skills** | Explore patterns and best practices | [`snowflake-skills/`](snowflake-skills/) |
-| **Claude Agent App** | Chat with Claude + Snowflake tools in one UI | [`builder-apps/claude-agent/`](builder-apps/claude-agent/) |
-| **Cortex Agent App** | Chat with Cortex Agents — no API key needed | [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) |
+| Path | Description |
+|------|-------------|
+| **Install Skills** | Add Snowflake skills to Cursor, Windsurf, Claude Code, Gemini CLI, or Cortex Code — [Quick Start](#install-skills) |
+| **Browse Skills** | Explore available skills — [Snowflake](snowflake-skills/), [general-purpose](general-skills/), [Cortex Code skills](https://github.com/Snowflake-Labs/cortex-code-skills), or [bring your own](snowflake-skills/install_skills.sh) from external repos |
+| **Claude Agent App** | Chat with Claude + Snowflake tools in one UI — [Setup Guide](builder-apps/claude-agent/) |
+| **Cortex Agent App** | Chat with Cortex Agents, no API key needed — [Setup Guide](builder-apps/cortex-agent/) |
 
 ---
 
@@ -118,6 +118,43 @@ cp snowflake-ai-kit/snowflake-skills/docker-dev-setup/SKILL.md .gemini/docker-de
 ```
 
 **Other Agents (Cline, Aider, etc.)** — Point the agent at the `SKILL.md` file directly, or paste its contents into the agent's system prompt.
+
+</details>
+
+<details>
+<summary><strong>External skills</strong></summary>
+
+Pull skills from any GitHub repo that follows the `skill-name/SKILL.md` convention:
+
+```bash
+# Install Cortex Code bundled skills
+bash <(curl -sSL .../snowflake-skills/install_skills.sh) \
+  --external https://raw.githubusercontent.com/Snowflake-Labs/cortex-code-skills/main/skills \
+  semantic-view cortex-agent data-quality
+
+# Install from any repo
+bash <(curl -sSL .../snowflake-skills/install_skills.sh) \
+  --external https://raw.githubusercontent.com/org/repo/main/skills-dir \
+  skill-a skill-b
+
+# Mix built-in and external skills
+bash <(curl -sSL .../snowflake-skills/install_skills.sh) \
+  cortex-agents \
+  --external https://raw.githubusercontent.com/Snowflake-Labs/cortex-code-skills/main/skills \
+  dynamic-tables
+```
+
+The `--external` flag takes a base URL followed by one or more skill names. The installer fetches `<URL>/<skill>/SKILL.md` for each and installs it the same way as built-in skills.
+
+**Repo structure expected:**
+
+```
+your-repo/
+├── skill-a/
+│   └── SKILL.md
+└── skill-b/
+    └── SKILL.md
+```
 
 </details>
 

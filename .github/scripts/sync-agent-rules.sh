@@ -1,35 +1,47 @@
 #!/usr/bin/env bash
-# Syncs SKILL.md files from snowflake-skills/ into agent-specific config directories.
+# Syncs all SKILL.md files to agent rule directories.
 #
-# Creates/updates:
-#   .cursor/rules/<skill>.mdc
-#   .windsurf/rules/<skill>.md
-#   .claude/rules/<skill>.md
+# Agent directories:
+#   .cursor/rules/*.mdc
+#   .claude/rules/*.md
+#   .windsurf/rules/*.md
+#   .gemini/*.md
 #
-# Usage: .github/scripts/sync-agent-rules.sh
-#   Run after modifying any SKILL.md to keep agent dirs in sync.
+# Usage:
+#   .github/scripts/sync-agent-rules.sh          # Sync all
+#   .github/scripts/sync-agent-rules.sh --check   # Check if in sync (exit 1 if not)
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-mkdir -p .cursor/rules .windsurf/rules .claude/rules
+CHECK_ONLY=false
+[[ "${1:-}" == "--check" ]] && CHECK_ONLY=true
 
-# Clean existing agent rules (remove stale skills that were deleted)
-rm -f .cursor/rules/*.mdc .windsurf/rules/*.md .claude/rules/*.md
-
-synced=0
-for skill_file in snowflake-skills/*/SKILL.md general-skills/*/SKILL.md; do
-  [[ -f "$skill_file" ]] || continue
-  dir="$(dirname "$skill_file")"
-  name="$(basename "$dir")"
-
-  # Skip TEMPLATE
-  [[ "$name" == "TEMPLATE" ]] && continue
-
-  cp "$skill_file" ".cursor/rules/${name}.mdc"
-  cp "$skill_file" ".windsurf/rules/${name}.md"
-  cp "$skill_file" ".claude/rules/${name}.md"
-  ((synced++)) || true
+# Collect all skill SKILL.md paths (excluding TEMPLATE)
+skills=""
+for f in snowflake-skills/*/SKILL.md general-skills/*/SKILL.md; do
+  [[ -f "$f" ]] || continue
+  case "$f" in *TEMPLATE*) continue ;; esac
+  skills="$skills $f"
 done
 
-echo "Synced $synced skill(s) to .cursor/rules/, .windsurf/rules/, .claude/rules/"
+# Sync to each agent directory
+for agent_config in "cursor:.cursor/rules:mdc" "claude:.claude/rules:md" "windsurf:.windsurf/rules:md" "gemini:.gemini:md"; do
+  IFS=: read -r agent dir ext <<< "$agent_config"
+  mkdir -p "$dir"
+  for src in $skills; do
+    name=$(basename "$(dirname "$src")")
+    cp "$src" "$dir/${name}.${ext}"
+  done
+done
+
+if $CHECK_ONLY; then
+  if ! git diff --quiet .cursor/rules/ .claude/rules/ .windsurf/rules/ .gemini/; then
+    echo "Agent rule files are out of sync with SKILL.md sources."
+    echo "Run: .github/scripts/sync-agent-rules.sh"
+    exit 1
+  fi
+  echo "Agent rules are in sync."
+else
+  echo "Synced agent rules for: cursor, claude, windsurf, gemini"
+fi
