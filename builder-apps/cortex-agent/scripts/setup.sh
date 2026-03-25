@@ -21,6 +21,20 @@ check_cmd node
 check_cmd npm
 
 echo "Prerequisites OK (python3, node, npm)"
+
+# Check Snowflake auth
+if [ -f "$HOME/.snowflake/connections.toml" ]; then
+  echo "Snowflake config found (~/.snowflake/connections.toml)"
+elif [ -n "${SNOWFLAKE_HOST:-}" ] || [ -n "${SNOWFLAKE_ACCOUNT:-}" ]; then
+  echo "Snowflake config found (environment variables)"
+else
+  echo ""
+  echo "WARNING: No Snowflake config detected."
+  echo "  You'll need one of:"
+  echo "    - ~/.snowflake/connections.toml (recommended)"
+  echo "    - SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
+  echo "  Or configure .env.local after setup."
+fi
 echo ""
 
 # Create .env.local if it doesn't exist
