@@ -57,7 +57,13 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
 ```
 
-This runs an interactive installer that lets you choose: skills only, skills + a builder app, or everything.
+### One-Line Install (Windows PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
+```
+
+Both run an interactive installer that lets you choose: skills only, skills + a builder app, or everything.
 
 <details>
 <summary><strong>Non-interactive options</strong></summary>
