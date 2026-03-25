@@ -6,23 +6,35 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 
 ## What Can I Build?
 
-- **Cortex Agents** — Multi-tool AI agents that orchestrate across Analyst, Search, and custom tools
-- **AI Enrichment Pipelines** — Cortex AI Functions (classify, sentiment, summarize, extract) in pure SQL
-- **RAG Search** — Cortex Search + AI_COMPLETE for retrieval-augmented generation over your docs
-- **MCP Servers** — Expose Snowflake tools to any MCP-compatible AI client
-- **ML Model Registry** — Train, register, and deploy models with `snowflake-ml-python`
-- **Streamlit in Snowflake** — Deploy interactive apps with warehouse or container runtimes
-- **Data Product Sharing** — Share data via secure shares, listings, and the Snowflake Marketplace
-- **Declarative Data Pipelines** — Dynamic Tables with bronze/silver/gold medallion architecture
-- **Open Table Format** — Iceberg tables with Snowflake-managed or external catalogs
-- **Change Data Capture** — Streams and Tasks for incremental processing and task DAGs
-- **Streaming Pipelines** — Snowpipe Streaming in Java or Python with exactly-once delivery
-- **ETL Migrations** — SSIS-to-dbt replatforming on Snowflake
-- **Snowflake Docs** — LLM-optimized documentation reference via `llms.txt` index
-- **Docker Dev Environments** — Dockerfiles, Compose, Dev Containers for any stack
-- **ORM Scaffolding** — Drizzle ORM with TypeScript schemas, migrations, and queries
-- **Auth & Row-Level Security** — Supabase projects with RLS policies and auth integration
-- ...and more as the community contributes
+**AI & Agents**
+- Cortex Agents — Multi-tool AI agents that orchestrate across Analyst, Search, and custom tools
+- AI Enrichment Pipelines — Cortex AI Functions (classify, sentiment, summarize, extract) in pure SQL
+- RAG Search — Cortex Search + AI_COMPLETE for retrieval-augmented generation over your docs
+- MCP Servers — Expose Snowflake tools to any MCP-compatible AI client
+
+**Data & ML**
+- ML Model Registry — Train, register, and deploy models with `snowflake-ml-python`
+- Declarative Data Pipelines — Dynamic Tables with bronze/silver/gold medallion architecture
+- Change Data Capture — Streams and Tasks for incremental processing and task DAGs
+- Streaming Pipelines — Snowpipe Streaming in Java or Python with exactly-once delivery
+
+**Apps & Sharing**
+- Streamlit in Snowflake — Deploy interactive apps with warehouse or container runtimes
+- Data Product Sharing — Share data via secure shares, listings, and the Snowflake Marketplace
+
+**Storage & Migration**
+- Open Table Format — Iceberg tables with Snowflake-managed or external catalogs
+- ETL Migrations — SSIS-to-dbt replatforming on Snowflake
+
+**General Purpose**
+- Docker Dev Environments — Dockerfiles, Compose, Dev Containers for any stack
+- ORM Scaffolding — Drizzle ORM with TypeScript schemas, migrations, and queries
+- Auth & Row-Level Security — Supabase projects with RLS policies and auth integration
+
+**Reference**
+- Snowflake Docs — LLM-optimized documentation reference via `llms.txt` index
+
+...and more as the community contributes
 
 ---
 
@@ -212,17 +224,6 @@ cd snowflake-ai-kit/builder-apps/cortex-agent
 ```
 
 See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
-
----
-
-## What's Included
-
-| Component | Description |
-|-----------|-------------|
-| [`snowflake-skills/`](snowflake-skills/) | Snowflake-specific skills (Cortex Agents, AI Functions, RAG, MCP, ML Registry, Streamlit, Data Sharing, Dynamic Tables, Iceberg, Streams/Tasks, Snowpipe, ETL migration, Docs Reference) |
-| [`general-skills/`](general-skills/) | General-purpose skills (Docker, Drizzle ORM, Supabase) |
-| [`builder-apps/claude-agent/`](builder-apps/claude-agent/) | Claude Code agent UI with Snowflake MCP tools |
-| [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) | Cortex Agent chat UI — no API key needed |
 
 ---
 
