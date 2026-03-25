@@ -2,6 +2,8 @@
 
 Skills, MCP tools, and builder apps for AI coding agents working with Snowflake. Give your agent ([Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), Cursor, Windsurf, Claude Code, etc.) the patterns and best practices it needs to build on Snowflake correctly.
 
+**Contents:** [What Can I Build?](#what-can-i-build) · [Pick Your Path](#pick-your-path) · [Quick Start](#quick-start) · [Troubleshooting](#troubleshooting) · [Contributing](#contributing)
+
 ---
 
 ## What Can I Build?
@@ -231,8 +233,9 @@ cd snowflake-ai-kit/builder-apps/cortex-agent
 
 See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
 
-<details>
-<summary><strong>Troubleshooting</strong></summary>
+---
+
+## Troubleshooting
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
@@ -246,8 +249,6 @@ See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
 | `npm install` fails in builder app | Node.js too old or network issue | Check `node --version` (need 18+), check your network/proxy |
 | `pip install` fails in builder app | Python too old or permissions | Check `python3 --version` (need 3.11+), try `pip install --user` or use a venv |
 | Skills installed but agent doesn't see them | Agent hasn't reloaded rules | Restart your IDE or agent, and verify the rules folder exists (e.g. `.cursor/rules/`) |
-
-</details>
 
 ---
 
