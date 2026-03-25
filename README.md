@@ -30,7 +30,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 
 | Path | Description |
 |------|-------------|
-| **Install Skills** | Add Snowflake skills to Cursor, Windsurf, Claude Code, Gemini CLI, or Cortex Code — [Quick Start](#install-skills) |
+| **Install Skills** | Add Snowflake skills to Cursor, Windsurf, Claude Code, Gemini CLI, or Cortex Code — [Quick Start](#quick-start) |
 | **Browse Skills** | Explore available skills — [Snowflake](snowflake-skills/), [general-purpose](general-skills/), [Cortex Code skills](https://github.com/Snowflake-Labs/cortex-code-skills), or [bring your own](snowflake-skills/install_skills.sh) from external repos |
 | **Claude Agent App** | Chat with Claude + Snowflake tools in one UI — [Setup Guide](builder-apps/claude-agent/) |
 | **Cortex Agent App** | Chat with Cortex Agents, no API key needed — [Setup Guide](builder-apps/cortex-agent/) |
@@ -39,35 +39,49 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 
 ## Quick Start
 
-### Install Skills
+### One-Line Install (Mac / Linux)
 
-Add Snowflake skills to your existing AI coding agent.
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
+```
 
-**One-line install (Mac / Linux)**
+This runs an interactive installer that lets you choose: skills only, skills + a builder app, or everything.
+
+<details>
+<summary><strong>Non-interactive options</strong></summary>
+
+```bash
+# Skills only — auto-detects your agent
+bash <(curl -sSL .../install.sh) --skills-only
+
+# Skills + Cortex Agent app (no external API key needed)
+bash <(curl -sSL .../install.sh) --app cortex-agent
+
+# Skills + Claude Agent app (needs Anthropic API key)
+bash <(curl -sSL .../install.sh) --app claude-agent
+
+# Everything — skills + all builder apps
+bash <(curl -sSL .../install.sh) --all
+
+# Install for a specific agent
+bash <(curl -sSL .../install.sh) --skills-only --agent cursor
+
+# List available skills
+bash <(curl -sSL .../install.sh) --list
+```
+
+</details>
+
+<details>
+<summary><strong>Skills-only install</strong></summary>
+
+If you only want skills (no builder apps), you can also use the skills installer directly:
 
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/snowflake-skills/install_skills.sh)
 ```
 
 This auto-detects your agent (Cursor, Windsurf, Claude Code, Gemini CLI) and installs all skills.
-
-<details>
-<summary><strong>Advanced options</strong></summary>
-
-```bash
-# Install for a specific agent
-bash <(curl -sSL .../snowflake-skills/install_skills.sh) --agent cursor
-bash <(curl -sSL .../snowflake-skills/install_skills.sh) --agent gemini
-
-# Install specific skills only
-bash <(curl -sSL .../snowflake-skills/install_skills.sh) docker-dev-setup drizzle-orm-setup
-
-# Install skills from an external repo
-bash <(curl -sSL .../snowflake-skills/install_skills.sh) --external https://raw.githubusercontent.com/org/repo/main skill-name
-
-# List available skills
-bash <(curl -sSL .../snowflake-skills/install_skills.sh) --list
-```
 
 </details>
 
@@ -162,6 +176,8 @@ your-repo/
 
 Chat with Claude + Snowflake MCP tools in a single UI.
 
+> **Tip:** `bash <(curl -sSL .../install.sh) --app claude-agent` handles the full setup.
+
 **Prerequisites:**
 - Snowflake account (PAT or password auth)
 - [Anthropic API key](https://console.anthropic.com/)
@@ -180,6 +196,8 @@ See [`builder-apps/claude-agent/`](builder-apps/claude-agent/) for details.
 ### Cortex Agent App
 
 Chat with Snowflake Cortex Agents — no external API key needed.
+
+> **Tip:** `bash <(curl -sSL .../install.sh) --app cortex-agent` handles the full setup.
 
 **Prerequisites:**
 - Snowflake account with a [Cortex Agent](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents) created
