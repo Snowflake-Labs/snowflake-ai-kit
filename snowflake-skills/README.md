@@ -41,6 +41,7 @@ cp snowflake-ai-kit/snowflake-skills/snowpipe-streaming-python/SKILL.md .cursor/
 | [iceberg-tables](iceberg-tables/) | Create and manage Apache Iceberg tables on Snowflake with Snowflake-managed or external catalogs |
 | [ml-model-registry](ml-model-registry/) | Train, register, and deploy ML models using Snowflake Model Registry |
 | [snowflake-docs](snowflake-docs/) | Snowflake documentation reference via llms.txt index |
+| [snowflake-postgres](snowflake-postgres/) | Create and manage Snowflake Postgres instances — fully managed Postgres on Snowflake |
 | [snowpipe-streaming-java](snowpipe-streaming-java/) | Stream data into Snowflake using the Java Snowpipe Streaming SDK |
 | [snowpipe-streaming-python](snowpipe-streaming-python/) | Stream data into Snowflake using the Python Snowpipe Streaming SDK |
 | [ssis-to-dbt-replatform-migration](ssis-to-dbt-replatform-migration/) | Validates, deploys, and operationalizes SnowConvert AI (SCAI) Replatform output — SSIS to dbt and Snowflake TASKs migrations |

@@ -204,7 +204,7 @@ function Install-SkillsDirect {
     $skills = @(
         "cortex-agents", "cortex-ai-pipeline", "cortex-mcp-server", "cortex-search-rag",
         "data-product-sharing", "dynamic-tables-pipeline", "iceberg-tables", "ml-model-registry",
-        "snowflake-docs", "snowpipe-streaming-java", "snowpipe-streaming-python",
+        "snowflake-docs", "snowflake-postgres", "snowpipe-streaming-java", "snowpipe-streaming-python",
         "ssis-to-dbt-replatform-migration", "streamlit-in-snowflake", "tasks-and-streams"
     )
     $generalSkills = @("docker-dev-setup", "drizzle-orm-setup", "supabase-auth-rls")

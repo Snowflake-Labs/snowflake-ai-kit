@@ -32,7 +32,7 @@ SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
 
 # Snowflake-specific skills
-SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowflake-docs snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
+SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowflake-docs snowflake-postgres snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
@@ -68,6 +68,7 @@ get_skill_description() {
     "iceberg-tables") echo "Create and manage Apache Iceberg tables on Snowflake" ;;
     "ml-model-registry") echo "Train, register, and deploy ML models with Snowflake Model Registry" ;;
     "snowflake-docs") echo "Snowflake documentation reference via llms.txt index" ;;
+    "snowflake-postgres") echo "Create and manage fully managed Postgres instances on Snowflake" ;;
     "snowpipe-streaming-java") echo "Stream data into Snowflake via Java Snowpipe Streaming SDK" ;;
     "snowpipe-streaming-python") echo "Stream data into Snowflake via Python Snowpipe Streaming SDK" ;;
     "ssis-to-dbt-replatform-migration") echo "Migrate SSIS packages to dbt + Snowflake" ;;
@@ -92,6 +93,7 @@ get_skill_files() {
     "iceberg-tables") echo "templates/setup.sql templates/snowflake-managed.sql templates/external-catalog.sql" ;;
     "ml-model-registry") echo "templates/setup.sql templates/train-and-register.py templates/deploy-service.py" ;;
     "snowflake-docs") echo "" ;;
+    "snowflake-postgres") echo "templates/setup.sql templates/sample-data.sql" ;;
     "snowpipe-streaming-java") echo "" ;;
     "snowpipe-streaming-python") echo "src/config_manager.py src/data_generator.py src/models.py src/parallel_streaming_orchestrator.py src/reconciliation_manager.py src/snowpipe_streaming_manager.py src/streaming_app.py" ;;
     "ssis-to-dbt-replatform-migration") echo "references/phase0-briefing.md references/replatform-output-structure.md references/session-diary.md references/snowflake-sql-patterns.md" ;;

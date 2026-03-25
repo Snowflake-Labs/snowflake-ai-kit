@@ -25,6 +25,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 - Declarative Data Pipelines — Dynamic Tables with bronze/silver/gold medallion architecture
 - Change Data Capture — Streams and Tasks for incremental processing and task DAGs
 - Streaming Pipelines — Snowpipe Streaming in Java or Python with exactly-once delivery
+- Snowflake Postgres — Create and manage fully managed Postgres instances on Snowflake
 
 **Apps & Sharing**
 - Streamlit in Snowflake — Deploy interactive apps with warehouse or container runtimes
