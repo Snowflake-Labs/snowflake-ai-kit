@@ -74,7 +74,7 @@ Present the following briefing to the user:
 >
 > Ready to proceed?
 
-**STOP** — Wait for user approval before continuing.
+**⚠️ MANDATORY STOPPING POINT**: Wait for user approval before continuing.
 
 ---
 
@@ -92,7 +92,7 @@ Where should I set up the RAG pipeline?
 - If your own table: which column contains the searchable text?
 ```
 
-**STOP** — Wait for response.
+**⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
 If user has their own table, adapt the search service to use their text column. They must have change tracking enabled on the table (`ALTER TABLE ... SET CHANGE_TRACKING = TRUE`).
 
@@ -159,7 +159,7 @@ SELECT PARSE_JSON(
 )['results'] AS search_results;
 ```
 
-**STOP** — Show search results to user. Ask: "Search looks good? Ready to build the RAG pipeline?"
+**⚠️ MANDATORY STOPPING POINT**: Show search results to user. Ask: "Search looks good? Ready to build the RAG pipeline?"
 
 ---
 
@@ -228,7 +228,7 @@ Test with several questions to check quality:
 -- 3. "What shipping options are available?"
 ```
 
-**STOP** — Show results. Ask if the user wants to:
+**⚠️ MANDATORY STOPPING POINT**: Show results. Ask if the user wants to:
 1. Adjust the number of retrieved documents (limit)
 2. Add attribute filtering (e.g., only search specific categories)
 3. Try a different LLM model
@@ -314,3 +314,9 @@ SHOW CORTEX SEARCH SERVICES IN SCHEMA {{DATABASE}}.{{SCHEMA}};
 -- Manually refresh (usually not needed — auto-refresh handles it)
 ALTER CORTEX SEARCH SERVICE {{DATABASE}}.{{SCHEMA}}.KB_SEARCH_SERVICE RESUME;
 ```
+
+## Output
+
+- A Cortex Search Service with hybrid keyword + vector search over the user's data
+- A tested RAG query template that retrieves relevant documents and generates grounded answers via AI_COMPLETE
+- Working SQL patterns for filtered search, attribute-based narrowing, and Python API integration

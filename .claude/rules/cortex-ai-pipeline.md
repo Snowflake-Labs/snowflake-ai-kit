@@ -70,7 +70,7 @@ Present the following briefing to the user:
 >
 > Ready to proceed?
 
-**STOP** — Wait for user approval before continuing.
+**⚠️ MANDATORY STOPPING POINT**: Wait for user approval before continuing.
 
 ---
 
@@ -87,7 +87,7 @@ Where should I set up the AI pipeline?
 - Use demo data or your own table?
 ```
 
-**STOP** — Wait for response.
+**⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
 If user has their own table, ask which text column(s) to enrich and skip the demo data setup in Step 2.
 
@@ -243,6 +243,12 @@ LIMIT 10;
 ## Namespace Note
 
 The newer `AI_*` functions (AI_CLASSIFY, AI_SENTIMENT, etc.) are the recommended namespace. The legacy `SNOWFLAKE.CORTEX.*` functions (COMPLETE, SENTIMENT, SUMMARIZE, TRANSLATE, EXTRACT_ANSWER) still work but the `AI_*` versions have more features including image and multi-label support.
+
+## Output
+
+- An `ENRICHED_TICKETS` table (or enriched version of the user's table) with AI-generated columns: category, sentiment score, summary, and extracted fields
+- Cross-row aggregated insights via AI_AGG summarizing themes and recurring patterns
+- Optional custom AI_COMPLETE analysis and translations for multilingual data
 
 ## Access Control
 

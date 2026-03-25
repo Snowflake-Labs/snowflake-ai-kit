@@ -43,6 +43,13 @@ docker-dev-setup/
     └── devcontainer.json         # VS Code Dev Container config
 ```
 
+## Stopping Points
+
+- Phase 1: User confirms stack, entry point, and services before Dockerfile creation
+- Phase 2: User reviews Dockerfile and verifies it builds
+- Phase 3: User confirms Compose setup and verifies it starts
+- Phase 4: User confirms Dev Container config and tests it
+
 ## Workflow
 
 Follow these phases in order. **Stop after each phase** to confirm with the user before continuing.
@@ -78,7 +85,7 @@ Follow these phases in order. **Stop after each phase** to confirm with the user
    - Go → `Dockerfile.go`
    - Other → Use `references/dockerfile-patterns.md` to build from scratch
 
-> **STOP.** Confirm the stack, entry point, and which services the user needs.
+**⚠️ MANDATORY STOPPING POINT**: Confirm the stack, entry point, and which services the user needs.
 
 ---
 
@@ -106,7 +113,7 @@ Follow these phases in order. **Stop after each phase** to confirm with the user
    - Use `npm ci` not `npm install` in Docker builds
    - For Go: `CGO_ENABLED=0` for static binaries that run on `scratch`
 
-> **STOP.** Review the Dockerfile with the user. Verify it builds: `docker build -t app .`
+**⚠️ MANDATORY STOPPING POINT**: Review the Dockerfile with the user. Verify it builds: `docker build -t app .`
 
 ---
 
@@ -153,7 +160,7 @@ Follow these phases in order. **Stop after each phase** to confirm with the user
    - Set environment variables via `environment:` block, not `.env` files in the image
    - Use `restart: unless-stopped` for infrastructure services
 
-> **STOP.** Confirm the Compose setup. Verify it starts: `docker compose up`
+**⚠️ MANDATORY STOPPING POINT**: Confirm the Compose setup. Verify it starts: `docker compose up`
 
 ---
 
@@ -182,7 +189,7 @@ Follow these phases in order. **Stop after each phase** to confirm with the user
    }
    ```
 
-> **STOP.** Confirm the Dev Container config. Test by reopening in container.
+**⚠️ MANDATORY STOPPING POINT**: Confirm the Dev Container config. Test by reopening in container.
 
 ---
 

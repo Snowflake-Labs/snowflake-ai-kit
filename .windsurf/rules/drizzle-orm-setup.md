@@ -40,6 +40,13 @@ drizzle-orm-setup/
     └── db.ts                 # Database client setup
 ```
 
+## Stopping Points
+
+- Phase 1: User confirms dialect, driver, and schema organization
+- Phase 2: User reviews schema structure, column types, and relations
+- Phase 3: User confirms client setup and DATABASE_URL configuration
+- Phase 4: User confirms migrations ran successfully
+
 ## Workflow
 
 Follow these four phases in order. **Stop after each phase** to confirm with the user before continuing.
@@ -72,7 +79,7 @@ Follow these four phases in order. **Stop after each phase** to confirm with the
    - Single `schema.ts` file (small projects)
    - `schema/` directory with one file per table (recommended for >3 tables)
 
-> **STOP.** Confirm dialect, driver, and schema organization with the user.
+**⚠️ MANDATORY STOPPING POINT**: Confirm dialect, driver, and schema organization with the user.
 
 ---
 
@@ -110,7 +117,7 @@ Follow these four phases in order. **Stop after each phase** to confirm with the
 - Always define BOTH sides of a relation (e.g., `users → many(posts)` AND `posts → one(users)`).
 - Use `$onUpdateFn(() => new Date())` for `updatedAt` columns, NOT database-level triggers.
 
-> **STOP.** Review the schema with the user. Confirm table structure, column types, and relations.
+**⚠️ MANDATORY STOPPING POINT**: Review the schema with the user. Confirm table structure, column types, and relations.
 
 ---
 
@@ -172,7 +179,7 @@ Follow these four phases in order. **Stop after each phase** to confirm with the
    }
    ```
 
-> **STOP.** Confirm the client setup and config. Verify the DATABASE_URL is available (env var, .env file, etc.).
+**⚠️ MANDATORY STOPPING POINT**: Confirm the client setup and config. Verify the DATABASE_URL is available (env var, .env file, etc.).
 
 ---
 
@@ -214,7 +221,7 @@ Follow these four phases in order. **Stop after each phase** to confirm with the
 - Migration files are append-only. Don't edit generated SQL files.
 - The `./drizzle/meta/` directory tracks migration state. Commit it to version control.
 
-> **STOP.** Confirm migrations ran successfully. Check for any errors.
+**⚠️ MANDATORY STOPPING POINT**: Confirm migrations ran successfully. Check for any errors.
 
 ---
 

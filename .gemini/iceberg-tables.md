@@ -74,7 +74,7 @@ Present the following briefing to the user:
 
 Ask the user: **"Shall I proceed with Step 1 (Choose Catalog Type)?"**
 
-Do NOT proceed until the user confirms.
+**⚠️ MANDATORY STOPPING POINT**: Do NOT proceed until the user confirms.
 
 ---
 
@@ -92,7 +92,7 @@ Ask the user which approach to use:
 
 Default recommendation: **Snowflake-managed** unless the user has a specific external catalog requirement.
 
-Confirm the user's choice before proceeding.
+**⚠️ MANDATORY STOPPING POINT**: Confirm the user's choice before proceeding.
 
 ---
 
@@ -114,7 +114,7 @@ The user must update their IAM role trust policy with the values from:
 - `STORAGE_AWS_IAM_USER_ARN`
 - `STORAGE_AWS_EXTERNAL_ID`
 
-Do NOT proceed until the user confirms the trust policy is updated.
+**⚠️ MANDATORY STOPPING POINT**: Do NOT proceed until the user confirms the trust policy is updated.
 
 **Alternative for demo/testing:** If the user just wants to try Iceberg tables and already has an external volume set at the account or database level, skip this step.
 
@@ -163,7 +163,7 @@ Verify:
 SHOW ICEBERG TABLES IN SCHEMA {{DATABASE}}.{{SCHEMA}};
 ```
 
-Confirm with the user that the table was created.
+**⚠️ MANDATORY STOPPING POINT**: Confirm with the user that the table was created.
 
 ---
 

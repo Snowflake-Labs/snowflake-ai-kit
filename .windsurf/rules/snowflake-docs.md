@@ -63,6 +63,12 @@ The llms.txt file is organized by category:
 2. Fetch the llms.txt index for deeper documentation on a sub-topic
 3. Read the specific doc page for configuration details or edge cases
 
+## Output
+
+- Authoritative Snowflake documentation context for answering user questions
+- Specific doc page content (SQL syntax, API reference, configuration details)
+- Links to relevant documentation pages for the user to bookmark
+
 ## Related Skills
 
 All other Snowflake skills in this repo cover specific workflows. This skill fills the gaps when you need raw documentation:

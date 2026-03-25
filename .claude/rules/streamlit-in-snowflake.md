@@ -87,7 +87,7 @@ Load `templates/setup.sql` and customize with user values:
 
 Execute the setup SQL to create the stage and supporting objects.
 
-**STOP**: Confirm infrastructure is ready before proceeding.
+**⚠️ MANDATORY STOPPING POINT**: Confirm infrastructure is ready before proceeding.
 
 ### Step 3: Create App Code
 
@@ -233,6 +233,12 @@ DESCRIBE STREAMLIT ...        -- View app details
 | `USAGE` | Streamlit object | View the app |
 
 ---
+
+## Output
+
+- A deployed Streamlit app running inside Snowflake (warehouse or container runtime) accessible via Snowsight URL
+- App source code, dependency file, and deployment configuration staged in Snowflake
+- Access grants configured so specified roles can view the app
 
 ## Stopping Points
 

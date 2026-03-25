@@ -99,7 +99,7 @@ FROM raw_table
 WHERE is_public = TRUE;  -- row-level filtering
 ```
 
-**STOP**: Confirm which objects to share before proceeding.
+**⚠️ MANDATORY STOPPING POINT**: Confirm which objects to share before proceeding.
 
 ### Step 3: Create Share or Listing
 
@@ -198,6 +198,12 @@ When sharing with accounts in different regions, Snowflake automatically replica
 - Provider pays for replication compute and storage
 
 ---
+
+## Output
+
+- A configured Snowflake share or listing granting consumers live, read-only access to the specified tables/views
+- Consumer-side SQL to mount the shared database and verify data access
+- End-to-end verification confirming provider and consumer can query shared objects
 
 ## Stopping Points
 

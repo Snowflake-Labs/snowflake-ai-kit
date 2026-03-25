@@ -69,7 +69,7 @@ Present the following briefing to the user:
 
 Ask the user: **"Shall I proceed with Step 1 (Gather Target Details)?"**
 
-Do NOT proceed until the user confirms.
+**⚠️ MANDATORY STOPPING POINT**: Do NOT proceed until the user confirms.
 
 ---
 
@@ -86,7 +86,7 @@ Propose defaults and let the user override:
 | **Warehouse** | `COMPUTE_WH` | Any X-Small is fine |
 | **Role** | `ACCOUNTADMIN` | Must have CREATE DYNAMIC TABLE privilege |
 
-Confirm with the user before proceeding.
+**⚠️ MANDATORY STOPPING POINT**: Confirm with the user before proceeding.
 
 ---
 

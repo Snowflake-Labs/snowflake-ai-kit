@@ -73,7 +73,7 @@ Present the following briefing to the user:
 >
 > Ready to proceed?
 
-**STOP** — Wait for user approval before continuing.
+**⚠️ MANDATORY STOPPING POINT**: Wait for user approval before continuing.
 
 ---
 
@@ -92,7 +92,7 @@ Let me set up the ML pipeline. A few questions:
 - Use demo data or your own dataset?
 ```
 
-**STOP** — Wait for response.
+**⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
 If the user has their own data, ask about:
 - Target column (what to predict)
@@ -156,7 +156,7 @@ mv = reg.log_model(
 predictions = mv.run(X_test)
 ```
 
-**STOP** — Show model metrics to user. Ask if they're satisfied or want to retrain with different parameters.
+**⚠️ MANDATORY STOPPING POINT**: Show model metrics to user. Ask if they're satisfied or want to retrain with different parameters.
 
 ---
 
@@ -205,7 +205,7 @@ Your model is registered. How would you like to run inference?
 3. Both — Register for warehouse now, deploy service later
 ```
 
-**STOP** — Wait for response.
+**⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
 ### Warehouse Inference
 
@@ -239,6 +239,12 @@ mv.create_service(
 ```
 
 ---
+
+## Output
+
+- A trained ML model registered in Snowflake Model Registry with version tracking and logged metrics
+- Warehouse-based SQL inference or an SPCS REST endpoint for real-time predictions
+- Access control grants so analysts can run inference without managing model artifacts
 
 ## Supported Frameworks
 

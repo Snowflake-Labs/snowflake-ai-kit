@@ -77,7 +77,7 @@ Present the following briefing to the user:
 >
 > Ready to proceed?
 
-**STOP** — Wait for user approval before continuing.
+**⚠️ MANDATORY STOPPING POINT**: Wait for user approval before continuing.
 
 ---
 
@@ -102,7 +102,7 @@ Also:
 - MCP Server name: (e.g., MY_MCP_SERVER)
 ```
 
-**STOP** — Wait for response.
+**⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
 ---
 
@@ -171,7 +171,7 @@ CREATE OR REPLACE MCP SERVER {{DATABASE}}.{{SCHEMA}}.{{MCP_SERVER_NAME}}
   $$;
 ```
 
-**STOP** — Show spec to user. Ask: "MCP server spec looks good?"
+**⚠️ MANDATORY STOPPING POINT**: Show spec to user. Ask: "MCP server spec looks good?"
 
 ---
 
@@ -249,7 +249,7 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-**STOP** — Help user connect their MCP client and test tool discovery.
+**⚠️ MANDATORY STOPPING POINT**: Help user connect their MCP client and test tool discovery.
 
 ---
 
@@ -323,3 +323,9 @@ DESCRIBE MCP SERVER {{DATABASE}}.{{SCHEMA}}.{{MCP_SERVER_NAME}};
 -- Drop server
 DROP MCP SERVER IF EXISTS {{DATABASE}}.{{SCHEMA}}.{{MCP_SERVER_NAME}};
 ```
+
+## Output
+
+- A Snowflake-managed MCP SERVER object exposing the user's chosen tools (Analyst, Search, Agent, SQL, custom UDFs)
+- RBAC grants configured for both server-level and tool-level access control
+- Client connection instructions with authentication setup (OAuth or PAT) ready for use in any MCP-compatible AI client

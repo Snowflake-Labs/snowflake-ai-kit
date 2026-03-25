@@ -74,7 +74,7 @@ Present the following briefing to the user:
 
 Ask the user: **"Shall I proceed with Step 1 (Gather Target Details)?"**
 
-Do NOT proceed until the user confirms.
+**⚠️ MANDATORY STOPPING POINT**: Do NOT proceed until the user confirms.
 
 ---
 
@@ -91,7 +91,7 @@ Propose defaults and let the user override:
 | **Warehouse** | `COMPUTE_WH` | Any X-Small is fine |
 | **Role** | `ACCOUNTADMIN` | Must have EXECUTE TASK privilege |
 
-Confirm with the user before proceeding.
+**⚠️ MANDATORY STOPPING POINT**: Confirm with the user before proceeding.
 
 ---
 
@@ -165,7 +165,7 @@ SELECT * FROM DWH_ORDERS WHERE order_id IN (1, 2, 9001);
 SELECT * FROM DWH_ORDERS_HISTORY WHERE order_id = 1 ORDER BY valid_from;
 ```
 
-Confirm with the user that the CDC pipeline processed correctly.
+**⚠️ MANDATORY STOPPING POINT**: Confirm with the user that the CDC pipeline processed correctly.
 
 ---
 

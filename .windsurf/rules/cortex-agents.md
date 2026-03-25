@@ -75,7 +75,7 @@ Present the following briefing to the user:
 >
 > Ready to proceed?
 
-**STOP** — Wait for user approval before continuing.
+**⚠️ MANDATORY STOPPING POINT**: Wait for user approval before continuing.
 
 ---
 
@@ -343,6 +343,12 @@ GRANT USAGE ON AGENT {{DATABASE}}.{{SCHEMA}}.{{AGENT_NAME}} TO ROLE {{CONSUMER_R
 -- Required database role
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE {{ROLE}};
 ```
+
+## Output
+
+- A Cortex Agent object that routes natural language questions to the appropriate tool (Analyst, Search, or custom UDFs)
+- Supporting prerequisites: a semantic view for structured data and a Cortex Search Service for unstructured data
+- Tested agent responses demonstrating multi-tool orchestration across the user's data sources
 
 ## Agent Lifecycle
 
