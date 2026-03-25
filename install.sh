@@ -3,6 +3,7 @@
 # Snowflake AI Kit — Unified Installer
 #
 # One command to install skills, builder apps, or both.
+# Also installs Snowflake CLI (snow) and Cortex Code CLI (cortex) if missing.
 #
 # Usage:
 #   # Interactive (prompts for what to install)
@@ -71,11 +72,44 @@ check_snowflake_auth() {
   else
     warn "No Snowflake config detected."
     msg "  You'll need one of:"
-    msg "    • ~/.snowflake/connections.toml (recommended)"
-    msg "    • SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
+    msg "    - ~/.snowflake/connections.toml (recommended)"
+    msg "    - SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
     msg "  See: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
     return 1
   fi
+}
+
+install_snowflake_cli() {
+  if check_cmd snow; then
+    ok "Snowflake CLI (snow) already installed"
+    return 0
+  fi
+
+  msg "Installing Snowflake CLI..."
+  if check_cmd pipx; then
+    pipx install snowflake-cli && ok "Snowflake CLI installed via pipx" && return 0
+  elif check_cmd pip3; then
+    pip3 install snowflake-cli && ok "Snowflake CLI installed via pip3" && return 0
+  elif check_cmd pip; then
+    pip install snowflake-cli && ok "Snowflake CLI installed via pip" && return 0
+  elif check_cmd brew; then
+    brew tap snowflakedb/snowflake-cli && brew install snowflake-cli && ok "Snowflake CLI installed via brew" && return 0
+  fi
+  die "Could not install Snowflake CLI. Install manually: https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation"
+}
+
+install_cortex_code_cli() {
+  if check_cmd cortex; then
+    ok "Cortex Code CLI (cortex) already installed"
+    return 0
+  fi
+
+  msg "Installing Cortex Code CLI..."
+  if curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh; then
+    ok "Cortex Code CLI installed"
+    return 0
+  fi
+  die "Could not install Cortex Code CLI. Install manually: https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
 }
 
 # ─── Detect repo root ──────────────────────────────────────
@@ -206,6 +240,11 @@ interactive() {
   local has_prereqs=true
   check_prereqs || has_prereqs=false
   check_snowflake_auth || true
+
+  # Install Snowflake CLIs if missing
+  step "Installing Snowflake CLI and Cortex Code CLI (if needed)..."
+  install_snowflake_cli
+  install_cortex_code_cli
   echo ""
 
   echo "What would you like to install?"
@@ -283,6 +322,9 @@ while [ $# -gt 0 ]; do
     --help|-h)
       echo "Snowflake AI Kit — Unified Installer"
       echo ""
+      echo "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex) automatically,"
+      echo "then sets up skills, builder apps, or both."
+      echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
       echo "Modes:"
@@ -323,6 +365,11 @@ fi
 if [[ -z "$MODE" ]] && [[ -n "$PASSTHROUGH_ARGS" ]]; then
   MODE="skills"
 fi
+
+# Install Snowflake CLIs if missing
+step "Installing Snowflake CLI and Cortex Code CLI (if needed)..."
+install_snowflake_cli
+install_cortex_code_cli
 
 case "$MODE" in
   skills)

@@ -2,6 +2,7 @@
 # Snowflake AI Kit — Unified Installer (Windows)
 #
 # One command to install skills, builder apps, or both.
+# Also installs Snowflake CLI (snow) and Cortex Code CLI (cortex) if missing.
 #
 # Usage:
 #   # Download and run interactively
@@ -86,6 +87,49 @@ function Test-SnowflakeAuth {
         Write-Msg "  See: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
         return $false
     }
+}
+
+function Install-SnowflakeCLI {
+    if (Test-Command "snow") {
+        Write-Ok "Snowflake CLI (snow) already installed"
+        return $true
+    }
+
+    Write-Msg "Installing Snowflake CLI..."
+    if (Test-Command "pipx") {
+        & pipx install snowflake-cli 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via pipx"; return $true }
+    }
+    $pipCmd = Get-PipCmd
+    if ($pipCmd) {
+        if ($pipCmd -eq "uv pip") {
+            & uv pip install snowflake-cli 2>$null
+        } else {
+            & $pipCmd install snowflake-cli 2>$null
+        }
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via $pipCmd"; return $true }
+    }
+    Write-Err "Could not install Snowflake CLI. Install manually: https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation"
+}
+
+function Install-CortexCodeCLI {
+    if (Test-Command "cortex") {
+        Write-Ok "Cortex Code CLI (cortex) already installed"
+        return $true
+    }
+
+    Write-Msg "Installing Cortex Code CLI..."
+    try {
+        $tempScript = Join-Path $env:TEMP "cc_install.ps1"
+        Invoke-WebRequest -Uri "https://ai.snowflake.com/static/cc-scripts/install.ps1" -OutFile $tempScript -UseBasicParsing
+        & $tempScript
+        Remove-Item $tempScript -ErrorAction SilentlyContinue
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Cortex Code CLI installed"; return $true }
+    }
+    catch {
+        # Fall through to error
+    }
+    Write-Err "Could not install Cortex Code CLI. Install manually: https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
 }
 
 # ─── Detect repo root ─────────────────────────────────────────
@@ -329,6 +373,11 @@ function Start-Interactive {
     Write-Step "Checking prerequisites..."
     $hasPrereqs = Test-Prerequisites
     Test-SnowflakeAuth | Out-Null
+
+    # Install Snowflake CLIs if missing
+    Write-Step "Installing Snowflake CLI and Cortex Code CLI (if needed)..."
+    Install-SnowflakeCLI | Out-Null
+    Install-CortexCodeCLI | Out-Null
     Write-Host ""
 
     Write-Host "What would you like to install?"
@@ -378,6 +427,9 @@ function Start-Interactive {
 if ($Help) {
     Write-Host "Snowflake AI Kit - Unified Installer (Windows)"
     Write-Host ""
+    Write-Host "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex) automatically,"
+    Write-Host "then sets up skills, builder apps, or both."
+    Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Modes:"
@@ -409,6 +461,11 @@ if ($List) {
     Install-Skills -ExtraArgs @("--list")
     return
 }
+
+# Install Snowflake CLIs if missing (skip for --list)
+Write-Step "Installing Snowflake CLI and Cortex Code CLI (if needed)..."
+Install-SnowflakeCLI | Out-Null
+Install-CortexCodeCLI | Out-Null
 
 if ($SkillsOnly) {
     Install-Skills -ExtraArgs $extraArgs

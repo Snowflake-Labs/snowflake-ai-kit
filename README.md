@@ -63,7 +63,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-k
 irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
 ```
 
-Both run an interactive installer that lets you choose: skills only, skills + a builder app, or everything.
+The installer automatically sets up [**Snowflake CLI**](https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation) (`snow`) and [**Cortex Code CLI**](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) if not already installed, then lets you choose: skills only, skills + a builder app, or everything.
 
 <details>
 <summary><strong>Non-interactive options</strong></summary>
