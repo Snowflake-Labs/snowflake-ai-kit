@@ -231,6 +231,24 @@ cd snowflake-ai-kit/builder-apps/cortex-agent
 
 See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
 
+<details>
+<summary><strong>Troubleshooting</strong></summary>
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| `snow: command not found` after install | PATH not refreshed | Restart your terminal, or run `source ~/.bashrc` / `source ~/.zshrc` |
+| `cortex: command not found` after install | PATH not refreshed | Restart your terminal, or add `~/.local/bin` to your PATH |
+| `pipx: command not found` | pipx not installed | `pip install pipx` or `brew install pipx`, then rerun the installer |
+| Snowflake CLI install fails entirely | No pip, pipx, or brew available | Install [Python 3.10+](https://www.python.org/downloads/) first, then rerun |
+| `snow connection add` — not sure what to enter | First time connecting | You need your **account identifier** (e.g. `xy12345.us-east-1`), **username**, and **auth method** (password or [PAT](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens)). See [connection docs](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
+| `connections.toml` exists but auth fails | Wrong credentials or expired token | Run `snow connection test` to diagnose, then update `~/.snowflake/connections.toml` |
+| PowerShell script won't run (Windows) | Execution policy blocks scripts | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` then retry |
+| `npm install` fails in builder app | Node.js too old or network issue | Check `node --version` (need 18+), check your network/proxy |
+| `pip install` fails in builder app | Python too old or permissions | Check `python3 --version` (need 3.11+), try `pip install --user` or use a venv |
+| Skills installed but agent doesn't see them | Agent hasn't reloaded rules | Restart your IDE or agent, and verify the rules folder exists (e.g. `.cursor/rules/`) |
+
+</details>
+
 ---
 
 ## Contributing

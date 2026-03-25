@@ -28,6 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoUrl = "https://github.com/Snowflake-Labs/snowflake-ai-kit.git"
+$Troubleshoot = "https://github.com/Snowflake-Labs/snowflake-ai-kit#troubleshooting"
 $RepoRaw = "https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main"
 
 # ─── Output helpers ───────────────────────────────────────────
@@ -80,11 +81,12 @@ function Test-SnowflakeAuth {
         return $true
     }
     else {
-        Write-Warn "No Snowflake config detected."
-        Write-Msg "  You'll need one of:"
-        Write-Msg "    - ~/.snowflake/connections.toml (recommended)"
-        Write-Msg "    - SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
-        Write-Msg "  See: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
+        Write-Warn "No Snowflake connection configured."
+        Write-Msg "  Set one up (shared by both snow and cortex CLIs):"
+        Write-Msg "    snow connection add"
+        Write-Msg "  This creates ~/.snowflake/connections.toml, used by both tools."
+        Write-Msg "  Docs: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
+        Write-Msg "  More help: $Troubleshoot"
         return $false
     }
 }
@@ -109,7 +111,7 @@ function Install-SnowflakeCLI {
         }
         if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via $pipCmd"; return $true }
     }
-    Write-Err "Could not install Snowflake CLI. Install manually: https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation"
+    Write-Err "Could not install Snowflake CLI. See $Troubleshoot"
 }
 
 function Install-CortexCodeCLI {
@@ -129,7 +131,7 @@ function Install-CortexCodeCLI {
     catch {
         # Fall through to error
     }
-    Write-Err "Could not install Cortex Code CLI. Install manually: https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
+    Write-Err "Could not install Cortex Code CLI. See $Troubleshoot"
 }
 
 # ─── Detect repo root ─────────────────────────────────────────

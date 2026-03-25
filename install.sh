@@ -30,6 +30,7 @@ set -e
 G='\033[0;32m' Y='\033[1;33m' R='\033[0;31m' B='\033[1m' D='\033[2m' N='\033[0m'
 
 REPO_URL="https://github.com/Snowflake-Labs/snowflake-ai-kit.git"
+TROUBLESHOOT="https://github.com/Snowflake-Labs/snowflake-ai-kit#troubleshooting"
 REPO_RAW="https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main"
 
 msg()  { echo -e "  $*"; }
@@ -70,11 +71,12 @@ check_snowflake_auth() {
     ok "Snowflake config found (environment variables)"
     return 0
   else
-    warn "No Snowflake config detected."
-    msg "  You'll need one of:"
-    msg "    - ~/.snowflake/connections.toml (recommended)"
-    msg "    - SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
-    msg "  See: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
+    warn "No Snowflake connection configured."
+    msg "  Set one up (shared by both snow and cortex CLIs):"
+    msg "    snow connection add"
+    msg "  This creates ~/.snowflake/connections.toml, used by both tools."
+    msg "  Docs: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
+    msg "  More help: $TROUBLESHOOT"
     return 1
   fi
 }
@@ -95,7 +97,7 @@ install_snowflake_cli() {
   elif check_cmd brew; then
     brew tap snowflakedb/snowflake-cli && brew install snowflake-cli && ok "Snowflake CLI installed via brew" && return 0
   fi
-  die "Could not install Snowflake CLI. Install manually: https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation"
+  die "Could not install Snowflake CLI. See $TROUBLESHOOT"
 }
 
 install_cortex_code_cli() {
@@ -109,7 +111,7 @@ install_cortex_code_cli() {
     ok "Cortex Code CLI installed"
     return 0
   fi
-  die "Could not install Cortex Code CLI. Install manually: https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
+  die "Could not install Cortex Code CLI. See $TROUBLESHOOT"
 }
 
 # ─── Detect repo root ──────────────────────────────────────

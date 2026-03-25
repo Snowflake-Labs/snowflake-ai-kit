@@ -29,10 +29,10 @@ elif [ -n "${SNOWFLAKE_HOST:-}" ] || [ -n "${SNOWFLAKE_ACCOUNT:-}" ]; then
   echo "Snowflake config found (environment variables)"
 else
   echo ""
-  echo "WARNING: No Snowflake config detected."
-  echo "  You'll need one of:"
-  echo "    - ~/.snowflake/connections.toml (recommended)"
-  echo "    - SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
+  echo "WARNING: No Snowflake connection configured."
+  echo "  Set one up (shared by both snow and cortex CLIs):"
+  echo "    snow connection add"
+  echo "  This creates ~/.snowflake/connections.toml, used by both tools."
   echo "  Or configure .env.local after setup."
 fi
 
