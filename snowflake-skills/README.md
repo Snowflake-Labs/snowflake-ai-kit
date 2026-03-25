@@ -40,6 +40,7 @@ cp snowflake-ai-kit/snowflake-skills/snowpipe-streaming-python/SKILL.md .cursor/
 | [dynamic-tables-pipeline](dynamic-tables-pipeline/) | Build declarative data pipelines with Snowflake Dynamic Tables using the medallion architecture (bronze/silver/gold) |
 | [iceberg-tables](iceberg-tables/) | Create and manage Apache Iceberg tables on Snowflake with Snowflake-managed or external catalogs |
 | [ml-model-registry](ml-model-registry/) | Train, register, and deploy ML models using Snowflake Model Registry |
+| [snowflake-docs](snowflake-docs/) | Snowflake documentation reference via llms.txt index |
 | [snowpipe-streaming-java](snowpipe-streaming-java/) | Stream data into Snowflake using the Java Snowpipe Streaming SDK |
 | [snowpipe-streaming-python](snowpipe-streaming-python/) | Stream data into Snowflake using the Python Snowpipe Streaming SDK |
 | [ssis-to-dbt-replatform-migration](ssis-to-dbt-replatform-migration/) | Validates, deploys, and operationalizes SnowConvert AI (SCAI) Replatform output — SSIS to dbt and Snowflake TASKs migrations |

@@ -18,6 +18,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 - **Change Data Capture** — Streams and Tasks for incremental processing and task DAGs
 - **Streaming Pipelines** — Snowpipe Streaming in Java or Python with exactly-once delivery
 - **ETL Migrations** — SSIS-to-dbt replatforming on Snowflake
+- **Snowflake Docs** — LLM-optimized documentation reference via `llms.txt` index
 - **Docker Dev Environments** — Dockerfiles, Compose, Dev Containers for any stack
 - **ORM Scaffolding** — Drizzle ORM with TypeScript schemas, migrations, and queries
 - **Auth & Row-Level Security** — Supabase projects with RLS policies and auth integration
@@ -48,7 +49,7 @@ Add Snowflake skills to your existing AI coding agent.
 bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/snowflake-skills/install_skills.sh)
 ```
 
-This auto-detects your agent (Cursor, Windsurf, Claude Code) and installs all skills.
+This auto-detects your agent (Cursor, Windsurf, Claude Code, Gemini CLI) and installs all skills.
 
 <details>
 <summary><strong>Advanced options</strong></summary>
@@ -56,9 +57,13 @@ This auto-detects your agent (Cursor, Windsurf, Claude Code) and installs all sk
 ```bash
 # Install for a specific agent
 bash <(curl -sSL .../snowflake-skills/install_skills.sh) --agent cursor
+bash <(curl -sSL .../snowflake-skills/install_skills.sh) --agent gemini
 
 # Install specific skills only
 bash <(curl -sSL .../snowflake-skills/install_skills.sh) docker-dev-setup drizzle-orm-setup
+
+# Install skills from an external repo
+bash <(curl -sSL .../snowflake-skills/install_skills.sh) --external https://raw.githubusercontent.com/org/repo/main skill-name
 
 # List available skills
 bash <(curl -sSL .../snowflake-skills/install_skills.sh) --list
@@ -88,6 +93,11 @@ cp snowflake-ai-kit/snowflake-skills/docker-dev-setup/SKILL.md .windsurf/rules/d
 **Claude Code**
 ```bash
 cp snowflake-ai-kit/snowflake-skills/docker-dev-setup/SKILL.md .claude/rules/docker-dev-setup.md
+```
+
+**Gemini CLI**
+```bash
+cp snowflake-ai-kit/snowflake-skills/docker-dev-setup/SKILL.md .gemini/docker-dev-setup.md
 ```
 
 **Cortex Code** — Add to `~/.snowflake/cortex/skills.json`:
@@ -154,7 +164,7 @@ See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for details.
 
 | Component | Description |
 |-----------|-------------|
-| [`snowflake-skills/`](snowflake-skills/) | Snowflake-specific skills (Cortex Agents, AI Functions, RAG, MCP, ML Registry, Streamlit, Data Sharing, Dynamic Tables, Iceberg, Streams/Tasks, Snowpipe, ETL migration) |
+| [`snowflake-skills/`](snowflake-skills/) | Snowflake-specific skills (Cortex Agents, AI Functions, RAG, MCP, ML Registry, Streamlit, Data Sharing, Dynamic Tables, Iceberg, Streams/Tasks, Snowpipe, ETL migration, Docs Reference) |
 | [`general-skills/`](general-skills/) | General-purpose skills (Docker, Drizzle ORM, Supabase) |
 | [`builder-apps/claude-agent/`](builder-apps/claude-agent/) | Claude Code agent UI with Snowflake MCP tools |
 | [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) | Cortex Agent chat UI — no API key needed |

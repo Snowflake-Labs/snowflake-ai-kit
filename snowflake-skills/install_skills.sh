@@ -8,11 +8,15 @@
 #   # Install all skills for all supported agents
 #   curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/snowflake-skills/install_skills.sh | bash
 #
-#   # Install for a specific agent
+#   # Install for a specific agent (cursor, windsurf, claude, gemini, cortex)
 #   curl -sSL .../install_skills.sh | bash -s -- --agent cursor
+#   curl -sSL .../install_skills.sh | bash -s -- --agent gemini
 #
 #   # Install specific skills only
 #   curl -sSL .../install_skills.sh | bash -s -- docker-dev-setup drizzle-orm-setup
+#
+#   # Install skills from an external repo
+#   curl -sSL .../install_skills.sh | bash -s -- --external https://raw.githubusercontent.com/org/repo/main skill-a skill-b
 #
 #   # List available skills
 #   curl -sSL .../install_skills.sh | bash -s -- --list
@@ -28,13 +32,22 @@ SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
 
 # Snowflake-specific skills
-SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
+SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowflake-docs snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
 
+# External skills (fetched from other repos)
+# Format: EXTERNAL_<NAME>_RAW_URL, EXTERNAL_<NAME>_SKILLS
+# To add an external source, define the URL and skill list, then add skills to EXTERNAL_SKILLS.
+# Example:
+#   EXTERNAL_MYORG_RAW_URL="https://raw.githubusercontent.com/myorg/skills/main"
+#   EXTERNAL_MYORG_SKILLS="my-skill-a my-skill-b"
+#   EXTERNAL_SKILLS="$EXTERNAL_MYORG_SKILLS"
+EXTERNAL_SKILLS=""
+
 # All available skills
-ALL_SKILLS="$SNOWFLAKE_SKILLS $GENERAL_SKILLS"
+ALL_SKILLS="$SNOWFLAKE_SKILLS $GENERAL_SKILLS $EXTERNAL_SKILLS"
 
 msg()  { echo -e "  $*"; }
 ok()   { echo -e "  ${G}✓${N} $*"; }
@@ -54,6 +67,7 @@ get_skill_description() {
     "dynamic-tables-pipeline") echo "Build declarative data pipelines with Dynamic Tables (medallion architecture)" ;;
     "iceberg-tables") echo "Create and manage Apache Iceberg tables on Snowflake" ;;
     "ml-model-registry") echo "Train, register, and deploy ML models with Snowflake Model Registry" ;;
+    "snowflake-docs") echo "Snowflake documentation reference via llms.txt index" ;;
     "snowpipe-streaming-java") echo "Stream data into Snowflake via Java Snowpipe Streaming SDK" ;;
     "snowpipe-streaming-python") echo "Stream data into Snowflake via Python Snowpipe Streaming SDK" ;;
     "ssis-to-dbt-replatform-migration") echo "Migrate SSIS packages to dbt + Snowflake" ;;
@@ -77,6 +91,7 @@ get_skill_files() {
     "dynamic-tables-pipeline") echo "templates/setup.sql templates/bronze.sql templates/silver.sql templates/gold.sql" ;;
     "iceberg-tables") echo "templates/setup.sql templates/snowflake-managed.sql templates/external-catalog.sql" ;;
     "ml-model-registry") echo "templates/setup.sql templates/train-and-register.py templates/deploy-service.py" ;;
+    "snowflake-docs") echo "" ;;
     "snowpipe-streaming-java") echo "" ;;
     "snowpipe-streaming-python") echo "src/config_manager.py src/data_generator.py src/models.py src/parallel_streaming_orchestrator.py src/reconciliation_manager.py src/snowpipe_streaming_manager.py src/streaming_app.py" ;;
     "ssis-to-dbt-replatform-migration") echo "references/phase0-briefing.md references/replatform-output-structure.md references/session-diary.md references/snowflake-sql-patterns.md" ;;
@@ -93,6 +108,22 @@ get_skill_path() {
     *) echo "$SNOWFLAKE_SKILLS_PATH" ;;
   esac
 }
+
+# Resolve the base URL for a skill (supports external repos via EXTERNAL_REPO_URL)
+get_skill_url() {
+  local skill="$1"
+  local skills_path
+  skills_path=$(get_skill_path "$skill")
+
+  # External skills use EXTERNAL_REPO_URL (set by --external flag)
+  if [[ -n "$EXTERNAL_REPO_URL" ]] && echo "$EXTERNAL_SKILLS" | grep -qw "$skill"; then
+    echo "$EXTERNAL_REPO_URL/$skill"
+  else
+    echo "$REPO_RAW/$skills_path/$skill"
+  fi
+}
+
+EXTERNAL_REPO_URL=""
 
 show_list() {
   echo ""
@@ -114,6 +145,7 @@ show_list() {
   echo ""
   echo "Install all:     curl -sSL .../install_skills.sh | bash"
   echo "Install one:     curl -sSL .../install_skills.sh | bash -s -- docker-dev-setup"
+  echo "External:        curl -sSL .../install_skills.sh | bash -s -- --external https://raw.githubusercontent.com/org/repo/main skill-name"
   echo ""
 }
 
@@ -127,17 +159,18 @@ install_skill_for_agent() {
     cursor)   target_dir=".cursor/rules"; ext=".mdc" ;;
     windsurf) target_dir=".windsurf/rules"; ext=".md" ;;
     claude)   target_dir=".claude/rules"; ext=".md" ;;
+    gemini)   target_dir=".gemini"; ext=".md" ;;
     cortex)   target_dir=".cortex/skills/$skill"; ext="" ;;
     *) die "Unknown agent: $agent" ;;
   esac
 
-  local skills_path
-  skills_path=$(get_skill_path "$skill")
+  local base_url
+  base_url=$(get_skill_url "$skill")
 
   if [[ "$agent" == "cortex" ]]; then
     # Cortex Code: download entire skill directory
     mkdir -p "$target_dir"
-    curl -sSL "$REPO_RAW/$skills_path/$skill/SKILL.md" -o "$target_dir/SKILL.md" 2>/dev/null || {
+    curl -sSL "$base_url/SKILL.md" -o "$target_dir/SKILL.md" 2>/dev/null || {
       warn "Failed to download $skill/SKILL.md"
       return 1
     }
@@ -148,13 +181,13 @@ install_skill_for_agent() {
       local dir
       dir=$(dirname "$target_dir/$f")
       mkdir -p "$dir"
-      curl -sSL "$REPO_RAW/$skills_path/$skill/$f" -o "$target_dir/$f" 2>/dev/null || true
+      curl -sSL "$base_url/$f" -o "$target_dir/$f" 2>/dev/null || true
     done
   else
     # Other agents: copy SKILL.md as a rule file
     mkdir -p "$target_dir"
     local filename="${skill}${ext}"
-    curl -sSL "$REPO_RAW/$skills_path/$skill/SKILL.md" -o "$target_dir/$filename" 2>/dev/null || {
+    curl -sSL "$base_url/SKILL.md" -o "$target_dir/$filename" 2>/dev/null || {
       warn "Failed to download $skill for $agent"
       return 1
     }
@@ -171,18 +204,41 @@ while [ $# -gt 0 ]; do
   case $1 in
     --agent|-a) AGENT="$2"; shift 2 ;;
     --list|-l)  LIST_ONLY=true; shift ;;
+    --external|-e)
+      # External skill sourcing: --external BASE_RAW_URL skill1 [skill2 ...]
+      EXTERNAL_REPO_URL="$2"; shift 2
+      # Consume all remaining non-flag args as external skill names
+      while [[ $# -gt 0 ]] && [[ "$1" != --* ]]; do
+        EXTERNAL_SKILLS="$EXTERNAL_SKILLS $1"
+        ALL_SKILLS="$ALL_SKILLS $1"
+        SELECTED_SKILLS="$SELECTED_SKILLS $1"
+        shift
+      done
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Skills Installer"
       echo ""
       echo "Usage: install_skills.sh [OPTIONS] [SKILL ...]"
       echo ""
       echo "Options:"
-      echo "  --agent, -a NAME   Install for specific agent (cursor, windsurf, claude, cortex)"
-      echo "  --list, -l         List available skills"
-      echo "  --help, -h         Show this help"
+      echo "  --agent, -a NAME       Install for specific agent (cursor, windsurf, claude, gemini, cortex)"
+      echo "  --external, -e URL SK  Install skills from an external repo (URL = raw base URL)"
+      echo "  --list, -l             List available skills"
+      echo "  --help, -h             Show this help"
+      echo ""
+      echo "Agents:"
+      echo "  cursor     .cursor/rules/*.mdc"
+      echo "  windsurf   .windsurf/rules/*.md"
+      echo "  claude     .claude/rules/*.md"
+      echo "  gemini     .gemini/*.md"
+      echo "  cortex     .cortex/skills/<name>/SKILL.md"
       echo ""
       echo "If no agent is specified, installs for all detected agents."
       echo "If no skills are specified, installs all available skills."
+      echo ""
+      echo "External skill sourcing:"
+      echo "  install_skills.sh --external https://raw.githubusercontent.com/org/repo/main skill-a skill-b"
+      echo "  Fetches SKILL.md from <URL>/<skill>/SKILL.md for each listed skill."
       exit 0
       ;;
     -*) die "Unknown option: $1 (use --help)" ;;
@@ -208,10 +264,11 @@ else
   [[ -d ".cursor" ]] || [[ -d ".cursor/rules" ]] && AGENTS="$AGENTS cursor"
   [[ -d ".windsurf" ]] || [[ -d ".windsurf/rules" ]] && AGENTS="$AGENTS windsurf"
   [[ -d ".claude" ]] || [[ -d ".claude/rules" ]] && AGENTS="$AGENTS claude"
+  [[ -d ".gemini" ]] && AGENTS="$AGENTS gemini"
 
-  # If nothing detected, default to all
+  # If nothing detected, default to common agents
   if [[ -z "$AGENTS" ]]; then
-    AGENTS="cursor windsurf claude"
+    AGENTS="cursor windsurf claude gemini"
   fi
 fi
 
