@@ -56,7 +56,26 @@ check_prereqs() {
     warn "Missing prerequisites:$missing"
     return 1
   fi
+  ok "Prerequisites OK (python3, node, npm)"
   return 0
+}
+
+check_snowflake_auth() {
+  # Check for Snowflake connection config
+  if [[ -f "$HOME/.snowflake/connections.toml" ]]; then
+    ok "Snowflake config found (~/.snowflake/connections.toml)"
+    return 0
+  elif [[ -n "$SNOWFLAKE_HOST" ]] || [[ -n "$SNOWFLAKE_ACCOUNT" ]]; then
+    ok "Snowflake config found (environment variables)"
+    return 0
+  else
+    warn "No Snowflake config detected."
+    msg "  You'll need one of:"
+    msg "    • ~/.snowflake/connections.toml (recommended)"
+    msg "    • SNOWFLAKE_HOST + SNOWFLAKE_ACCOUNT + SNOWFLAKE_PAT env vars"
+    msg "  See: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
+    return 1
+  fi
 }
 
 # ─── Detect repo root ──────────────────────────────────────
@@ -118,11 +137,9 @@ install_app() {
 
   step "Setting up $app..."
 
-  # Check prereqs
-  check_cmd python3 || die "python3 is required"
-  check_cmd node    || die "node is required"
-  check_cmd npm     || die "npm is required"
-  ok "Prerequisites OK (python3, node, npm)"
+  # Check prereqs (fail hard — these are required for app setup)
+  check_prereqs || die "Install missing prerequisites and try again."
+  check_snowflake_auth || true  # warn but continue — user can configure later
 
   # Create .env.local
   if [[ ! -f "$app_dir/.env.local" ]]; then
@@ -183,12 +200,26 @@ interactive() {
   echo -e "${B}Snowflake AI Kit — Installer${N}"
   echo "──────────────────────────────"
   echo ""
+
+  # Upfront prereq check
+  step "Checking prerequisites..."
+  local has_prereqs=true
+  check_prereqs || has_prereqs=false
+  check_snowflake_auth || true
+  echo ""
+
   echo "What would you like to install?"
   echo ""
   echo -e "  ${B}1${N}  Skills only — add Snowflake skills to your AI coding agent"
-  echo -e "  ${B}2${N}  Skills + Claude Agent App — needs Anthropic API key"
-  echo -e "  ${B}3${N}  Skills + Cortex Agent App — no external API key needed"
-  echo -e "  ${B}4${N}  Everything — skills + all builder apps"
+  if [[ "$has_prereqs" == "true" ]]; then
+    echo -e "  ${B}2${N}  Skills + Claude Agent App — needs Anthropic API key"
+    echo -e "  ${B}3${N}  Skills + Cortex Agent App — no external API key needed"
+    echo -e "  ${B}4${N}  Everything — skills + all builder apps"
+  else
+    echo -e "  ${D}2  Skills + Claude Agent App (requires python3, node, npm)${N}"
+    echo -e "  ${D}3  Skills + Cortex Agent App (requires python3, node, npm)${N}"
+    echo -e "  ${D}4  Everything (requires python3, node, npm)${N}"
+  fi
   echo ""
   printf "  Choose [1-4]: "
   read -r choice
