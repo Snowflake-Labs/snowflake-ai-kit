@@ -1,8 +1,14 @@
 # Snowflake AI Kit
 
-Skills, MCP tools, and builder apps for AI coding agents working with Snowflake. Give your agent ([Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), Cursor, Windsurf, Claude Code, etc.) the patterns and best practices it needs to build on Snowflake correctly.
+Skills, MCP tools, and builder apps for AI coding agents working with Snowflake. Give your agent (Cortex Code, Cursor, Windsurf, Claude Code, Gemini CLI, etc.) the patterns and best practices it needs to build on Snowflake correctly.
 
-**Contents:** [What Can I Build?](#what-can-i-build) · [Pick Your Path](#pick-your-path) · [Quick Start](#quick-start) · [Troubleshooting](#troubleshooting) · [Contributing](#contributing)
+### Table of Contents
+
+- [What Can I Build?](#what-can-i-build)
+- [Pick Your Path](#pick-your-path)
+- [Quick Start](#quick-start)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
 ---
 
