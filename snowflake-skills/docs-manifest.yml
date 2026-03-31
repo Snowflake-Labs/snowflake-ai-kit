@@ -1,0 +1,161 @@
+# Skill-to-documentation mapping for freshness checking.
+# Each skill lists the Snowflake doc pages it depends on and keywords
+# to watch for in release notes.
+#
+# Doc URLs use the llms.txt .md suffix (e.g. /en/user-guide/foo.md).
+# The checker fetches https://docs.snowflake.com{path} for each entry.
+
+cortex-agents:
+  docs:
+    - /en/user-guide/snowflake-cortex/cortex-agents-manage.md
+    - /en/sql-reference/sql/create-agent.md
+    - /en/sql-reference/sql/alter-agent.md
+    - /en/user-guide/snowflake-cortex/cortex-agents.md
+  keywords:
+    - cortex agent
+    - CREATE AGENT
+    - DATA_AGENT_RUN
+
+cortex-ai-pipeline:
+  docs:
+    - /en/user-guide/snowflake-cortex/aisql.md
+    - /en/sql-reference/functions/ai_classify.md
+    - /en/sql-reference/functions/ai_complete.md
+    - /en/sql-reference/functions/ai_extract.md
+    - /en/sql-reference/functions/ai_sentiment.md
+    - /en/sql-reference/functions/summarize-snowflake-cortex.md
+    - /en/sql-reference/functions/ai_translate.md
+  keywords:
+    - cortex ai function
+    - AI_CLASSIFY
+    - AI_EXTRACT
+    - AI_SENTIMENT
+    - AI_SUMMARIZE
+
+cortex-mcp-server:
+  docs:
+    - /en/user-guide/snowflake-cortex/cortex-agents-mcp.md
+    - /en/sql-reference/sql/create-mcp-server.md
+  keywords:
+    - MCP server
+    - model context protocol
+    - CREATE MCP SERVER
+
+cortex-search-rag:
+  docs:
+    - /en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview.md
+    - /en/sql-reference/sql/create-cortex-search.md
+    - /en/user-guide/snowflake-cortex/cortex-search/query-cortex-search-service.md
+  keywords:
+    - cortex search
+    - search service
+    - retrieval augmented generation
+
+data-product-sharing:
+  docs:
+    - /en/user-guide/data-sharing-intro.md
+    - /en/sql-reference/sql/create-share.md
+    - /en/sql-reference/sql/create-listing.md
+    - /en/user-guide/data-sharing-provider.md
+  keywords:
+    - data sharing
+    - listing
+    - marketplace
+    - CREATE SHARE
+    - CREATE LISTING
+
+dynamic-tables-pipeline:
+  docs:
+    - /en/user-guide/dynamic-tables-about.md
+    - /en/user-guide/dynamic-tables-refresh.md
+    - /en/sql-reference/sql/create-dynamic-table.md
+  keywords:
+    - dynamic table
+    - target lag
+    - incremental refresh
+
+iceberg-tables:
+  docs:
+    - /en/user-guide/tables-iceberg.md
+    - /en/sql-reference/sql/create-iceberg-table-snowflake.md
+    - /en/user-guide/tables-iceberg-configure-external-volume.md
+    - /en/user-guide/tables-iceberg-configure-catalog-integration.md
+  keywords:
+    - iceberg
+    - external volume
+    - catalog integration
+    - open table format
+
+ml-model-registry:
+  docs:
+    - /en/developer-guide/snowflake-ml/model-registry/overview.md
+    - /en/developer-guide/snowflake-ml/model-registry/bring-your-own-model-types.md
+    - /en/developer-guide/snowflake-ml/overview.md
+  keywords:
+    - model registry
+    - log_model
+    - snowflake ml
+    - model versioning
+
+snowflake-docs:
+  docs:
+    - /en/index.md
+  keywords:
+    - llms.txt
+
+snowflake-postgres:
+  docs:
+    - /en/user-guide/snowflake-postgres/about.md
+    - /en/sql-reference/sql/create-postgres-instance.md
+    - /en/user-guide/snowflake-postgres/postgres-network.md
+  keywords:
+    - snowflake postgres
+    - postgres instance
+    - CREATE POSTGRES INSTANCE
+
+snowpipe-streaming-java:
+  docs:
+    - /en/user-guide/snowpipe-streaming/data-load-snowpipe-streaming-overview.md
+    - /en/user-guide/snowpipe-streaming/snowpipe-streaming-high-performance-overview.md
+  keywords:
+    - snowpipe streaming
+    - streaming SDK
+    - java streaming
+
+snowpipe-streaming-python:
+  docs:
+    - /en/user-guide/snowpipe-streaming/data-load-snowpipe-streaming-overview.md
+    - /en/user-guide/snowpipe-streaming/snowpipe-streaming-high-performance-overview.md
+  keywords:
+    - snowpipe streaming
+    - python streaming SDK
+
+ssis-to-dbt-replatform-migration:
+  docs:
+    - /en/migrations/snowconvert-docs/overview.md
+  keywords:
+    - snowconvert
+    - SSIS migration
+    - replatform
+
+streamlit-in-snowflake:
+  docs:
+    - /en/developer-guide/streamlit/about-streamlit.md
+    - /en/sql-reference/sql/create-streamlit.md
+    - /en/developer-guide/streamlit/object-management/owners-rights.md
+  keywords:
+    - streamlit in snowflake
+    - CREATE STREAMLIT
+    - SiS
+
+tasks-and-streams:
+  docs:
+    - /en/user-guide/tasks-intro.md
+    - /en/user-guide/streams-intro.md
+    - /en/sql-reference/sql/create-task.md
+    - /en/sql-reference/sql/create-stream.md
+  keywords:
+    - task graph
+    - change data capture
+    - stream
+    - SYSTEM$STREAM_HAS_DATA
