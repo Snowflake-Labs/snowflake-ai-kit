@@ -19,6 +19,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 - AI Enrichment Pipelines — Cortex AI Functions (classify, sentiment, summarize, extract) in pure SQL
 - RAG Search — Cortex Search + AI_COMPLETE for retrieval-augmented generation over your docs
 - MCP Servers — Expose Snowflake tools to any MCP-compatible AI client
+- [Claude-to-Cortex Code Router](agent-to-agent-skills/claude-cortex-code-router/) — Route Snowflake tasks from Claude Code to Cortex Code for specialized expertise
 
 **Data & ML**
 - ML Model Registry — Train, register, and deploy models with `snowflake-ml-python`
@@ -52,7 +53,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 | Path | Description |
 |------|-------------|
 | **Install Skills** | Add Snowflake skills to Cursor, Windsurf, Claude Code, Gemini CLI, or Cortex Code — [Quick Start](#quick-start) |
-| **Browse Skills** | Explore available skills — [Snowflake](snowflake-skills/), [general-purpose](general-skills/), [Cortex Code skills](https://github.com/Snowflake-Labs/cortex-code-skills), or [bring your own](snowflake-skills/install_skills.sh) from external repos |
+| **Browse Skills** | Explore available skills — [Snowflake](snowflake-skills/), [agent-to-agent](agent-to-agent-skills/), [general-purpose](general-skills/), [Cortex Code skills](https://github.com/Snowflake-Labs/cortex-code-skills), or [bring your own](snowflake-skills/install_skills.sh) from external repos |
 | **Claude Agent App** | Chat with Claude + Snowflake tools in one UI — [Setup Guide](builder-apps/claude-agent/) |
 | **Cortex Agent App** | Chat with Cortex Agents, no API key needed — [Setup Guide](builder-apps/cortex-agent/) |
 

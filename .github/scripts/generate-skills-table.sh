@@ -111,10 +111,13 @@ open('$readme', 'w').write(readme[:i] + table + readme[j:])
   echo "Skills table updated in $readme"
 }
 
-# ---------- run for both directories ----------
+# ---------- run for all directories ----------
 
 sf_rows="$(generate_rows "snowflake-skills")"
 update_readme "snowflake-skills/README.md" "$sf_rows"
 
 gen_rows="$(generate_rows "general-skills")"
 update_readme "general-skills/README.md" "$gen_rows"
+
+a2a_rows="$(generate_rows "agent-to-agent-skills")"
+update_readme "agent-to-agent-skills/README.md" "$a2a_rows"

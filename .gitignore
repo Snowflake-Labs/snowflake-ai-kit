@@ -41,6 +41,9 @@ node_modules/
 # Builder app runtime data
 builder-apps/*/projects/
 
+# Generated reports
+.github/freshness-report.md
+
 # OS
 .DS_Store
 Thumbs.db

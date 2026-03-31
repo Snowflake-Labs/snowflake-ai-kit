@@ -208,6 +208,7 @@ function Install-SkillsDirect {
         "ssis-to-dbt-replatform-migration", "streamlit-in-snowflake", "tasks-and-streams"
     )
     $generalSkills = @("docker-dev-setup", "drizzle-orm-setup", "supabase-auth-rls")
+    $agentToAgentSkills = @("claude-cortex-code-router")
 
     if ($ExtraArgs -contains "--list" -or $ExtraArgs -contains "-l") {
         Write-Host ""
@@ -218,6 +219,10 @@ function Install-SkillsDirect {
         Write-Host "General-Purpose Skills" -ForegroundColor White
         Write-Host "------------------------------"
         foreach ($s in $generalSkills) { Write-Host "  $s" }
+        Write-Host ""
+        Write-Host "Agent-to-Agent Skills" -ForegroundColor White
+        Write-Host "------------------------------"
+        foreach ($s in $agentToAgentSkills) { Write-Host "  $s" }
         Write-Host ""
         return
     }
@@ -248,11 +253,11 @@ function Install-SkillsDirect {
     Write-Host "------------------------------------"
     Write-Host ""
 
-    $allSkills = $skills + $generalSkills
+    $allSkills = $skills + $generalSkills + $agentToAgentSkills
     $count = 0
 
     foreach ($skill in $allSkills) {
-        $skillPath = if ($skill -in $generalSkills) { "general-skills" } else { "snowflake-skills" }
+        $skillPath = if ($skill -in $generalSkills) { "general-skills" } elseif ($skill -in $agentToAgentSkills) { "agent-to-agent-skills" } else { "snowflake-skills" }
         $url = "$RepoRaw/$skillPath/$skill/SKILL.md"
 
         foreach ($agent in $agents) {

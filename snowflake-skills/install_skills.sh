@@ -30,12 +30,16 @@ G='\033[0;32m' Y='\033[1;33m' R='\033[0;31m' B='\033[1m' N='\033[0m'
 REPO_RAW="https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main"
 SNOWFLAKE_SKILLS_PATH="snowflake-skills"
 GENERAL_SKILLS_PATH="general-skills"
+AGENT_SKILLS_PATH="agent-to-agent-skills"
 
 # Snowflake-specific skills
 SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-search-rag data-product-sharing dynamic-tables-pipeline iceberg-tables ml-model-registry snowflake-docs snowflake-postgres snowpipe-streaming-java snowpipe-streaming-python ssis-to-dbt-replatform-migration streamlit-in-snowflake tasks-and-streams"
 
 # General-purpose skills (not Snowflake-specific)
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
+
+# Agent-to-agent skills (cross-agent delegation)
+AGENT_TO_AGENT_SKILLS="claude-cortex-code-router"
 
 # External skills (fetched from other repos)
 # Format: EXTERNAL_<NAME>_RAW_URL, EXTERNAL_<NAME>_SKILLS
@@ -47,7 +51,7 @@ GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
 EXTERNAL_SKILLS=""
 
 # All available skills
-ALL_SKILLS="$SNOWFLAKE_SKILLS $GENERAL_SKILLS $EXTERNAL_SKILLS"
+ALL_SKILLS="$SNOWFLAKE_SKILLS $GENERAL_SKILLS $AGENT_TO_AGENT_SKILLS $EXTERNAL_SKILLS"
 
 msg()  { echo -e "  $*"; }
 ok()   { echo -e "  ${G}✓${N} $*"; }
@@ -74,6 +78,7 @@ get_skill_description() {
     "ssis-to-dbt-replatform-migration") echo "Migrate SSIS packages to dbt + Snowflake" ;;
     "streamlit-in-snowflake") echo "Deploy Streamlit apps to Snowflake with warehouse or container runtimes" ;;
     "tasks-and-streams") echo "Build CDC pipelines with Snowflake Streams and Tasks" ;;
+    "claude-cortex-code-router") echo "Route Snowflake tasks from Claude Code to Cortex Code CLI" ;;
     *) echo "Unknown skill" ;;
   esac
 }
@@ -99,6 +104,7 @@ get_skill_files() {
     "ssis-to-dbt-replatform-migration") echo "references/phase0-briefing.md references/replatform-output-structure.md references/session-diary.md references/snowflake-sql-patterns.md" ;;
     "streamlit-in-snowflake") echo "templates/setup.sql templates/deploy-warehouse.sql templates/deploy-container.sql templates/streamlit_app.py" ;;
     "tasks-and-streams") echo "templates/setup.sql templates/cdc-pipeline.sql templates/task-graph.sql" ;;
+    "claude-cortex-code-router") echo "scripts/discover_cortex.py scripts/execute_cortex.py" ;;
     *) echo "" ;;
   esac
 }
@@ -107,6 +113,7 @@ get_skill_files() {
 get_skill_path() {
   case "$1" in
     docker-dev-setup|drizzle-orm-setup|supabase-auth-rls) echo "$GENERAL_SKILLS_PATH" ;;
+    claude-cortex-code-router) echo "$AGENT_SKILLS_PATH" ;;
     *) echo "$SNOWFLAKE_SKILLS_PATH" ;;
   esac
 }
@@ -141,6 +148,14 @@ show_list() {
   echo "──────────────────────────────"
   echo ""
   for skill in $GENERAL_SKILLS; do
+    desc=$(get_skill_description "$skill")
+    printf "  ${B}%-38s${N} %s\n" "$skill" "$desc"
+  done
+  echo ""
+  echo -e "${B}Agent-to-Agent Skills${N}"
+  echo "──────────────────────────────"
+  echo ""
+  for skill in $AGENT_TO_AGENT_SKILLS; do
     desc=$(get_skill_description "$skill")
     printf "  ${B}%-38s${N} %s\n" "$skill" "$desc"
   done
