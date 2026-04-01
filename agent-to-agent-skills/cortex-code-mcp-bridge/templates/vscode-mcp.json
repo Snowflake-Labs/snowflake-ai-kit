@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "cortex-code": {
+      "type": "stdio",
+      "command": "cortex",
+      "args": ["mcp", "serve", "--connection", "{{CONNECTION_NAME}}"]
+    }
+  }
+}

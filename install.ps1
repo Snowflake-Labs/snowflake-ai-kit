@@ -208,7 +208,7 @@ function Install-SkillsDirect {
         "ssis-to-dbt-replatform-migration", "streamlit-in-snowflake", "tasks-and-streams"
     )
     $generalSkills = @("docker-dev-setup", "drizzle-orm-setup", "supabase-auth-rls")
-    $agentToAgentSkills = @("claude-cortex-code-router")
+    $agentToAgentSkills = @("claude-cortex-code-router", "cortex-code-mcp-bridge")
 
     if ($ExtraArgs -contains "--list" -or $ExtraArgs -contains "-l") {
         Write-Host ""

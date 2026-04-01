@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cortex-code": {
+      "command": "cortex",
+      "args": ["mcp", "serve", "--connection", "{{CONNECTION_NAME}}"]
+    }
+  }
+}

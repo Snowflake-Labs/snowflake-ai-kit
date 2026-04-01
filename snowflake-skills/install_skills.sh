@@ -39,7 +39,7 @@ SNOWFLAKE_SKILLS="cortex-agents cortex-ai-pipeline cortex-mcp-server cortex-sear
 GENERAL_SKILLS="docker-dev-setup drizzle-orm-setup supabase-auth-rls"
 
 # Agent-to-agent skills (cross-agent delegation)
-AGENT_TO_AGENT_SKILLS="claude-cortex-code-router"
+AGENT_TO_AGENT_SKILLS="claude-cortex-code-router cortex-code-mcp-bridge"
 
 # External skills (fetched from other repos)
 # Format: EXTERNAL_<NAME>_RAW_URL, EXTERNAL_<NAME>_SKILLS
@@ -79,6 +79,7 @@ get_skill_description() {
     "streamlit-in-snowflake") echo "Deploy Streamlit apps to Snowflake with warehouse or container runtimes" ;;
     "tasks-and-streams") echo "Build CDC pipelines with Snowflake Streams and Tasks" ;;
     "claude-cortex-code-router") echo "Route Snowflake tasks from Claude Code to Cortex Code CLI" ;;
+    "cortex-code-mcp-bridge") echo "Connect any MCP-compatible agent to Snowflake via Cortex Code" ;;
     *) echo "Unknown skill" ;;
   esac
 }
@@ -105,6 +106,7 @@ get_skill_files() {
     "streamlit-in-snowflake") echo "templates/setup.sql templates/deploy-warehouse.sql templates/deploy-container.sql templates/streamlit_app.py" ;;
     "tasks-and-streams") echo "templates/setup.sql templates/cdc-pipeline.sql templates/task-graph.sql" ;;
     "claude-cortex-code-router") echo "scripts/discover_cortex.py scripts/execute_cortex.py" ;;
+    "cortex-code-mcp-bridge") echo "scripts/validate_bridge.py templates/cursor-mcp.json templates/vscode-mcp.json templates/windsurf-mcp.json templates/claude-desktop-config.json templates/cortex-mcp-add.sh" ;;
     *) echo "" ;;
   esac
 }
@@ -113,7 +115,7 @@ get_skill_files() {
 get_skill_path() {
   case "$1" in
     docker-dev-setup|drizzle-orm-setup|supabase-auth-rls) echo "$GENERAL_SKILLS_PATH" ;;
-    claude-cortex-code-router) echo "$AGENT_SKILLS_PATH" ;;
+    claude-cortex-code-router|cortex-code-mcp-bridge) echo "$AGENT_SKILLS_PATH" ;;
     *) echo "$SNOWFLAKE_SKILLS_PATH" ;;
   esac
 }

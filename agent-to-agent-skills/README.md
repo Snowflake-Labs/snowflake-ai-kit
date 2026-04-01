@@ -8,6 +8,7 @@ Skills that enable AI coding agents to delegate work to other AI agents — rout
 | Skill | What it does |
 |-------|-------------|
 | [claude-cortex-code-router](claude-cortex-code-router/) | Route Snowflake operations from Claude Code to Cortex Code CLI for specialized expertise |
+| [cortex-code-mcp-bridge](cortex-code-mcp-bridge/) | Connect any MCP-compatible AI agent to Snowflake via Cortex Code's built-in MCP server |
 <!-- END_SKILLS_TABLE -->
 
 ## How It Works

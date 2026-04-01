@@ -20,6 +20,7 @@ Skills, MCP tools, and builder apps for AI coding agents working with Snowflake.
 - RAG Search — Cortex Search + AI_COMPLETE for retrieval-augmented generation over your docs
 - MCP Servers — Expose Snowflake tools to any MCP-compatible AI client
 - [Claude-to-Cortex Code Router](agent-to-agent-skills/claude-cortex-code-router/) — Route Snowflake tasks from Claude Code to Cortex Code for specialized expertise
+- [Cortex Code MCP Bridge](agent-to-agent-skills/cortex-code-mcp-bridge/) — Give any MCP-compatible agent (Cursor, VS Code, Claude Desktop, Windsurf) direct access to Snowflake tools
 
 **Data & ML**
 - ML Model Registry — Train, register, and deploy models with `snowflake-ml-python`
