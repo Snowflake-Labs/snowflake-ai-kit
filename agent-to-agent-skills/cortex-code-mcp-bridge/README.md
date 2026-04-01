@@ -13,6 +13,14 @@ Your AI Agent (Cursor, VS Code, Claude Desktop, Windsurf)
     → Snowflake (SQL, Analyst, Search, data_diff, etc.)
 ```
 
+## Why Use This
+
+- **One config, instant Snowflake access.** Your agent gets 7 Snowflake tools (SQL execution, Cortex Analyst, doc search, object search, Cortex Agents) without writing any integration code.
+- **Works with any MCP client.** Cursor, VS Code Copilot, Claude Desktop, Windsurf, or another Cortex Code instance — same `cortex mcp serve` command, different config wrapper.
+- **No credentials in config files.** The MCP config only references the `cortex` command and a connection name. Snowflake auth is handled by Cortex Code's connection manager.
+- **Validated before you ship.** The bundled `validate_bridge.py` script tests the full MCP handshake and enumerates tools, so you know it works before restarting your editor.
+- **Lighter than prompt delegation.** Unlike `claude-cortex-code-router` (which shells out with a full prompt + security envelope), this bridge exposes tools directly — lower latency, no prompt engineering.
+
 ### How is this different from `cortex-mcp-server`?
 
 | | This skill (`cortex-code-mcp-bridge`) | `cortex-mcp-server` skill |
