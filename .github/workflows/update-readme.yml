@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate skills table
         run: .github/scripts/generate-skills-table.sh
@@ -24,11 +25,16 @@ jobs:
       - name: Sync agent rules
         run: .github/scripts/sync-agent-rules.sh
 
-      - name: Commit if changed
-        run: |
-          git diff --quiet && exit 0
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add snowflake-skills/README.md general-skills/README.md .cursor/rules/ .windsurf/rules/ .claude/rules/ .gemini/
-          git commit -m "Sync skills table and agent rules [skip ci]"
-          git push
+      - name: Create PR if changed
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "Sync skills table and agent rules [skip ci]"
+          title: "Auto: Sync skills table and agent rules"
+          body: |
+            Automated update triggered by a SKILL.md change on `main`.
+
+            - Regenerated skills tables in `snowflake-skills/README.md` and `general-skills/README.md`
+            - Synced agent rule files (`.cursor/`, `.windsurf/`, `.claude/`, `.gemini/`)
+          branch: auto/sync-skills-table
+          delete-branch: true
+          labels: automated

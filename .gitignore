@@ -44,6 +44,9 @@ builder-apps/*/projects/
 # Generated reports
 .github/freshness-report.md
 
+# Doc hashes (persisted via GH Actions cache, not git)
+snowflake-skills/.doc-hashes.json
+
 # OS
 .DS_Store
 Thumbs.db
