@@ -1,0 +1,41 @@
+# RSA keys and certificates
+*.p8
+*.pub
+*.pem
+*.key
+*.der
+
+# Credentials and filled-in profiles
+profile.json
+profile_staging.json
+credentials.json
+secrets.json
+*.secret
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+
+# Builder app runtime data
+builder-apps/*/projects/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Snowflake session state
+*.snowflake/

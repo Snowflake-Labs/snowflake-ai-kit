@@ -1,0 +1,86 @@
+.arch-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.arch-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+}
+
+.arch-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.arch-box-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sf-text);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.arch-box-highlight {
+  border-color: var(--sf-blue);
+  background: rgba(41, 181, 232, 0.06);
+}
+
+.arch-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.arch-tags span {
+  font-size: 9px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sf-text-muted);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.arch-connector-h {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  background: linear-gradient(to right, transparent 0%, var(--sf-border) 30%, var(--sf-border) 70%, transparent 100%);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.arch-connector-h span {
+  font-size: 9px;
+  color: var(--sf-text-muted);
+  background: var(--sf-bg);
+  padding: 0 4px;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+
+.arch-subtitle {
+  font-size: 10px;
+  color: var(--sf-text-muted);
+  text-align: center;
+}
