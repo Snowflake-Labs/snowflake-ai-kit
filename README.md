@@ -29,7 +29,7 @@ The installer checks if each CLI is already installed and skips it if so. It als
 | Tool | What it does | Docs |
 |---|---|---|
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | [CLI Guide](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) |
-| [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | [Cortex Code Docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) |
+| [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | [Cortex Code Docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) |
 
 Both tools share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
 
