@@ -47,6 +47,18 @@ bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-k
 irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 -OutFile install.ps1; .\install.ps1 -Check
 ```
 
+## Skills
+
+### Claude-to-Cortex Code Router
+
+Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) for specialized Snowflake expertise. Cortex Code has 30+ built-in skills (data quality, semantic views, cost intelligence, dynamic tables, ML pipelines, and more) that Claude Code can tap into through this skill.
+
+Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY), approval modes, PII sanitization, audit logging, and a full test suite.
+
+See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for setup and usage.
+
+> **Credit:** Based on [sfc-gh-tjia/claude_skill_cortexcode](https://github.com/sfc-gh-tjia/claude_skill_cortexcode).
+
 ## Builder Apps
 
 ### Cortex Agent App
@@ -62,6 +74,8 @@ snowflake-ai-kit/
 ├── install.sh              # CLI installer (macOS/Linux)
 ├── install.ps1             # CLI installer (Windows)
 ├── bin/install.mjs         # npx entry point
+├── agent-to-agent-skills/
+│   └── claude-cortex-code-router/  # Route Claude Code → Cortex Code
 ├── builder-apps/
 │   └── cortex-agent/       # Cortex Agent chat UI (React + FastAPI)
 ├── package.json
