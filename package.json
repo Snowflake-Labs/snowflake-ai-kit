@@ -1,7 +1,7 @@
 {
   "name": "@snowflake-labs/ai-kit",
   "version": "1.0.0",
-  "description": "Install Snowflake CLI and Cortex Code CLI in one command",
+  "description": "Install Snowflake CLI, Cortex Code CLI, and AI agent skills in one command",
   "bin": {
     "snowflake-ai-kit": "./bin/install.mjs"
   },
