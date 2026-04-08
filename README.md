@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Install the **Snowflake CLI** (`snow`) and **Cortex Code CLI** (`cortex`) in one command, then start building on Snowflake.
+Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`) and **Cortex Code CLI** (`cortex`) in one command, then start building on Snowflake.
 
 ## Quick Install
 
