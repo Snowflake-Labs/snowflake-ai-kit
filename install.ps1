@@ -14,11 +14,14 @@
 
 param(
     [switch]$Check,
+    [switch]$Update,
     [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
 
+$RepoUrl = "https://github.com/Snowflake-Labs/snowflake-ai-kit.git"
+$SkillDir = Join-Path $env:USERPROFILE ".claude\skills\cortex-code"
 $Troubleshoot = "https://github.com/Snowflake-Labs/snowflake-ai-kit#troubleshooting"
 
 # ─── Output helpers ───────────────────────────────────────────
@@ -96,17 +99,80 @@ function Install-CortexCodeCLI {
     Write-Err "Could not install Cortex Code CLI. See $Troubleshoot"
 }
 
+function Install-Skills {
+    $skillMd = Join-Path $SkillDir "SKILL.md"
+    if ((Test-Path $skillMd) -and (-not $Update)) {
+        Write-Ok "Claude-to-Cortex Code Router skill already installed"
+        Write-Msg "  Re-run with -Update to overwrite"
+        return $true
+    }
+
+    Write-Msg "Installing Claude-to-Cortex Code Router skill..."
+
+    $tmpDir = Join-Path $env:TEMP "snowflake-ai-kit-$(Get-Random)"
+    try {
+        & git clone --depth 1 $RepoUrl $tmpDir 2>$null
+        if ($LASTEXITCODE -ne 0) { throw "clone failed" }
+
+        $src = Join-Path $tmpDir "agent-to-agent-skills\claude-cortex-code-router"
+
+        # Create directories
+        New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "scripts") | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "security\policies") | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "references") | Out-Null
+
+        # Core files
+        Copy-Item "$src\SKILL.md" $SkillDir -Force
+        Copy-Item "$src\README.md" $SkillDir -Force
+        Copy-Item "$src\config.yaml.example" $SkillDir -Force
+
+        # Scripts
+        foreach ($f in @("discover_cortex.py","execute_cortex.py","predict_tools.py","read_cortex_sessions.py","route_request.py","security_wrapper.py")) {
+            Copy-Item "$src\scripts\$f" (Join-Path $SkillDir "scripts") -Force
+        }
+
+        # Security module
+        foreach ($f in @("__init__.py","approval_handler.py","audit_logger.py","cache_manager.py","config_manager.py","prompt_sanitizer.py")) {
+            Copy-Item "$src\security\$f" (Join-Path $SkillDir "security") -Force
+        }
+        Copy-Item "$src\security\policies\default_policy.yaml" (Join-Path $SkillDir "security\policies") -Force
+
+        # References
+        foreach ($f in @("cortex-cli-reference.md","routing-examples.md","troubleshooting-guide.md")) {
+            Copy-Item "$src\references\$f" (Join-Path $SkillDir "references") -Force
+        }
+
+        # Optional docs
+        foreach ($f in @("CHANGELOG.md","MIGRATION.md","SECURITY.md","SECURITY_GUIDE.md")) {
+            $p = Join-Path $src $f
+            if (Test-Path $p) { Copy-Item $p $SkillDir -Force }
+        }
+
+        Write-Ok "Claude-to-Cortex Code Router skill installed to $SkillDir\"
+        return $true
+    }
+    catch {
+        Write-Warn "Could not clone repo (SSH access required for Snowflake-Labs members)."
+        Write-Msg "  Manual install: git clone $RepoUrl and copy agent-to-agent-skills\claude-cortex-code-router\ to $SkillDir\"
+        return $false
+    }
+    finally {
+        if (Test-Path $tmpDir) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # ─── Help ──────────────────────────────────────────────────────
 
 if ($Help) {
     Write-Host "Snowflake AI Kit — CLI Installer (Windows)"
     Write-Host ""
-    Write-Host "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex)."
+    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and skills."
     Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Check    Check installation status without installing"
+    Write-Host "  -Update   Re-install skills (overwrite existing)"
     Write-Host "  -Help     Show this help"
     return
 }
@@ -122,6 +188,7 @@ if ($Check) {
     Write-Step "Checking installation status..."
     if (Test-Command "snow")   { Write-Ok "Snowflake CLI (snow) installed" }   else { Write-Warn "Snowflake CLI (snow) not found" }
     if (Test-Command "cortex") { Write-Ok "Cortex Code CLI (cortex) installed" } else { Write-Warn "Cortex Code CLI (cortex) not found" }
+    if (Test-Path (Join-Path $SkillDir "SKILL.md")) { Write-Ok "Claude-to-Cortex Code Router skill installed" } else { Write-Warn "Claude-to-Cortex Code Router skill not found" }
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
@@ -130,6 +197,9 @@ if ($Check) {
 Write-Step "Installing Snowflake CLI and Cortex Code CLI..."
 Install-SnowflakeCLI | Out-Null
 Install-CortexCodeCLI | Out-Null
+
+Write-Step "Installing skills..."
+Install-Skills | Out-Null
 
 Write-Step "Checking Snowflake connection..."
 Test-SnowflakeAuth | Out-Null

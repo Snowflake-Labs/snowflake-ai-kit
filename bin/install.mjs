@@ -10,18 +10,19 @@ const REPO_RAW =
   "https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main";
 
 const os = platform();
+const args = process.argv.slice(2).join(" ");
 
 try {
   if (os === "win32") {
     console.log("Detected Windows — running PowerShell installer...");
     execSync(
-      `powershell -Command "irm ${REPO_RAW}/install.ps1 | iex"`,
+      `powershell -Command "irm ${REPO_RAW}/install.ps1 | iex" ${args}`,
       { stdio: "inherit" }
     );
   } else {
     console.log("Detected Unix — running bash installer...");
     execSync(
-      `bash <(curl -sSL ${REPO_RAW}/install.sh)`,
+      `bash <(curl -sSL ${REPO_RAW}/install.sh) ${args}`,
       { stdio: "inherit", shell: "/bin/bash" }
     );
   }
