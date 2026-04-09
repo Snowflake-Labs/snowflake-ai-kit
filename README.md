@@ -32,7 +32,7 @@ The installer sets up these components:
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) | AI coding agent by Anthropic | System PATH (via npm) |
-| [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) Skill | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
+| [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) (Skill) | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
 
 #### macOS / Linux
 
