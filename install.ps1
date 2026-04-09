@@ -68,6 +68,11 @@ function Install-SnowflakeCLI {
         & pipx install snowflake-cli 2>$null
         if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via pipx"; return $true }
     }
+    # Prefer python -m pip (avoids permission errors with bare pip on Windows)
+    if (Test-Command "python") {
+        & python -m pip install snowflake-cli 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via pip"; return $true }
+    }
     if (Test-Command "pip") {
         & pip install snowflake-cli 2>$null
         if ($LASTEXITCODE -eq 0) { Write-Ok "Snowflake CLI installed via pip"; return $true }
@@ -106,6 +111,17 @@ function Install-ClaudeCodeCLI {
     }
 
     Write-Msg "Installing Claude Code CLI..."
+
+    # If npm not found, try to install Node.js first
+    if (-not (Test-Command "npm")) {
+        Write-Msg "  Node.js not found -- attempting to install..."
+        if (Test-Command "winget") {
+            & winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements 2>$null
+            # Refresh PATH so npm is visible in this session
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        }
+    }
+
     if (Test-Command "npm") {
         & npm install -g @anthropic-ai/claude-code 2>$null
         if ($LASTEXITCODE -eq 0) { Write-Ok "Claude Code CLI installed via npm"; return $true }
@@ -126,14 +142,39 @@ function Install-Skills {
 
     Write-Msg "Installing Claude-to-Cortex Code Router skill..."
 
+    # Determine source: clone into temp dir, or use local repo if running from within it
+    $tmpDir = $null
+    $src = $null
+
     $tmpDir = Join-Path $env:TEMP "snowflake-ai-kit-$(Get-Random)"
     try {
         & git clone --depth 1 $RepoUrl $tmpDir 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "clone failed" }
+        if ($LASTEXITCODE -eq 0) {
+            $src = Join-Path $tmpDir "agent-to-agent-skills\claude-cortex-code-router"
+        }
+    }
+    catch { }
 
-        $src = Join-Path $tmpDir "agent-to-agent-skills\claude-cortex-code-router"
+    # Fallback: check if script is running from within the repo
+    if (-not $src -or -not (Test-Path (Join-Path $src "SKILL.md"))) {
+        $scriptDir = Split-Path -Parent $MyInvocation.ScriptName
+        if ($scriptDir) {
+            $localSrc = Join-Path $scriptDir "agent-to-agent-skills\claude-cortex-code-router"
+            if (Test-Path (Join-Path $localSrc "SKILL.md")) {
+                Write-Msg "  Using local repo as source..."
+                $src = $localSrc
+            }
+        }
+    }
 
-        # Create directories
+    if (-not $src -or -not (Test-Path (Join-Path $src "SKILL.md"))) {
+        if ($tmpDir -and (Test-Path $tmpDir)) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
+        Write-Warn "Could not find skill source (clone failed and not running from repo)."
+        Write-Msg "  Manual install: git clone $RepoUrl and copy agent-to-agent-skills\claude-cortex-code-router\ to $SkillDir"
+        return $false
+    }
+
+    try {
         New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "scripts") | Out-Null
         New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "security\policies") | Out-Null
         New-Item -ItemType Directory -Force -Path (Join-Path $SkillDir "references") | Out-Null
@@ -169,12 +210,11 @@ function Install-Skills {
         return $true
     }
     catch {
-        Write-Warn "Could not clone repo (SSH access required for Snowflake-Labs members)."
-        Write-Msg "  Manual install: git clone $RepoUrl and copy agent-to-agent-skills\claude-cortex-code-router\ to $SkillDir"
+        Write-Warn "Failed to copy skill files: $_"
         return $false
     }
     finally {
-        if (Test-Path $tmpDir) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($tmpDir -and (Test-Path $tmpDir)) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 

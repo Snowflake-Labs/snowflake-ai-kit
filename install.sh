@@ -91,6 +91,19 @@ install_claude_code_cli() {
   fi
 
   msg "Installing Claude Code CLI..."
+
+  # If npm not found, try to install Node.js first
+  if ! check_cmd npm; then
+    msg "  Node.js not found -- attempting to install..."
+    if check_cmd brew; then
+      brew install node 2>/dev/null && msg "  Node.js installed via brew"
+    elif check_cmd apt-get; then
+      curl -fsSL https://deb.nodesource.com/setup_lts.x 2>/dev/null | sudo -E bash - 2>/dev/null && sudo apt-get install -y nodejs 2>/dev/null && msg "  Node.js installed via apt"
+    elif check_cmd yum; then
+      curl -fsSL https://rpm.nodesource.com/setup_lts.x 2>/dev/null | sudo bash - 2>/dev/null && sudo yum install -y nodejs 2>/dev/null && msg "  Node.js installed via yum"
+    fi
+  fi
+
   if check_cmd npm; then
     npm install -g @anthropic-ai/claude-code 2>/dev/null && ok "Claude Code CLI installed via npm" && return 0
   fi
@@ -114,52 +127,63 @@ install_skills() {
   tmp_dir=$(mktemp -d)
   trap "rm -rf '$tmp_dir'" EXIT
 
+  src=""
+
+  # Try cloning the repo
   if git clone --depth 1 "$REPO_URL" "$tmp_dir/repo" 2>/dev/null; then
-    src="$tmp_dir/repo/agent-to-agent-skills/claude-cortex-code-router"
-
-    if [ ! -d "$src" ]; then
-      warn "Skill directory not found in cloned repo."
-      msg "  This may happen if the skill hasn't been merged to main yet."
-      return 1
+    if [ -d "$tmp_dir/repo/agent-to-agent-skills/claude-cortex-code-router" ]; then
+      src="$tmp_dir/repo/agent-to-agent-skills/claude-cortex-code-router"
     fi
-
-    mkdir -p "$SKILL_DIR/scripts" "$SKILL_DIR/security/policies" "$SKILL_DIR/references"
-
-    # Core skill definition
-    cp "$src/SKILL.md" "$SKILL_DIR/"
-    cp "$src/README.md" "$SKILL_DIR/"
-    cp "$src/config.yaml.example" "$SKILL_DIR/"
-
-    # Scripts
-    for f in discover_cortex.py execute_cortex.py predict_tools.py \
-             read_cortex_sessions.py route_request.py security_wrapper.py; do
-      cp "$src/scripts/$f" "$SKILL_DIR/scripts/"
-    done
-
-    # Security module
-    for f in __init__.py approval_handler.py audit_logger.py \
-             cache_manager.py config_manager.py prompt_sanitizer.py; do
-      cp "$src/security/$f" "$SKILL_DIR/security/"
-    done
-    cp "$src/security/policies/default_policy.yaml" "$SKILL_DIR/security/policies/"
-
-    # References
-    for f in cortex-cli-reference.md routing-examples.md troubleshooting-guide.md; do
-      cp "$src/references/$f" "$SKILL_DIR/references/"
-    done
-
-    # Optional docs
-    for f in CHANGELOG.md MIGRATION.md SECURITY.md SECURITY_GUIDE.md; do
-      [ -f "$src/$f" ] && cp "$src/$f" "$SKILL_DIR/"
-    done
-
-    ok "Claude-to-Cortex Code Router skill installed to ${SKILL_DIR}/"
-    return 0
   fi
 
-  warn "Could not clone repo (SSH access required for Snowflake-Labs members)."
-  msg "  Manual install: git clone $REPO_URL && copy agent-to-agent-skills/claude-cortex-code-router/ to $SKILL_DIR/"
-  return 1
+  # Fallback: check if script is running from within the repo
+  if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    local_src="$script_dir/agent-to-agent-skills/claude-cortex-code-router"
+    if [ -f "$local_src/SKILL.md" ]; then
+      msg "  Using local repo as source..."
+      src="$local_src"
+    fi
+  fi
+
+  if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
+    warn "Could not find skill source (clone failed and not running from repo)."
+    msg "  Manual install: git clone $REPO_URL && copy agent-to-agent-skills/claude-cortex-code-router/ to $SKILL_DIR/"
+    return 1
+  fi
+
+  mkdir -p "$SKILL_DIR/scripts" "$SKILL_DIR/security/policies" "$SKILL_DIR/references"
+
+  # Core skill definition
+  cp "$src/SKILL.md" "$SKILL_DIR/"
+  cp "$src/README.md" "$SKILL_DIR/"
+  cp "$src/config.yaml.example" "$SKILL_DIR/"
+
+  # Scripts
+  for f in discover_cortex.py execute_cortex.py predict_tools.py \
+           read_cortex_sessions.py route_request.py security_wrapper.py; do
+    cp "$src/scripts/$f" "$SKILL_DIR/scripts/"
+  done
+
+  # Security module
+  for f in __init__.py approval_handler.py audit_logger.py \
+           cache_manager.py config_manager.py prompt_sanitizer.py; do
+    cp "$src/security/$f" "$SKILL_DIR/security/"
+  done
+  cp "$src/security/policies/default_policy.yaml" "$SKILL_DIR/security/policies/"
+
+  # References
+  for f in cortex-cli-reference.md routing-examples.md troubleshooting-guide.md; do
+    cp "$src/references/$f" "$SKILL_DIR/references/"
+  done
+
+  # Optional docs
+  for f in CHANGELOG.md MIGRATION.md SECURITY.md SECURITY_GUIDE.md; do
+    [ -f "$src/$f" ] && cp "$src/$f" "$SKILL_DIR/"
+  done
+
+  ok "Claude-to-Cortex Code Router skill installed to ${SKILL_DIR}/"
+  return 0
 }
 
 # ─── Parse arguments ────────────────────────────────────────
