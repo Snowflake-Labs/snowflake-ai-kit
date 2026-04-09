@@ -148,8 +148,9 @@ if (Test-Path $configExample) {
 Write-Host ""
 Write-Host "Snowflake connection" -ForegroundColor Cyan
 
-$configPath = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
-$hasConfig = (Test-Path $configPath) -or $env:SNOWFLAKE_HOST -or $env:SNOWFLAKE_ACCOUNT
+$connToml = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
+$cfgToml  = Join-Path $env:USERPROFILE ".snowflake\config.toml"
+$hasConfig = (Test-Path $connToml) -or (Test-Path $cfgToml) -or $env:SNOWFLAKE_HOST -or $env:SNOWFLAKE_ACCOUNT
 Test-Check "Snowflake connection configured" $hasConfig -IsWarning:$true
 
 # === 5. Temp dir cleanup =====================================
