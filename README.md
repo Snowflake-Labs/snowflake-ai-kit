@@ -13,7 +13,7 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 
 ## Get Started
 
-The installer checks if each component is already installed and skips it if so. It also verifies your Snowflake connection configuration.
+The installer sets up Snowflake CLI and Cortex Code CLI by default, and optionally Claude Code CLI + Claude Code to Cortex Code router skill when you choose to include them. It skips anything already installed and verifies your Snowflake connection.
 
 ### Installer Options
 
@@ -21,6 +21,7 @@ The installer checks if each component is already installed and skips it if so. 
 |---|---|
 | `--check` / `-Check` | Check installation status without installing |
 | `--update` / `-Update` | Re-install skills (overwrite existing) |
+| `--with-claude` / `-WithClaude` | Also install Claude Code CLI and router skill (opt-in) |
 | `--help` / `-Help` | Show help |
 
 ### What's Included
@@ -94,7 +95,7 @@ Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs
 
 Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY), approval modes, PII sanitization, audit logging, and a full test suite.
 
-*NOTE: This skill is auto-installed by the installer.*
+*NOTE: Installed by the installer when you opt in to Claude Code CLI (`--with-claude`).*
 
 See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for setup and usage.
 
