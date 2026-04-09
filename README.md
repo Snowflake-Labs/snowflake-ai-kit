@@ -4,32 +4,14 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 
 ## Table of Contents
 
-- [Quick Install](#quick-install)
+- [Get Started](#get-started)
 - [What's Included](#whats-included)
 - [Skills](#skills)
 - [Builder Apps](#builder-apps)
 - [Repo Structure](#repo-structure)
 - [Troubleshooting](#troubleshooting)
 
-## Quick Install
-
-### macOS / Linux
-
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
-```
-
-### Windows (PowerShell)
-
-```powershell
-irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
-```
-
-### npx (any platform)
-
-```bash
-npx @snowflake-labs/ai-kit
-```
+## Get Started
 
 The installer checks if each component is already installed and skips it if so. It also verifies your Snowflake connection configuration.
 
@@ -41,18 +23,36 @@ The installer checks if each component is already installed and skips it if so. 
 | `--update` / `-Update` | Re-install skills (overwrite existing) |
 | `--help` / `-Help` | Show help |
 
-## What's Included
+### What's Included
 
-The installer sets up four things:
+The installer sets up these components:
 
 | Component | What it does | Install location |
 |---|---|---|
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
-| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) | AI coding agent by Anthropic — the skill routes Snowflake tasks to Cortex Code | System PATH (via npm) |
-| [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
+| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) | AI coding agent by Anthropic | System PATH (via npm) |
+| [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) Skill | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
 
-Both CLIs share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
+#### macOS / Linux
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
+```
+
+#### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
+```
+
+#### npx (any platform)
+
+```bash
+npx @snowflake-labs/ai-kit
+```
+
+NOTE: Snow CLI and Cortex Code CLI both share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
 
 ```bash
 snow connection add
@@ -93,6 +93,8 @@ cortex skill add owner/repo
 Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) for specialized Snowflake expertise. When Claude Code gets a Snowflake-related prompt, this skill routes it to Cortex Code where the bundled skills above handle the work.
 
 Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY), approval modes, PII sanitization, audit logging, and a full test suite.
+
+*NOTE: This skill is auto-installed by the installer.*
 
 See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for setup and usage.
 
