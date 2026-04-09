@@ -1,8 +1,8 @@
 #
 # Snowflake AI Kit -- CLI Installer (Windows)
 #
-# Installs Snowflake CLI (snow) and Cortex Code CLI (cortex) if not already present,
-# then verifies your Snowflake connection.
+# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and Claude Code CLI (claude)
+# if not already present, then verifies your Snowflake connection.
 #
 # Usage:
 #   irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
@@ -99,6 +99,23 @@ function Install-CortexCodeCLI {
     Write-Err "Could not install Cortex Code CLI. See $Troubleshoot"
 }
 
+function Install-ClaudeCodeCLI {
+    if (Test-Command "claude") {
+        Write-Ok "Claude Code CLI (claude) already installed"
+        return $true
+    }
+
+    Write-Msg "Installing Claude Code CLI..."
+    if (Test-Command "npm") {
+        & npm install -g @anthropic-ai/claude-code 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Claude Code CLI installed via npm"; return $true }
+    }
+    Write-Warn "Could not install Claude Code CLI (requires Node.js + npm)."
+    Write-Msg "  Install Node.js from https://nodejs.org then re-run."
+    Write-Msg "  Or install manually: npm install -g @anthropic-ai/claude-code"
+    return $false
+}
+
 function Install-Skills {
     $skillMd = Join-Path $SkillDir "SKILL.md"
     if ((Test-Path $skillMd) -and (-not $Update)) {
@@ -166,7 +183,7 @@ function Install-Skills {
 if ($Help) {
     Write-Host "Snowflake AI Kit -- CLI Installer (Windows)"
     Write-Host ""
-    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and skills."
+    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), Claude Code CLI (claude), and skills."
     Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
@@ -188,15 +205,17 @@ if ($Check) {
     Write-Step "Checking installation status..."
     if (Test-Command "snow")   { Write-Ok "Snowflake CLI (snow) installed" }   else { Write-Warn "Snowflake CLI (snow) not found" }
     if (Test-Command "cortex") { Write-Ok "Cortex Code CLI (cortex) installed" } else { Write-Warn "Cortex Code CLI (cortex) not found" }
+    if (Test-Command "claude") { Write-Ok "Claude Code CLI (claude) installed" }   else { Write-Warn "Claude Code CLI (claude) not found" }
     if (Test-Path (Join-Path $SkillDir "SKILL.md")) { Write-Ok "Claude-to-Cortex Code Router skill installed" } else { Write-Warn "Claude-to-Cortex Code Router skill not found" }
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
 }
 
-Write-Step "Installing Snowflake CLI and Cortex Code CLI..."
+Write-Step "Installing CLIs..."
 Install-SnowflakeCLI | Out-Null
 Install-CortexCodeCLI | Out-Null
+Install-ClaudeCodeCLI | Out-Null
 
 Write-Step "Installing skills..."
 Install-Skills | Out-Null
@@ -210,5 +229,6 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  snow --version       # Verify Snowflake CLI"
 Write-Host "  cortex --version     # Verify Cortex Code CLI"
+Write-Host "  claude --version     # Verify Claude Code CLI"
 Write-Host "  cortex               # Start Cortex Code"
 Write-Host ""

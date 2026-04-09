@@ -44,6 +44,9 @@ Test-Check "snow CLI in PATH" $snowFound
 $cortexFound = [bool](Get-Command "cortex" -ErrorAction SilentlyContinue)
 Test-Check "cortex CLI in PATH" $cortexFound
 
+$claudeFound = [bool](Get-Command "claude" -ErrorAction SilentlyContinue)
+Test-Check "claude CLI in PATH" $claudeFound -IsWarning:$true
+
 if ($snowFound) {
     $snowVer = & snow --version 2>&1
     Test-Check "snow --version runs ($snowVer)" ($LASTEXITCODE -eq 0)
@@ -52,6 +55,11 @@ if ($snowFound) {
 if ($cortexFound) {
     $cortexVer = & cortex --version 2>&1
     Test-Check "cortex --version runs ($cortexVer)" ($LASTEXITCODE -eq 0)
+}
+
+if ($claudeFound) {
+    $claudeVer = & claude --version 2>&1
+    Test-Check "claude --version runs ($claudeVer)" ($LASTEXITCODE -eq 0)
 }
 
 # === 2. Skill file structure =================================

@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`), **Cortex Code CLI** (`cortex`), and **agent-to-agent skills** in one command.
+Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`), **Cortex Code CLI** (`cortex`), **Claude Code CLI** (`claude`), and **agent-to-agent skills** in one command.
 
 ## Table of Contents
 
@@ -43,12 +43,13 @@ The installer checks if each component is already installed and skips it if so. 
 
 ## What's Included
 
-The installer sets up three things:
+The installer sets up four things:
 
 | Component | What it does | Install location |
 |---|---|---|
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
+| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) | AI coding agent by Anthropic — the skill routes Snowflake tasks to Cortex Code | System PATH (via npm) |
 | [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
 
 Both CLIs share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
@@ -100,6 +101,7 @@ snowflake-ai-kit/
 |---|---|
 | `snow: command not found` | Make sure `~/.local/bin` (pipx) or your Python scripts dir is in `$PATH`. Try opening a new terminal. |
 | `cortex: command not found` | Re-run the installer. If it still fails, install manually from [ai.snowflake.com](https://ai.snowflake.com). |
+| `claude: command not found` | Requires Node.js + npm. Install Node.js from [nodejs.org](https://nodejs.org), then: `npm install -g @anthropic-ai/claude-code` |
 | `pip`/`pipx` not found | Install Python 3.10+ first: [python.org](https://www.python.org/downloads/) |
 | Connection errors | Run `snow connection add` to create `~/.snowflake/connections.toml`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
 | Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |

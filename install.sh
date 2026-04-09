@@ -2,8 +2,8 @@
 #
 # Snowflake AI Kit — CLI Installer
 #
-# Installs Snowflake CLI (snow) and Cortex Code CLI (cortex) if not already present,
-# then verifies your Snowflake connection.
+# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and Claude Code CLI (claude)
+# if not already present, then verifies your Snowflake connection.
 #
 # Usage:
 #   bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
@@ -82,6 +82,22 @@ install_cortex_code_cli() {
     return 0
   fi
   die "Could not install Cortex Code CLI. See $TROUBLESHOOT"
+}
+
+install_claude_code_cli() {
+  if check_cmd claude; then
+    ok "Claude Code CLI (claude) already installed"
+    return 0
+  fi
+
+  msg "Installing Claude Code CLI..."
+  if check_cmd npm; then
+    npm install -g @anthropic-ai/claude-code 2>/dev/null && ok "Claude Code CLI installed via npm" && return 0
+  fi
+  warn "Could not install Claude Code CLI (requires Node.js + npm)."
+  msg "  Install Node.js from https://nodejs.org then re-run."
+  msg "  Or install manually: npm install -g @anthropic-ai/claude-code"
+  return 1
 }
 
 # ─── Skill installation ──────────────────────────────────────
@@ -164,7 +180,7 @@ while [ $# -gt 0 ]; do
     --help|-h)
       echo "Snowflake AI Kit — CLI Installer"
       echo ""
-      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and skills."
+      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), Claude Code CLI (claude), and skills."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
@@ -191,15 +207,17 @@ if $CHECK_ONLY; then
   step "Checking installation status..."
   check_cmd snow   && ok "Snowflake CLI (snow) installed"   || warn "Snowflake CLI (snow) not found"
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed" || warn "Cortex Code CLI (cortex) not found"
+  check_cmd claude && ok "Claude Code CLI (claude) installed" || warn "Claude Code CLI (claude) not found"
   [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude-to-Cortex Code Router skill installed" || warn "Claude-to-Cortex Code Router skill not found"
   check_snowflake_auth || true
   echo ""
   exit 0
 fi
 
-step "Installing Snowflake CLI and Cortex Code CLI..."
+step "Installing CLIs..."
 install_snowflake_cli
 install_cortex_code_cli
+install_claude_code_cli || true
 
 step "Installing skills..."
 install_skills || true
@@ -213,5 +231,6 @@ echo ""
 echo "Next steps:"
 echo "  snow --version       # Verify Snowflake CLI"
 echo "  cortex --version     # Verify Cortex Code CLI"
+echo "  claude --version     # Verify Claude Code CLI"
 echo "  cortex               # Start Cortex Code"
 echo ""
