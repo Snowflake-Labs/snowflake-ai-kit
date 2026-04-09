@@ -35,6 +35,8 @@ The installer sets up these components:
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) | AI coding agent by Anthropic | System PATH (via npm) |
 | [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) (Skill) | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
 
+### Install
+
 #### macOS / Linux
 
 ```bash
@@ -61,10 +63,12 @@ cd snowflake-ai-kit
 npx @snowflake-labs/ai-kit
 ```
 
-NOTE: Snow CLI and Cortex Code CLI both share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
+### Snowflake Connection
+
+Snow CLI and Cortex Code CLI both share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
 
 ```bash
-snow connection add
+snow connection add```
 ```
 
 ## Skills
