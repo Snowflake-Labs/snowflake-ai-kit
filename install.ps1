@@ -1,5 +1,5 @@
 #
-# Snowflake AI Kit — CLI Installer (Windows)
+# Snowflake AI Kit -- CLI Installer (Windows)
 #
 # Installs Snowflake CLI (snow) and Cortex Code CLI (cortex) if not already present,
 # then verifies your Snowflake connection.
@@ -24,7 +24,7 @@ $RepoUrl = "https://github.com/Snowflake-Labs/snowflake-ai-kit.git"
 $SkillDir = Join-Path $env:USERPROFILE ".claude\skills\cortex-code"
 $Troubleshoot = "https://github.com/Snowflake-Labs/snowflake-ai-kit#troubleshooting"
 
-# ─── Output helpers ───────────────────────────────────────────
+# === Output helpers ===========================================
 
 function Write-Msg  { param([string]$Text) Write-Host "  $Text" }
 function Write-Ok   { param([string]$Text) Write-Host "  " -NoNewline; Write-Host "v" -ForegroundColor Green -NoNewline; Write-Host " $Text" }
@@ -32,7 +32,7 @@ function Write-Warn { param([string]$Text) Write-Host "  " -NoNewline; Write-Hos
 function Write-Err  { param([string]$Text) Write-Host "  " -NoNewline; Write-Host "x" -ForegroundColor Red -NoNewline; Write-Host " $Text"; exit 1 }
 function Write-Step { param([string]$Text) Write-Host ""; Write-Host "$Text" -ForegroundColor White }
 
-# ─── Prereq checks ────────────────────────────────────────────
+# === Prereq checks ============================================
 
 function Test-Command { param([string]$Name) return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 
@@ -161,10 +161,10 @@ function Install-Skills {
     }
 }
 
-# ─── Help ──────────────────────────────────────────────────────
+# === Help ======================================================
 
 if ($Help) {
-    Write-Host "Snowflake AI Kit — CLI Installer (Windows)"
+    Write-Host "Snowflake AI Kit -- CLI Installer (Windows)"
     Write-Host ""
     Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and skills."
     Write-Host ""
@@ -177,11 +177,11 @@ if ($Help) {
     return
 }
 
-# ─── Execute ───────────────────────────────────────────────────
+# === Execute ===================================================
 
 Write-Host ""
-Write-Host "Snowflake AI Kit — CLI Installer" -ForegroundColor White
-Write-Host "──────────────────────────────────"
+Write-Host "Snowflake AI Kit -- CLI Installer" -ForegroundColor White
+Write-Host "=================================="
 Write-Host ""
 
 if ($Check) {
