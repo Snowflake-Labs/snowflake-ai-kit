@@ -60,9 +60,37 @@ snow connection add
 
 ## Skills
 
+### Bundled Skills (Cortex Code CLI)
+
+Cortex Code CLI ships with 35+ built-in skills that activate automatically based on your prompt. No setup required -- they're included in every install.
+
+View all available skills:
+
+```bash
+cortex skill list
+```
+
+Skills are organized by source:
+
+| Category | Description |
+|---|---|
+| **BUNDLED** | Ship with the CLI binary. Updated automatically on `cortex update`. |
+| **GLOBAL** | User-installed skills in `~/.snowflake/cortex/skills/`. Shared across all projects. |
+| **EXTERNAL** | Added via `cortex skill add <path>`. Point to local directories or Git repos. |
+| **PROJECT** | Discovered from the current working directory (e.g. `.claude/skills/`). |
+
+Examples of bundled skills: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `dashboard`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`.
+
+Add a custom skill from a local path or GitHub:
+
+```bash
+cortex skill add /path/to/my-skill
+cortex skill add owner/repo
+```
+
 ### Claude-to-Cortex Code Router
 
-Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) for specialized Snowflake expertise. Cortex Code has 30+ built-in skills (data quality, semantic views, cost intelligence, dynamic tables, ML pipelines, and more) that Claude Code can tap into through this skill.
+Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) for specialized Snowflake expertise. When Claude Code gets a Snowflake-related prompt, this skill routes it to Cortex Code where the bundled skills above handle the work.
 
 Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY), approval modes, PII sanitization, audit logging, and a full test suite.
 
