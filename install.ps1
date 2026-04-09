@@ -39,9 +39,14 @@ function Write-Step { param([string]$Text) Write-Host ""; Write-Host "$Text" -Fo
 function Test-Command { param([string]$Name) return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 
 function Test-SnowflakeAuth {
-    $configPath = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
-    if (Test-Path $configPath) {
+    $connToml = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
+    $cfgToml  = Join-Path $env:USERPROFILE ".snowflake\config.toml"
+    if (Test-Path $connToml) {
         Write-Ok "Snowflake config found (~/.snowflake/connections.toml)"
+        return $true
+    }
+    elseif (Test-Path $cfgToml) {
+        Write-Ok "Snowflake config found (~/.snowflake/config.toml)"
         return $true
     }
     elseif ($env:SNOWFLAKE_HOST -or $env:SNOWFLAKE_ACCOUNT) {
@@ -259,9 +264,12 @@ Write-Step "Installing CLIs..."
 Install-SnowflakeCLI | Out-Null
 Install-CortexCodeCLI | Out-Null
 
-# Claude Code CLI is opt-in
+# Claude Code CLI is opt-in (but if already installed, just ensure skill is there)
 $installClaude = $false
 if ($WithClaude) {
+    $installClaude = $true
+}
+elseif (Test-Command "claude") {
     $installClaude = $true
 }
 elseif ([Environment]::UserInteractive) {

@@ -38,6 +38,9 @@ check_snowflake_auth() {
   if [[ -f "$HOME/.snowflake/connections.toml" ]]; then
     ok "Snowflake config found (~/.snowflake/connections.toml)"
     return 0
+  elif [[ -f "$HOME/.snowflake/config.toml" ]]; then
+    ok "Snowflake config found (~/.snowflake/config.toml)"
+    return 0
   elif [[ -n "$SNOWFLAKE_HOST" ]] || [[ -n "$SNOWFLAKE_ACCOUNT" ]]; then
     ok "Snowflake config found (environment variables)"
     return 0
@@ -249,9 +252,11 @@ step "Installing CLIs..."
 install_snowflake_cli
 install_cortex_code_cli
 
-# Claude Code CLI is opt-in
+# Claude Code CLI is opt-in (but if already installed, just ensure skill is there)
 install_claude=false
 if $WITH_CLAUDE; then
+  install_claude=true
+elif check_cmd claude; then
   install_claude=true
 elif [ -t 0 ]; then
   echo ""
