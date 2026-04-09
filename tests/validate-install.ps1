@@ -1,5 +1,5 @@
 #
-# validate-install.ps1 — Post-install validation for Snowflake AI Kit
+# validate-install.ps1 -- Post-install validation for Snowflake AI Kit
 #
 # Run after install.ps1 to verify everything landed correctly.
 #
@@ -30,11 +30,11 @@ function Test-Check {
 }
 
 Write-Host ""
-Write-Host "Snowflake AI Kit — Install Validation" -ForegroundColor White
+Write-Host "Snowflake AI Kit -- Install Validation" -ForegroundColor White
 Write-Host "======================================" 
 Write-Host ""
 
-# ─── 1. CLI availability ──────────────────────────────────────
+# === 1. CLI availability ======================================
 
 Write-Host "CLIs" -ForegroundColor Cyan
 
@@ -54,7 +54,7 @@ if ($cortexFound) {
     Test-Check "cortex --version runs ($cortexVer)" ($LASTEXITCODE -eq 0)
 }
 
-# ─── 2. Skill file structure ─────────────────────────────────
+# === 2. Skill file structure =================================
 
 Write-Host ""
 Write-Host "Skill files" -ForegroundColor Cyan
@@ -117,7 +117,7 @@ foreach ($f in $optDocs) {
     Test-Check "optional: $f" (Test-Path $p) -IsWarning:$true
 }
 
-# ─── 3. File content sanity ──────────────────────────────────
+# === 3. File content sanity ==================================
 
 Write-Host ""
 Write-Host "Content checks" -ForegroundColor Cyan
@@ -135,7 +135,7 @@ if (Test-Path $configExample) {
     Test-Check "config.yaml.example is non-empty" ($content.Length -gt 10)
 }
 
-# ─── 4. Snowflake connection ─────────────────────────────────
+# === 4. Snowflake connection =================================
 
 Write-Host ""
 Write-Host "Snowflake connection" -ForegroundColor Cyan
@@ -144,7 +144,7 @@ $configPath = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
 $hasConfig = (Test-Path $configPath) -or $env:SNOWFLAKE_HOST -or $env:SNOWFLAKE_ACCOUNT
 Test-Check "Snowflake connection configured" $hasConfig -IsWarning:$true
 
-# ─── 5. Temp dir cleanup ─────────────────────────────────────
+# === 5. Temp dir cleanup =====================================
 
 Write-Host ""
 Write-Host "Cleanup" -ForegroundColor Cyan
@@ -152,7 +152,7 @@ Write-Host "Cleanup" -ForegroundColor Cyan
 $leftover = Get-ChildItem $env:TEMP -Directory -Filter "snowflake-ai-kit-*" -ErrorAction SilentlyContinue
 Test-Check "No leftover temp dirs" ($null -eq $leftover -or $leftover.Count -eq 0)
 
-# ─── Summary ──────────────────────────────────────────────────
+# === Summary ==================================================
 
 Write-Host ""
 Write-Host "======================================" 

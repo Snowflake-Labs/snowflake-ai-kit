@@ -1,5 +1,5 @@
 #
-# run-tests.ps1 — Full test harness for Snowflake AI Kit installers
+# run-tests.ps1 -- Full test harness for Snowflake AI Kit installers
 #
 # Tests all installer modes: -Help, -Check, full install, idempotency, -Update, npx.
 # Designed to run on a fresh Windows 11 VM (Parallels or otherwise).
@@ -22,7 +22,7 @@ $RepoRoot = Split-Path -Parent $ScriptDir
 $SkillDir = Join-Path $env:USERPROFILE ".claude\skills\cortex-code"
 $InstallerPs1 = Join-Path $RepoRoot "install.ps1"
 
-# ─── Helpers ──────────────────────────────────────────────────
+# === Helpers ==================================================
 
 function Write-Result {
     param([string]$Name, [string]$Status, [string]$Detail = "")
@@ -47,10 +47,10 @@ function Remove-Skills {
     }
 }
 
-# ─── Prereq check ────────────────────────────────────────────
+# === Prereq check ============================================
 
 Write-Host ""
-Write-Host "Snowflake AI Kit — Test Harness" -ForegroundColor White
+Write-Host "Snowflake AI Kit -- Test Harness" -ForegroundColor White
 Write-Host "================================"
 Write-Host ""
 
@@ -72,9 +72,9 @@ if (-not (Test-Path $InstallerPs1)) {
     exit 1
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 1: -Help flag
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 1: -Help flag" -ForegroundColor Cyan
@@ -84,9 +84,9 @@ Write-Result "-Help exits cleanly" $(if ($r.ExitCode -eq 0) { "PASS" } else { "F
 Write-Result "-Help output contains usage info" $(if ($r.Output -match "(?i)usage|options|help") { "PASS" } else { "FAIL" })
 Write-Result "-Help does not install anything" $(if ($r.Output -notmatch "(?i)installing") { "PASS" } else { "FAIL" })
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 2: -Check on clean machine (before install)
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 2: -Check (pre-install)" -ForegroundColor Cyan
@@ -100,9 +100,9 @@ Write-Result "-Check exits cleanly" $(if ($r.ExitCode -eq 0) { "PASS" } else { "
 Write-Result "-Check reports skill status" $(if ($r.Output -match "(?i)(skill|router)") { "PASS" } else { "FAIL" })
 Write-Result "-Check does not modify filesystem" $(if (-not (Test-Path (Join-Path $SkillDir "SKILL.md"))) { "PASS" } else { "FAIL" })
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 3: Full install
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 3: Full install" -ForegroundColor Cyan
@@ -151,9 +151,9 @@ else {
     Write-Result "Temp dir cleaned up" $(if ($null -eq $leftover -or $leftover.Count -eq 0) { "PASS" } else { "FAIL" })
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 4: Idempotency (run again, should skip everything)
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 4: Idempotency" -ForegroundColor Cyan
@@ -167,9 +167,9 @@ else {
     Write-Result "Reports already installed" $(if ($r.Output -match "(?i)already installed") { "PASS" } else { "FAIL" })
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 5: -Update flag (overwrites skills)
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 5: -Update flag" -ForegroundColor Cyan
@@ -197,9 +197,9 @@ else {
     }
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 6: -Check after install
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 6: -Check (post-install)" -ForegroundColor Cyan
@@ -214,9 +214,9 @@ else {
     Write-Result "-Check reports skill installed" $(if ($r.Output -match "(?i)skill.*installed") { "PASS" } else { "FAIL" })
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 7: npx path (if Node available)
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 7: npx entry point" -ForegroundColor Cyan
@@ -241,9 +241,9 @@ else {
     }
 }
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # TEST 8: No-git scenario (skill install graceful failure)
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "Test 8: Graceful failure scenarios" -ForegroundColor Cyan
@@ -255,9 +255,9 @@ Write-Result "Installer has try/catch for clone" $(if ($ps1Content -match "try\s
 Write-Result "Installer has finally cleanup" $(if ($ps1Content -match "finally\s*\{[\s\S]*?Remove-Item") { "PASS" } else { "FAIL" })
 Write-Result "Installer shows manual install fallback" $(if ($ps1Content -match "(?i)manual install") { "PASS" } else { "FAIL" })
 
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 # Summary
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
 
 Write-Host ""
 Write-Host "================================"
@@ -272,7 +272,7 @@ Write-Host "$Skip skipped" -ForegroundColor DarkGray
 Write-Host ""
 
 if ($Fail -gt 0) {
-    Write-Host "SOME TESTS FAILED — review output above." -ForegroundColor Red
+    Write-Host "SOME TESTS FAILED -- review output above." -ForegroundColor Red
     exit 1
 }
 else {
