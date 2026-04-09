@@ -15,15 +15,6 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 
 The installer sets up Snowflake CLI and Cortex Code CLI by default, and optionally Claude Code CLI + Claude Code to Cortex Code router skill when you choose to include them. It skips anything already installed and verifies your Snowflake connection.
 
-### Installer Options
-
-| Flag | Description |
-|---|---|
-| `--check` / `-Check` | Check installation status without installing |
-| `--update` / `-Update` | Re-install skills (overwrite existing) |
-| `--with-claude` / `-WithClaude` | Also install Claude Code CLI and router skill (opt-in) |
-| `--help` / `-Help` | Show help |
-
 ### What's Included
 
 The installer sets up these components:
@@ -37,24 +28,33 @@ The installer sets up these components:
 
 ### Install
 
+```bash
+# Clone 
+git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
+cd snowflake-ai-kit
+```
+
+Installer Options
+
+| Flag | Description |
+|---|---|
+| `--check` / `-Check` | Check installation status without installing |
+| `--update` / `-Update` | Re-install skills (overwrite existing) |
+| `--with-claude` / `-WithClaude` | Also install Claude Code CLI and router skill (opt-in) |
+| `--help` / `-Help` | Show help |
+
 #### macOS / Linux
 
 ```bash
-# Clone and run
-git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
-cd snowflake-ai-kit
 bash install.sh                  # default: Snow CLI + Cortex Code CLI
-bash install.sh --with-claude    # include Claude Code CLI + Cortex Code router skill
+bash install.sh --with-claude    # also install Claude Code CLI + Cortex Code router skill
 ```
 
 #### Windows (PowerShell)
 
 ```powershell
-# Clone and run
-git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
-cd snowflake-ai-kit
 .\install.ps1                    # default: Snow CLI + Cortex Code CLI
-.\install.ps1 -WithClaude        # include Claude Code CLI + Cortex Code router skill
+.\install.ps1 -WithClaude        # also install Claude Code CLI + Cortex Code router skill
 ```
 
 #### npx (any platform)
