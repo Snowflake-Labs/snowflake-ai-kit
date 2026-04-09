@@ -148,12 +148,12 @@ function Install-Skills {
             if (Test-Path $p) { Copy-Item $p $SkillDir -Force }
         }
 
-        Write-Ok "Claude-to-Cortex Code Router skill installed to $SkillDir\"
+        Write-Ok "Claude-to-Cortex Code Router skill installed to $SkillDir"
         return $true
     }
     catch {
         Write-Warn "Could not clone repo (SSH access required for Snowflake-Labs members)."
-        Write-Msg "  Manual install: git clone $RepoUrl and copy agent-to-agent-skills\claude-cortex-code-router\ to $SkillDir\"
+        Write-Msg "  Manual install: git clone $RepoUrl and copy agent-to-agent-skills\claude-cortex-code-router\ to $SkillDir"
         return $false
     }
     finally {
