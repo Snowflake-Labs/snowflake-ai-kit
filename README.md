@@ -6,6 +6,7 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 
 - [Get Started](#get-started)
 - [What's Included](#whats-included)
+- [Usage](#usage)
 - [Skills](#skills)
 - [Builder Apps](#builder-apps)
 - [Repo Structure](#repo-structure)
@@ -69,6 +70,22 @@ Snow CLI and Cortex Code CLI both share the same Snowflake connection config (`~
 
 ```bash
 snow connection add
+```
+
+## Usage
+
+After installing, open a terminal and run:
+
+```bash
+cortex                         # Start Cortex Code (interactive AI assistant)
+snow connection list           # Verify your Snowflake connection
+cortex skill list              # Browse 35+ built-in skills
+```
+
+For Claude Code users (if installed with `--with-claude`):
+
+```bash
+claude                         # Start Claude Code with Cortex Code routing
 ```
 
 ## Skills
