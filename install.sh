@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Snowflake AI Kit — CLI Installer
+# Snowflake AI Kit — Installer
 #
 # Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
 # Claude Code CLI (claude) if not already present, then verifies your
@@ -211,7 +211,7 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     --help|-h)
-      echo "Snowflake AI Kit — CLI Installer"
+      echo "Snowflake AI Kit — Installer"
       echo ""
       echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills."
       echo ""
@@ -233,8 +233,8 @@ done
 # ─── Execute ────────────────────────────────────────────────
 
 echo ""
-echo -e "${B}Snowflake AI Kit — CLI Installer${N}"
-echo "──────────────────────────────────"
+echo -e "${B}Snowflake AI Kit — Installer${N}"
+echo "──────────────────────────────"
 echo ""
 
 if $CHECK_ONLY; then

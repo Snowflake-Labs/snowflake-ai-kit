@@ -1,5 +1,5 @@
 #
-# Snowflake AI Kit -- CLI Installer (Windows)
+# Snowflake AI Kit -- Installer (Windows)
 #
 # Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
 # Claude Code CLI (claude) if not already present, then verifies your
@@ -228,7 +228,7 @@ function Install-Skills {
 # === Help ======================================================
 
 if ($Help) {
-    Write-Host "Snowflake AI Kit -- CLI Installer (Windows)"
+    Write-Host "Snowflake AI Kit -- Installer (Windows)"
     Write-Host ""
     Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills."
     Write-Host ""
@@ -245,8 +245,8 @@ if ($Help) {
 # === Execute ===================================================
 
 Write-Host ""
-Write-Host "Snowflake AI Kit -- CLI Installer" -ForegroundColor White
-Write-Host "=================================="
+Write-Host "Snowflake AI Kit -- Installer" -ForegroundColor White
+Write-Host "=============================="
 Write-Host ""
 
 if ($Check) {
