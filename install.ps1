@@ -1,8 +1,9 @@
 #
 # Snowflake AI Kit -- CLI Installer (Windows)
 #
-# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and Claude Code CLI (claude)
-# if not already present, then verifies your Snowflake connection.
+# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
+# Claude Code CLI (claude) if not already present, then verifies your
+# Snowflake connection.
 #
 # Usage:
 #   irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
@@ -15,6 +16,7 @@
 param(
     [switch]$Check,
     [switch]$Update,
+    [switch]$WithClaude,
     [switch]$Help
 )
 
@@ -223,14 +225,15 @@ function Install-Skills {
 if ($Help) {
     Write-Host "Snowflake AI Kit -- CLI Installer (Windows)"
     Write-Host ""
-    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), Claude Code CLI (claude), and skills."
+    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills."
     Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
-    Write-Host "  -Check    Check installation status without installing"
-    Write-Host "  -Update   Re-install skills (overwrite existing)"
-    Write-Host "  -Help     Show this help"
+    Write-Host "  -Check       Check installation status without installing"
+    Write-Host "  -Update      Re-install skills (overwrite existing)"
+    Write-Host "  -WithClaude  Also install Claude Code CLI and Claude-to-Cortex router skill"
+    Write-Host "  -Help        Show this help"
     return
 }
 
@@ -255,10 +258,28 @@ if ($Check) {
 Write-Step "Installing CLIs..."
 Install-SnowflakeCLI | Out-Null
 Install-CortexCodeCLI | Out-Null
-Install-ClaudeCodeCLI | Out-Null
 
-Write-Step "Installing skills..."
-Install-Skills | Out-Null
+# Claude Code CLI is opt-in
+$installClaude = $false
+if ($WithClaude) {
+    $installClaude = $true
+}
+elseif ([Environment]::UserInteractive) {
+    Write-Host ""
+    Write-Host "  Claude Code CLI is optional (requires Node.js + Anthropic API key)."
+    $answer = Read-Host "  Install Claude Code CLI and router skill? (y/N)"
+    if ($answer -match '^[Yy]') { $installClaude = $true }
+}
+
+if ($installClaude) {
+    Install-ClaudeCodeCLI | Out-Null
+
+    Write-Step "Installing skills..."
+    Install-Skills | Out-Null
+}
+else {
+    Write-Msg "Skipping Claude Code CLI (use -WithClaude to include)"
+}
 
 Write-Step "Checking Snowflake connection..."
 Test-SnowflakeAuth | Out-Null
@@ -269,6 +290,8 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  snow --version       # Verify Snowflake CLI"
 Write-Host "  cortex --version     # Verify Cortex Code CLI"
-Write-Host "  claude --version     # Verify Claude Code CLI"
+if ($installClaude) {
+    Write-Host "  claude --version     # Verify Claude Code CLI"
+}
 Write-Host "  cortex               # Start Cortex Code"
 Write-Host ""

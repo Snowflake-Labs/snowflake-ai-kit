@@ -2,8 +2,9 @@
 #
 # Snowflake AI Kit — CLI Installer
 #
-# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and Claude Code CLI (claude)
-# if not already present, then verifies your Snowflake connection.
+# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
+# Claude Code CLI (claude) if not already present, then verifies your
+# Snowflake connection.
 #
 # Usage:
 #   bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
@@ -190,6 +191,7 @@ install_skills() {
 
 CHECK_ONLY=false
 UPDATE=false
+WITH_CLAUDE=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -201,17 +203,22 @@ while [ $# -gt 0 ]; do
       UPDATE=true
       shift
       ;;
+    --with-claude)
+      WITH_CLAUDE=true
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — CLI Installer"
       echo ""
-      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), Claude Code CLI (claude), and skills."
+      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
       echo "Options:"
-      echo "  --check, -c    Check installation status without installing"
-      echo "  --update, -u   Re-install skills (overwrite existing)"
-      echo "  --help, -h     Show this help"
+      echo "  --check, -c      Check installation status without installing"
+      echo "  --update, -u     Re-install skills (overwrite existing)"
+      echo "  --with-claude    Also install Claude Code CLI and Claude-to-Cortex router skill"
+      echo "  --help, -h       Show this help"
       exit 0
       ;;
     *)
@@ -241,10 +248,29 @@ fi
 step "Installing CLIs..."
 install_snowflake_cli
 install_cortex_code_cli
-install_claude_code_cli || true
 
-step "Installing skills..."
-install_skills || true
+# Claude Code CLI is opt-in
+install_claude=false
+if $WITH_CLAUDE; then
+  install_claude=true
+elif [ -t 0 ]; then
+  echo ""
+  msg "Claude Code CLI is optional (requires Node.js + Anthropic API key)."
+  printf "  Install Claude Code CLI and router skill? (y/N) "
+  read -r answer
+  case "$answer" in
+    [Yy]*) install_claude=true ;;
+  esac
+fi
+
+if $install_claude; then
+  install_claude_code_cli || true
+
+  step "Installing skills..."
+  install_skills || true
+else
+  msg "Skipping Claude Code CLI (use --with-claude to include)"
+fi
 
 step "Checking Snowflake connection..."
 check_snowflake_auth || true
@@ -255,6 +281,8 @@ echo ""
 echo "Next steps:"
 echo "  snow --version       # Verify Snowflake CLI"
 echo "  cortex --version     # Verify Cortex Code CLI"
-echo "  claude --version     # Verify Claude Code CLI"
+if $install_claude; then
+  echo "  claude --version     # Verify Claude Code CLI"
+fi
 echo "  cortex               # Start Cortex Code"
 echo ""
