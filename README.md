@@ -38,13 +38,21 @@ The installer sets up these components:
 #### macOS / Linux
 
 ```bash
-bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
+# Clone and run
+git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
+cd snowflake-ai-kit
+bash install.sh                  # default: Snow CLI + Cortex Code CLI
+bash install.sh --with-claude    # include Claude Code CLI + Cortex Code router skill
 ```
 
 #### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex
+# Clone and run
+git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
+cd snowflake-ai-kit
+.\install.ps1                    # default: Snow CLI + Cortex Code CLI
+.\install.ps1 -WithClaude        # include Claude Code CLI + Cortex Code router skill
 ```
 
 #### npx (any platform)
