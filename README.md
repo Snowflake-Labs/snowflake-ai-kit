@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`), **Cortex Code CLI** (`cortex`), **Claude Code CLI** (`claude`), and **agent-to-agent skills** in one command.
+Developer tools for building on Snowflake with AI coding agents. Includes a one-command installer for the Snowflake CLI and Cortex Code CLI, a sample Cortex Agent chat app (React + FastAPI), and agent-to-agent routing skills.
 
 ## Table of Contents
 
