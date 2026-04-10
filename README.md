@@ -31,7 +31,7 @@ The installer sets up these components:
 
 ```bash
 # Clone 
-git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git
+git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git
 cd snowflake-ai-kit
 ```
 
@@ -165,7 +165,7 @@ snowflake-ai-kit/
 | `pip`/`pipx` not found | Install Python 3.10+ first: [python.org](https://www.python.org/downloads/) |
 | Connection errors | Run `snow connection add` to create `~/.snowflake/connections.toml`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
 | Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |
-| Skill install fails | The repo is internal — you need SSH access to Snowflake-Labs. Try: `git clone git@github.com:Snowflake-Labs/snowflake-ai-kit.git` manually. |
+| Skill install fails | The repo is internal — you need access to Snowflake-Labs. Try: `git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git` manually. |
 | Skill already installed | Run with `--update` to overwrite: `bash <(curl -sSL .../install.sh) --update` |
 
 ## License
