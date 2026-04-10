@@ -8,7 +8,6 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 - [Usage](#usage)
 - [Skills](#skills)
 - [Builder Apps](#builder-apps)
-- [Repo Structure](#repo-structure)
 - [Troubleshooting](#troubleshooting)
 
 ## Get Started
@@ -133,26 +132,11 @@ See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/c
 
 ### Cortex Agent App
 
-A chat UI for [Snowflake Cortex Agents](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents). Ask questions in natural language — the agent uses Cortex Analyst (text-to-SQL), Cortex Search (RAG), and custom tools to answer them. Runs entirely on Snowflake compute, no external API key needed.
+A sample React + FastAPI chat app built on the [Snowflake Cortex Agents REST API](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-rest-api). Ask questions in natural language — the agent uses Cortex Analyst (text-to-SQL), Cortex Search (RAG), and data-to-chart to answer them. Runs entirely on Snowflake compute, no external API key needed.
+
+*NOTE: Sample data included — setup.sql creates a demo agent with sales data, a semantic view, and a Cortex Search service.*
 
 See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for setup and usage.
-
-## Repo Structure
-
-```
-snowflake-ai-kit/
-├── install.sh              # CLI + skills installer (macOS/Linux)
-├── install.ps1             # CLI + skills installer (Windows)
-├── bin/install.mjs         # npx entry point
-├── agent-to-agent-skills/
-│   └── claude-cortex-code-router/  # Route Claude Code → Cortex Code
-├── builder-apps/
-│   └── cortex-agent/       # Cortex Agent chat UI (React + FastAPI)
-├── package.json
-├── LICENSE
-├── SECURITY.md
-└── VERSION
-```
 
 ## Troubleshooting
 
