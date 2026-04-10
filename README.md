@@ -5,7 +5,6 @@ Snowflake AI Toolkit for AI coding agents. Install the **Snowflake CLI** (`snow`
 ## Table of Contents
 
 - [Get Started](#get-started)
-- [What's Included](#whats-included)
 - [Usage](#usage)
 - [Skills](#skills)
 - [Builder Apps](#builder-apps)
