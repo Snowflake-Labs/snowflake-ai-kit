@@ -124,3 +124,7 @@ See SKILL.md for the full troubleshooting section.
 - [config.yaml.example](config.yaml.example) — Configuration template
 - [Cortex CLI Reference](references/cortex-cli-reference.md)
 - [Routing Examples](references/routing-examples.md)
+
+## License
+
+Apache 2.0 — see [LICENSE](../../LICENSE).
