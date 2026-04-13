@@ -46,20 +46,34 @@ def discover_cortex_skills():
     # Parse skill list output
     skills = {}
 
-    # Expected format: skill lines with name and path
+    # Handles two formats:
+    # Old format: "skill-name /path/to/skill"
+    # New format (v1.0.5.6+):
+    #   [BUNDLED]
+    #    - skill-name: /path/to/skill
     for line in stdout.strip().split('\n'):
         if not line.strip():
             continue
 
-        # Try to extract skill name (usually first word or before colon)
-        parts = line.split()
-        if parts:
+        # Skip section headers like [BUNDLED], [PROJECT], [GLOBAL]
+        if re.match(r'^\[.*\]$', line.strip()):
+            continue
+
+        # New format: "  - skill-name: /path/to/skill"
+        new_format_match = re.match(r'^\s*-\s+(\S+?):\s+', line)
+        if new_format_match:
+            skill_name = new_format_match.group(1).strip()
+        else:
+            # Old format: "skill-name /path/to/skill"
+            parts = line.split()
+            if not parts:
+                continue
             skill_name = parts[0].strip(':').strip()
 
-            # Read the skill's SKILL.md to get description and triggers
-            skill_info = read_skill_metadata(skill_name)
-            if skill_info:
-                skills[skill_name] = skill_info
+        # Read the skill's SKILL.md to get description and triggers
+        skill_info = read_skill_metadata(skill_name)
+        if skill_info:
+            skills[skill_name] = skill_info
 
     return skills
 
