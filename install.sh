@@ -177,12 +177,12 @@ install_skills() {
   cp "$src/security/policies/default_policy.yaml" "$SKILL_DIR/security/policies/"
 
   # References
-  for f in cortex-cli-reference.md routing-examples.md troubleshooting-guide.md; do
+  for f in cortex-cli-reference.md routing-examples.md; do
     cp "$src/references/$f" "$SKILL_DIR/references/"
   done
 
   # Optional docs
-  for f in CHANGELOG.md MIGRATION.md SECURITY.md SECURITY_GUIDE.md; do
+  for f in SECURITY.md; do
     [ -f "$src/$f" ] && cp "$src/$f" "$SKILL_DIR/"
   done
 

@@ -203,12 +203,12 @@ function Install-Skills {
         Copy-Item "$src\security\policies\default_policy.yaml" (Join-Path $SkillDir "security\policies") -Force
 
         # References
-        foreach ($f in @("cortex-cli-reference.md","routing-examples.md","troubleshooting-guide.md")) {
+        foreach ($f in @("cortex-cli-reference.md","routing-examples.md")) {
             Copy-Item "$src\references\$f" (Join-Path $SkillDir "references") -Force
         }
 
         # Optional docs
-        foreach ($f in @("CHANGELOG.md","MIGRATION.md","SECURITY.md","SECURITY_GUIDE.md")) {
+        foreach ($f in @("SECURITY.md")) {
             $p = Join-Path $src $f
             if (Test-Path $p) { Copy-Item $p $SkillDir -Force }
         }

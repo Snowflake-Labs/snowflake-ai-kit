@@ -110,8 +110,7 @@ Test-Check "security: policies/default_policy.yaml" (Test-Path $policyPath)
 # References
 $refs = @(
     "cortex-cli-reference.md",
-    "routing-examples.md",
-    "troubleshooting-guide.md"
+    "routing-examples.md"
 )
 foreach ($f in $refs) {
     $p = Join-Path $skillDir "references\$f"
@@ -119,7 +118,7 @@ foreach ($f in $refs) {
 }
 
 # Optional docs (warn-only if missing)
-$optDocs = @("CHANGELOG.md", "MIGRATION.md", "SECURITY.md", "SECURITY_GUIDE.md")
+$optDocs = @("SECURITY.md")
 foreach ($f in $optDocs) {
     $p = Join-Path $skillDir $f
     Test-Check "optional: $f" (Test-Path $p) -IsWarning:$true

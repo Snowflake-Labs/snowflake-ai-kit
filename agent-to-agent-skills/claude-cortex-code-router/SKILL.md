@@ -295,7 +295,7 @@ The skill now uses a security wrapper that provides:
 
 **Configuration**: `~/.claude/skills/cortex-code/config.yaml` or organization policy
 
-**Migration from v1.x**: See [MIGRATION.md](MIGRATION.md) for upgrade guide.
+**v1.x compatibility**: Set `approval_mode: "auto"` in config.yaml to restore auto-approval behavior.
 
 ### Programmatic Mode with Auto-Approval
 
@@ -392,11 +392,9 @@ chmod 700 ~/.claude/skills/cortex-code
 cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
 ```
 
-### Migration Issues from v1.x
+### v1.x Compatibility
 
-See [MIGRATION.md](MIGRATION.md) for detailed upgrade guide.
-
-**Quick fix for v1.x compatibility**:
+**Quick fix**:
 ```yaml
 security:
   approval_mode: "auto"
@@ -458,5 +456,3 @@ FORCE_CLAUDE_PATTERNS = [
 See `references/` directory for:
 - `cortex-cli-reference.md` - Full Cortex CLI documentation
 - `routing-examples.md` - More routing decision examples
-- `session-file-format.md` - Cortex session file structure
-- `troubleshooting-guide.md` - Extended troubleshooting
