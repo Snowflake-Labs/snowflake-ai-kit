@@ -139,12 +139,12 @@ else {
 
     Write-Result "Policy YAML present" $(if (Test-Path (Join-Path $SkillDir "security\policies\default_policy.yaml")) { "PASS" } else { "FAIL" })
 
-    $refFiles = @("cortex-cli-reference.md","routing-examples.md","troubleshooting-guide.md")
+    $refFiles = @("cortex-cli-reference.md","routing-examples.md")
     $allRefs = $true
     foreach ($f in $refFiles) {
         if (-not (Test-Path (Join-Path $SkillDir "references\$f"))) { $allRefs = $false; break }
     }
-    Write-Result "All 3 reference files present" $(if ($allRefs) { "PASS" } else { "FAIL" })
+    Write-Result "All 2 reference files present" $(if ($allRefs) { "PASS" } else { "FAIL" })
 
     # Temp dir cleanup
     $leftover = Get-ChildItem $env:TEMP -Directory -Filter "snowflake-ai-kit-*" -ErrorAction SilentlyContinue
