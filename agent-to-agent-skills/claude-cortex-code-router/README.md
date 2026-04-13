@@ -127,4 +127,4 @@ See SKILL.md for the full troubleshooting section.
 
 ## License
 
-Apache 2.0 — see [LICENSE](../../LICENSE).
+Copyright © 2026 Snowflake Inc. All rights reserved.
