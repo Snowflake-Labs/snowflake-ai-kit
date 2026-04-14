@@ -3,8 +3,8 @@
 # Snowflake AI Kit — Installer
 #
 # Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
-# Claude Code CLI (claude) if not already present, then verifies your
-# Snowflake connection.
+# Claude Code CLI (claude) and/or the Cortex Code Plugin for Claude Code
+# if not already present, then verifies your Snowflake connection.
 #
 # Usage:
 #   bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
@@ -190,11 +190,54 @@ install_skills() {
   return 0
 }
 
+# ─── Plugin installation ────────────────────────────────────
+
+install_plugin() {
+  local plugin_src=""
+
+  # Try from cloned repo first
+  tmp_dir=$(mktemp -d)
+  if git clone --depth 1 "$REPO_URL" "$tmp_dir/repo" 2>/dev/null; then
+    if [ -d "$tmp_dir/repo/plugins/cortex-code" ]; then
+      plugin_src="$tmp_dir/repo/plugins"
+    fi
+  fi
+
+  # Fallback: check if running from within the repo
+  if [ -z "$plugin_src" ]; then
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
+    if [ -d "$script_dir/plugins/cortex-code" ]; then
+      msg "  Using local repo as source..."
+      plugin_src="$script_dir/plugins"
+    fi
+  fi
+
+  if [ -z "$plugin_src" ] || [ ! -f "$plugin_src/cortex-code/.claude-plugin/plugin.json" ]; then
+    warn "Could not find plugin source."
+    msg "  Manual install: git clone $REPO_URL && follow plugins/cortex-code/README.md"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  ok "Cortex Code Plugin for Claude Code ready"
+  echo ""
+  msg "To register the plugin in Claude Code:"
+  msg "  1. Open Claude Code"
+  msg "  2. Run: /plugins add $plugin_src"
+  msg ""
+  msg "Or if you cloned the repo locally:"
+  msg "  /plugins add /path/to/snowflake-ai-kit/plugins"
+
+  rm -rf "$tmp_dir"
+  return 0
+}
+
 # ─── Parse arguments ────────────────────────────────────────
 
 CHECK_ONLY=false
 UPDATE=false
 WITH_CLAUDE=false
+WITH_PLUGIN=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -210,10 +253,15 @@ while [ $# -gt 0 ]; do
       WITH_CLAUDE=true
       shift
       ;;
+    --with-plugin)
+      WITH_PLUGIN=true
+      WITH_CLAUDE=true  # plugin requires Claude Code
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
-      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills."
+      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + skills + plugin."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
@@ -221,6 +269,7 @@ while [ $# -gt 0 ]; do
       echo "  --check, -c      Check installation status without installing"
       echo "  --update, -u     Re-install skills (overwrite existing)"
       echo "  --with-claude    Also install Claude Code CLI and Claude-to-Cortex router skill"
+      echo "  --with-plugin    Also install Cortex Code Plugin for Claude Code (implies --with-claude)"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -243,6 +292,7 @@ if $CHECK_ONLY; then
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed" || warn "Cortex Code CLI (cortex) not found"
   check_cmd claude && ok "Claude Code CLI (claude) installed" || warn "Claude Code CLI (claude) not found"
   [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude-to-Cortex Code Router skill installed" || warn "Claude-to-Cortex Code Router skill not found"
+  check_cmd claude && claude plugins list 2>/dev/null | grep -q "cortex-code" && ok "Cortex Code Plugin registered" || warn "Cortex Code Plugin not registered (use --with-plugin to install)"
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -273,6 +323,11 @@ if $install_claude; then
 
   step "Installing skills..."
   install_skills || true
+
+  if $WITH_PLUGIN; then
+    step "Setting up Cortex Code Plugin..."
+    install_plugin || true
+  fi
 else
   msg "Skipping Claude Code CLI (use --with-claude to include)"
 fi
@@ -288,6 +343,9 @@ echo "  snow --version       # Verify Snowflake CLI"
 echo "  cortex --version     # Verify Cortex Code CLI"
 if $install_claude; then
   echo "  claude --version     # Verify Claude Code CLI"
+fi
+if $WITH_PLUGIN; then
+  echo "  claude /plugins      # Verify Cortex Code Plugin"
 fi
 echo "  cortex               # Start Cortex Code"
 echo ""
