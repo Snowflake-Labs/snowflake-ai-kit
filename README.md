@@ -167,8 +167,7 @@ Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Th
 |---|---|---|
 | **How it works** | Auto-routes Snowflake prompts from Claude Code to Cortex Code transparently | Explicit slash commands (`/cortex-code:review`, etc.) you invoke manually in Claude Code |
 | **Best for** | "I want Claude Code to automatically use Cortex Code for Snowflake tasks" | "I want specific Cortex Code workflows on demand (code review, rescue, security audit)" |
-| **How to install** | `--with-claude` / `-WithClaude` | `--with-plugin` / `-WithPlugin` |
-| **Requires** | Claude Code CLI | Claude Code CLI |
+| **Install** | `bash install.sh --with-claude` | `bash install.sh --with-plugin` (includes `--with-claude`) |
 | **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
 
 ## Builder Apps
