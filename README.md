@@ -7,7 +7,8 @@ Developer tools for building on Snowflake with AI coding agents. One-command ins
 - [Get Started](#get-started)
 - [Usage](#usage)
 - [Skills](#skills)
-- [Plugins (Claude Code)](#plugins-claude-code)
+- [Plugins](#plugins)
+- [Router Skill vs Plugin](#router-skill-vs-plugin)
 - [Builder Apps](#builder-apps)
 - [Troubleshooting](#troubleshooting)
 
@@ -136,16 +137,7 @@ Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY)
 
 > *Installed by the installer when you opt in to Claude Code CLI (`--with-claude`). See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for manual setup and full documentation.*
 
-## Plugins (Claude Code)
-
-Both the Router Skill and the Plugin work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
-
-| | Router Skill (`--with-claude`) | Plugin (`--with-plugin`) |
-|---|---|---|
-| **How it works** | Auto-routes Snowflake prompts from Claude Code to Cortex Code transparently | Explicit slash commands (`/cortex-code:review`, etc.) you invoke manually in Claude Code |
-| **Best for** | "I want Claude Code to automatically use Cortex Code for Snowflake tasks" | "I want specific Cortex Code workflows on demand (code review, rescue, security audit)" |
-| **Requires** | Claude Code CLI | Claude Code CLI |
-| **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
+## Plugins
 
 ### Cortex Code Plugin for Claude Code
 
@@ -166,6 +158,17 @@ Available commands:
 | `/cortex-code:setup` | Configure the plugin |
 
 > *Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
+
+## Router Skill vs Plugin
+
+Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
+
+| | Router Skill (`--with-claude`) | Plugin (`--with-plugin`) |
+|---|---|---|
+| **How it works** | Auto-routes Snowflake prompts from Claude Code to Cortex Code transparently | Explicit slash commands (`/cortex-code:review`, etc.) you invoke manually in Claude Code |
+| **Best for** | "I want Claude Code to automatically use Cortex Code for Snowflake tasks" | "I want specific Cortex Code workflows on demand (code review, rescue, security audit)" |
+| **Requires** | Claude Code CLI | Claude Code CLI |
+| **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
 
 ## Builder Apps
 
