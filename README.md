@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Developer tools for building on Snowflake with AI coding agents. Includes a one-command installer for the Snowflake CLI and Cortex Code CLI, a sample Cortex Agent chat app (React + FastAPI), and agent-to-agent routing skills.
+Developer tools for building on Snowflake with AI coding agents. One-command installer for Snowflake CLI + Cortex Code CLI, a Claude Code plugin with slash commands (`/review`, `/rescue`, `/security-review`), an agent-to-agent routing skill, and a sample Cortex Agent chat app (React + FastAPI).
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ Developer tools for building on Snowflake with AI coding agents. Includes a one-
 
 ## Get Started
 
-The installer sets up Snowflake CLI and Cortex Code CLI by default, and optionally Claude Code CLI + Claude Code to Cortex Code router skill when you choose to include them. It skips anything already installed and verifies your Snowflake connection.
+The installer sets up Snowflake CLI and Cortex Code CLI by default. Optionally add Claude Code CLI with the agent-to-agent router skill (`--with-claude`) or the full Cortex Code Plugin for Claude Code (`--with-plugin`). It skips anything already installed and verifies your Snowflake connection.
 
 ### What's Included
 
@@ -30,12 +30,11 @@ The installer sets up these components:
 ### Install
 
 ```bash
-# Clone 
 git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git
 cd snowflake-ai-kit
 ```
 
-Installer Options
+#### Installer Options
 
 | Flag | Description |
 |---|---|
