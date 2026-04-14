@@ -4,8 +4,6 @@ Use Cortex Code (CoCo) from inside Claude Code for code reviews or to delegate t
 
 ## What You Get
 
-![Plugin Commands](docs/plugin-commands.png)
-
 - `/cortex-code:review` for a Cortex Code review of your changes
 - `/cortex-code:adversarial-review` for a steerable challenge review
 - `/cortex-code:data-review` for Snowflake data engineering review (SQL, pipelines, schema, warehouse cost)
@@ -187,14 +185,4 @@ Then check in with:
 ```bash
 /cortex-code:status
 /cortex-code:result
-```
-
-## Development
-
-Source of truth is `cortexagent/codingagent/plugins/cortex-code/` in the cortex monorepo. Changes are synced to this directory in snowflake-ai-kit.
-
-```bash
-cd cortexagent/codingagent/coco
-make sync-cortex-code-plugin          # dry run
-make sync-cortex-code-plugin PUSH=1   # commit + push
 ```

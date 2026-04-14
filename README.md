@@ -139,8 +139,6 @@ Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY)
 
 See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for setup and usage.
 
-> **Credit:** Based on [sfc-gh-tjia/claude_skill_cortexcode](https://github.com/sfc-gh-tjia/claude_skill_cortexcode).
-
 ## Plugins (Claude Code)
 
 Both the Router Skill and the Plugin work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
