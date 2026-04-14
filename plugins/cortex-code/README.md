@@ -22,18 +22,24 @@ Use Cortex Code (CoCo) from inside Claude Code for code reviews or to delegate t
 
 ## Install
 
-Clone the repo anywhere on your machine:
+### Via the AI Kit installer (recommended)
+
+From the [repo root](../../):
 
 ```bash
-git clone git@github.com:snowflake-eng/cortex-code-plugin.git <path-to-cortex-code-plugin>
+bash install.sh --with-plugin
 ```
 
-Then in Claude Code, add the marketplace using the **absolute path** to the cloned directory:
+This installs Snowflake CLI, Cortex Code CLI, Claude Code CLI, the router skill, and sets up the plugin.
+
+### Manual setup
+
+Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), Node.js 18.18+.
+
+If you cloned the repo, register the plugin in Claude Code:
 
 ```
-/plugin marketplace add <path-to-cortex-code-plugin>
-/plugin install cortex-code@snowflake-eng-cortex-code-plugin
-/reload-plugins
+/plugins add /path/to/snowflake-ai-kit/plugins
 ```
 
 ### Setup
@@ -185,7 +191,7 @@ Then check in with:
 
 ## Development
 
-Source of truth is `cortexagent/codingagent/plugins/cortex-code/` in the cortex monorepo. To sync changes to the external repo:
+Source of truth is `cortexagent/codingagent/plugins/cortex-code/` in the cortex monorepo. Changes are synced to this directory in snowflake-ai-kit.
 
 ```bash
 cd cortexagent/codingagent/coco
