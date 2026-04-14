@@ -8,7 +8,7 @@ Developer tools for building on Snowflake with AI coding agents. One-command ins
 - [Usage](#usage)
 - [Skills](#skills)
 - [Plugins](#plugins)
-- [Router Skill vs Plugin](#router-skill-vs-plugin)
+- [Claude Code to Cortex Code Router Skill vs Cortex Code Plugin for Claude Code](#claude-code-to-cortex-code-router-skill-vs-cortex-code-plugin-for-claude-code)
 - [Builder Apps](#builder-apps)
 - [Troubleshooting](#troubleshooting)
 
@@ -25,8 +25,8 @@ The installer sets up these components:
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) *(optional)* | AI coding agent by Anthropic | System PATH (via npm) |
-| [Claude-to-Cortex Code Router](#claude-to-cortex-code-router) (Skill) *(optional)* | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
-| [Cortex Code Plugin](#cortex-code-plugin-for-claude-code) *(optional)* | Slash commands (`/review`, `/rescue`, etc.) for Claude Code via the plugin system | Registered via `/plugins add` |
+| [Claude Code to Cortex Code Router Skill](#claude-code-to-cortex-code-router-skill) *(optional)* | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
+| [Cortex Code Plugin for Claude Code](#cortex-code-plugin-for-claude-code) *(optional)* | Slash commands (`/review`, `/rescue`, etc.) for Claude Code via the plugin system | Registered via `/plugins add` |
 
 ### Install
 
@@ -129,7 +129,7 @@ cortex skill add /path/to/my-skill
 cortex skill add owner/repo
 ```
 
-### Claude-to-Cortex Code Router
+### Claude Code to Cortex Code Router Skill
 
 Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) for specialized Snowflake expertise. When Claude Code gets a Snowflake-related prompt, this skill routes it to Cortex Code where the bundled skills above handle the work.
 
@@ -159,7 +159,7 @@ Available commands:
 
 > *Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
 
-## Router Skill vs Plugin
+## Claude Code to Cortex Code Router Skill vs Cortex Code Plugin for Claude Code
 
 Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
 
