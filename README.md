@@ -134,7 +134,7 @@ Route Snowflake operations from [Claude Code](https://docs.anthropic.com/en/docs
 
 Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY), approval modes, PII sanitization, audit logging, and a full test suite.
 
-*NOTE: Installed by the installer when you opt in to Claude Code CLI (`--with-claude`). See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for manual setup and full documentation.*
+> *Installed by the installer when you opt in to Claude Code CLI (`--with-claude`). See [`agent-to-agent-skills/claude-cortex-code-router/`](agent-to-agent-skills/claude-cortex-code-router/) for manual setup and full documentation.*
 
 ## Plugins (Claude Code)
 
@@ -165,7 +165,7 @@ Available commands:
 | `/cortex-code:status` | Check Cortex Code availability |
 | `/cortex-code:setup` | Configure the plugin |
 
-*NOTE: Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
+> *Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
 
 ## Builder Apps
 
