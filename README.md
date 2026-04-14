@@ -163,10 +163,11 @@ Available commands:
 
 Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
 
-| | Router Skill (`--with-claude`) | Plugin (`--with-plugin`) |
+| | Router Skill | Plugin |
 |---|---|---|
 | **How it works** | Auto-routes Snowflake prompts from Claude Code to Cortex Code transparently | Explicit slash commands (`/cortex-code:review`, etc.) you invoke manually in Claude Code |
 | **Best for** | "I want Claude Code to automatically use Cortex Code for Snowflake tasks" | "I want specific Cortex Code workflows on demand (code review, rescue, security audit)" |
+| **How to install** | `--with-claude` / `-WithClaude` | `--with-plugin` / `-WithPlugin` |
 | **Requires** | Claude Code CLI | Claude Code CLI |
 | **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
 
