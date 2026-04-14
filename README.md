@@ -168,15 +168,7 @@ Available commands:
 | `/cortex-code:status` | Check Cortex Code availability |
 | `/cortex-code:setup` | Configure the plugin |
 
-Install via the installer (`--with-plugin` / `-WithPlugin`) or manually:
-
-```bash
-# If you cloned the repo:
-# In Claude Code, run:
-/plugins add /path/to/snowflake-ai-kit/plugins
-```
-
-See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation.
+*NOTE: Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
 
 ## Builder Apps
 
