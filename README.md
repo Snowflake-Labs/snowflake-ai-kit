@@ -8,13 +8,13 @@ Developer tools for building on Snowflake with AI coding agents. One-command ins
 - [Usage](#usage)
 - [Skills](#skills)
 - [Plugins](#plugins)
-- [Claude Code to Cortex Code Router Skill vs Cortex Code Plugin for Claude Code](#claude-code-to-cortex-code-router-skill-vs-cortex-code-plugin-for-claude-code)
+ - [Cortex Code Router Skill vs Cortex Code Plugin for Claude](#cortex-code-router-skill-vs-cortex-code-plugin-for-claude)
 - [Builder Apps](#builder-apps)
 - [Troubleshooting](#troubleshooting)
 
 ## Get Started
 
-The installer sets up Snowflake CLI and Cortex Code CLI by default. Optionally add Claude Code CLI with the agent-to-agent router skill (`--with-claude`) or the full Cortex Code Plugin for Claude Code (`--with-plugin`). It skips anything already installed and verifies your Snowflake connection.
+The installer sets up Snowflake CLI and Cortex Code CLI by default. Optionally add Claude Code CLI with the agent-to-agent router skill (`--with-claude`). The [Cortex Code Plugin for Claude Code](#cortex-code-plugin-for-claude-code) is installed separately via the Claude Code marketplace.
 
 ### What's Included
 
@@ -26,7 +26,6 @@ The installer sets up these components:
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) *(optional)* | AI coding agent by Anthropic | System PATH (via npm) |
 | [Claude Code to Cortex Code Router Skill](#claude-code-to-cortex-code-router-skill) *(optional)* | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
-| [Cortex Code Plugin for Claude Code](#cortex-code-plugin-for-claude-code) *(optional)* | Slash commands (`/review`, `/rescue`, etc.) for Claude Code via the plugin marketplace | Registered via `/plugin marketplace add` |
 
 ### Install
 
@@ -42,7 +41,6 @@ cd snowflake-ai-kit
 | `--check` / `-Check` | Check installation status without installing |
 | `--update` / `-Update` | Re-install skills (overwrite existing) |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI and router skill (opt-in) |
-| `--with-plugin` / `-WithPlugin` | Also install Cortex Code Plugin for Claude Code (implies `--with-claude`) |
 | `--help` / `-Help` | Show help |
 
 #### macOS / Linux
@@ -50,7 +48,6 @@ cd snowflake-ai-kit
 ```bash
 bash install.sh                  # default: Snow CLI + Cortex Code CLI
 bash install.sh --with-claude    # also install Claude Code CLI + Cortex Code router skill
-bash install.sh --with-plugin    # all of the above + Cortex Code Plugin for Claude Code
 ```
 
 #### Windows (PowerShell)
@@ -58,7 +55,6 @@ bash install.sh --with-plugin    # all of the above + Cortex Code Plugin for Cla
 ```powershell
 .\install.ps1                    # default: Snow CLI + Cortex Code CLI
 .\install.ps1 -WithClaude        # also install Claude Code CLI + Cortex Code router skill
-.\install.ps1 -WithPlugin        # all of the above + Cortex Code Plugin for Claude Code
 ```
 
 #### npx (any platform)
@@ -91,7 +87,7 @@ For Claude Code users (if installed with `--with-claude`):
 claude                         # Start Claude Code with Cortex Code routing
 ```
 
-For Claude Code users with the plugin (if installed with `--with-plugin`):
+For Claude Code users with the [plugin](#cortex-code-plugin-for-claude-code) installed:
 
 ```bash
 claude /cortex-code:review     # Run a Cortex Code review from Claude Code
@@ -143,21 +139,19 @@ Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY)
 
 Use Cortex Code directly from Claude Code via slash commands. The plugin registers commands like `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more through the Claude Code plugin marketplace.
 
-#### Install via marketplace
+#### Install via Claude Code marketplace (recommended)
+
+No clone required. Run from your terminal:
 
 ```bash
-# Add the marketplace
-/plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit
+# Add the Snowflake AI Kit as a Claude Code marketplace
+claude plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit
 
 # Install the plugin
-/plugin install cortex-code@snowflake-ai-kit
+claude plugin install cortex-code-plugin@snowflake-ai-kit
 ```
 
-#### Install via the AI Kit installer
-
-```bash
-bash install.sh --with-plugin
-```
+To update later: `claude plugin update cortex-code-plugin`
 
 Available commands:
 
@@ -175,7 +169,7 @@ Available commands:
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation.*
 
-## Claude Code to Cortex Code Router Skill vs Cortex Code Plugin for Claude Code
+## Cortex Code Router Skill vs Cortex Code Plugin for Claude
 
 Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). They solve different problems and can be installed together.
 
@@ -183,7 +177,7 @@ Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Th
 |---|---|---|
 | **How it works** | Auto-routes Snowflake prompts from Claude Code to Cortex Code transparently | Explicit slash commands (`/cortex-code:review`, etc.) you invoke manually in Claude Code |
 | **Best for** | "I want Claude Code to automatically use Cortex Code for Snowflake tasks" | "I want specific Cortex Code workflows on demand (code review, rescue, security audit)" |
-| **Install** | `bash install.sh --with-claude` | `bash install.sh --with-plugin` (includes `--with-claude`) |
+| **Install** | `bash install.sh --with-claude` | `claude plugin install cortex-code-plugin@snowflake-ai-kit` ([details](#cortex-code-plugin-for-claude-code)) |
 | **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
 
 ## Builder Apps
