@@ -139,7 +139,7 @@ Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY)
 
 Use Cortex Code directly from Claude Code via slash commands. The plugin registers commands like `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more through the Claude Code plugin marketplace.
 
-#### Install via Claude Code marketplace (recommended)
+#### Install via Claude Code marketplace
 
 No clone required. Run from your terminal:
 
