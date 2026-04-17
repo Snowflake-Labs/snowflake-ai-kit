@@ -26,7 +26,7 @@ The installer sets up these components:
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) *(optional)* | AI coding agent by Anthropic | System PATH (via npm) |
 | [Claude Code to Cortex Code Router Skill](#claude-code-to-cortex-code-router-skill) *(optional)* | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
-| [Cortex Code Plugin for Claude Code](#cortex-code-plugin-for-claude-code) *(optional)* | Slash commands (`/review`, `/rescue`, etc.) for Claude Code via the plugin system | Registered via `/plugins add` |
+| [Cortex Code Plugin for Claude Code](#cortex-code-plugin-for-claude-code) *(optional)* | Slash commands (`/review`, `/rescue`, etc.) for Claude Code via the plugin marketplace | Registered via `/plugin marketplace add` |
 
 ### Install
 
@@ -141,7 +141,23 @@ Features: LLM-based semantic routing, security envelopes (RO/RW/RESEARCH/DEPLOY)
 
 ### Cortex Code Plugin for Claude Code
 
-Use Cortex Code directly from Claude Code via slash commands. The plugin registers commands like `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more through the Claude Code plugin system.
+Use Cortex Code directly from Claude Code via slash commands. The plugin registers commands like `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more through the Claude Code plugin marketplace.
+
+#### Install via marketplace
+
+```bash
+# Add the marketplace
+/plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit
+
+# Install the plugin
+/plugin install cortex-code@snowflake-ai-kit
+```
+
+#### Install via the AI Kit installer
+
+```bash
+bash install.sh --with-plugin
+```
 
 Available commands:
 
@@ -157,7 +173,7 @@ Available commands:
 | `/cortex-code:status` | Check Cortex Code availability |
 | `/cortex-code:setup` | Configure the plugin |
 
-> *Installed by the installer when you opt in to the plugin (`--with-plugin`). See [`plugins/cortex-code/`](plugins/cortex-code/) for manual setup and full documentation.*
+> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation.*
 
 ## Claude Code to Cortex Code Router Skill vs Cortex Code Plugin for Claude Code
 

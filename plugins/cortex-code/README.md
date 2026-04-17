@@ -20,7 +20,16 @@ Use Cortex Code (CoCo) from inside Claude Code for code reviews or to delegate t
 
 ## Install
 
-### Via the AI Kit installer (recommended)
+### Via the plugin marketplace (recommended)
+
+In Claude Code:
+
+```
+/plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit
+/plugin install cortex-code@snowflake-ai-kit
+```
+
+### Via the AI Kit installer
 
 From the [repo root](../../):
 
@@ -34,10 +43,11 @@ This installs Snowflake CLI, Cortex Code CLI, Claude Code CLI, the router skill,
 
 Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), Node.js 18.18+.
 
-If you cloned the repo, register the plugin in Claude Code:
+If you cloned the repo, add the marketplace locally:
 
 ```
-/plugins add /path/to/snowflake-ai-kit/plugins
+/plugin marketplace add /path/to/snowflake-ai-kit
+/plugin install cortex-code@snowflake-ai-kit
 ```
 
 ### Setup

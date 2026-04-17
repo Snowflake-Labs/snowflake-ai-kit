@@ -193,26 +193,26 @@ install_skills() {
 # ─── Plugin installation ────────────────────────────────────
 
 install_plugin() {
-  local plugin_src=""
+  local repo_root=""
 
   # Try from cloned repo first
   tmp_dir=$(mktemp -d)
   if git clone --depth 1 "$REPO_URL" "$tmp_dir/repo" 2>/dev/null; then
-    if [ -d "$tmp_dir/repo/plugins/cortex-code" ]; then
-      plugin_src="$tmp_dir/repo/plugins"
+    if [ -f "$tmp_dir/repo/.claude-plugin/marketplace.json" ]; then
+      repo_root="$tmp_dir/repo"
     fi
   fi
 
   # Fallback: check if running from within the repo
-  if [ -z "$plugin_src" ]; then
+  if [ -z "$repo_root" ]; then
     script_dir="$(cd "$(dirname "$0")" && pwd)"
-    if [ -d "$script_dir/plugins/cortex-code" ]; then
+    if [ -f "$script_dir/.claude-plugin/marketplace.json" ]; then
       msg "  Using local repo as source..."
-      plugin_src="$script_dir/plugins"
+      repo_root="$script_dir"
     fi
   fi
 
-  if [ -z "$plugin_src" ] || [ ! -f "$plugin_src/cortex-code/.claude-plugin/plugin.json" ]; then
+  if [ -z "$repo_root" ]; then
     warn "Could not find plugin source."
     msg "  Manual install: git clone $REPO_URL && follow plugins/cortex-code/README.md"
     rm -rf "$tmp_dir"
@@ -221,12 +221,16 @@ install_plugin() {
 
   ok "Cortex Code Plugin for Claude Code ready"
   echo ""
-  msg "To register the plugin in Claude Code:"
+  msg "To install the plugin in Claude Code:"
   msg "  1. Open Claude Code"
-  msg "  2. Run: /plugins add $plugin_src"
+  msg "  2. Add the marketplace:"
+  msg "       /plugin marketplace add $repo_root"
+  msg "  3. Install the plugin:"
+  msg "       /plugin install cortex-code@snowflake-ai-kit"
   msg ""
-  msg "Or if you cloned the repo locally:"
-  msg "  /plugins add /path/to/snowflake-ai-kit/plugins"
+  msg "Or add directly from GitHub:"
+  msg "  /plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit"
+  msg "  /plugin install cortex-code@snowflake-ai-kit"
 
   rm -rf "$tmp_dir"
   return 0
@@ -292,7 +296,7 @@ if $CHECK_ONLY; then
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed" || warn "Cortex Code CLI (cortex) not found"
   check_cmd claude && ok "Claude Code CLI (claude) installed" || warn "Claude Code CLI (claude) not found"
   [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude-to-Cortex Code Router skill installed" || warn "Claude-to-Cortex Code Router skill not found"
-  check_cmd claude && claude plugins list 2>/dev/null | grep -q "cortex-code" && ok "Cortex Code Plugin registered" || warn "Cortex Code Plugin not registered (use --with-plugin to install)"
+  check_cmd claude && claude plugin list 2>/dev/null | grep -q "cortex-code" && ok "Cortex Code Plugin registered" || warn "Cortex Code Plugin not registered (use --with-plugin to install)"
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -345,7 +349,7 @@ if $install_claude; then
   echo "  claude --version     # Verify Claude Code CLI"
 fi
 if $WITH_PLUGIN; then
-  echo "  claude /plugins      # Verify Cortex Code Plugin"
+  echo "  claude /plugin list   # Verify Cortex Code Plugin"
 fi
 echo "  cortex               # Start Cortex Code"
 echo ""

@@ -230,33 +230,33 @@ function Install-Skills {
 }
 
 function Install-Plugin {
-    $pluginSrc = $null
+    $repoRoot = $null
     $tmpDir = Join-Path $env:TEMP "snowflake-ai-kit-plugin-$(Get-Random)"
 
     try {
         & git clone --depth 1 $RepoUrl $tmpDir 2>$null
         if ($LASTEXITCODE -eq 0) {
-            $candidate = Join-Path $tmpDir "plugins\cortex-code"
+            $candidate = Join-Path $tmpDir ".claude-plugin\marketplace.json"
             if (Test-Path $candidate) {
-                $pluginSrc = Join-Path $tmpDir "plugins"
+                $repoRoot = $tmpDir
             }
         }
     }
     catch { }
 
     # Fallback: check if script is running from within the repo
-    if (-not $pluginSrc) {
+    if (-not $repoRoot) {
         $scriptDir = Split-Path -Parent $MyInvocation.ScriptName
         if ($scriptDir) {
-            $localCandidate = Join-Path $scriptDir "plugins\cortex-code"
+            $localCandidate = Join-Path $scriptDir ".claude-plugin\marketplace.json"
             if (Test-Path $localCandidate) {
                 Write-Msg "  Using local repo as source..."
-                $pluginSrc = Join-Path $scriptDir "plugins"
+                $repoRoot = $scriptDir
             }
         }
     }
 
-    if (-not $pluginSrc -or -not (Test-Path (Join-Path $pluginSrc "cortex-code\.claude-plugin\plugin.json"))) {
+    if (-not $repoRoot) {
         if ($tmpDir -and (Test-Path $tmpDir)) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
         Write-Warn "Could not find plugin source."
         Write-Msg "  Manual install: git clone $RepoUrl && follow plugins\cortex-code\README.md"
@@ -265,12 +265,16 @@ function Install-Plugin {
 
     Write-Ok "Cortex Code Plugin for Claude Code ready"
     Write-Host ""
-    Write-Msg "To register the plugin in Claude Code:"
+    Write-Msg "To install the plugin in Claude Code:"
     Write-Msg "  1. Open Claude Code"
-    Write-Msg "  2. Run: /plugins add $pluginSrc"
+    Write-Msg "  2. Add the marketplace:"
+    Write-Msg "       /plugin marketplace add $repoRoot"
+    Write-Msg "  3. Install the plugin:"
+    Write-Msg "       /plugin install cortex-code@snowflake-ai-kit"
     Write-Host ""
-    Write-Msg "Or if you cloned the repo locally:"
-    Write-Msg "  /plugins add C:\path\to\snowflake-ai-kit\plugins"
+    Write-Msg "Or add directly from GitHub:"
+    Write-Msg "  /plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit"
+    Write-Msg "  /plugin install cortex-code@snowflake-ai-kit"
 
     if ($tmpDir -and (Test-Path $tmpDir)) { Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue }
     return $true
@@ -308,7 +312,7 @@ if ($Check) {
     if (Test-Command "claude") { Write-Ok "Claude Code CLI (claude) installed" }   else { Write-Warn "Claude Code CLI (claude) not found" }
     if (Test-Path (Join-Path $SkillDir "SKILL.md")) { Write-Ok "Claude-to-Cortex Code Router skill installed" } else { Write-Warn "Claude-to-Cortex Code Router skill not found" }
     try {
-        $pluginList = & claude plugins list 2>$null
+        $pluginList = & claude plugin list 2>$null
         if ($pluginList -match "cortex-code") { Write-Ok "Cortex Code Plugin registered" } else { Write-Warn "Cortex Code Plugin not registered (use -WithPlugin to install)" }
     }
     catch { Write-Warn "Cortex Code Plugin not registered (use -WithPlugin to install)" }
@@ -364,7 +368,7 @@ if ($installClaude) {
     Write-Host "  claude --version     # Verify Claude Code CLI"
 }
 if ($WithPlugin) {
-    Write-Host "  claude /plugins      # Verify Cortex Code Plugin"
+    Write-Host "  claude /plugin list   # Verify Cortex Code Plugin"
 }
 Write-Host "  cortex               # Start Cortex Code"
 Write-Host ""
