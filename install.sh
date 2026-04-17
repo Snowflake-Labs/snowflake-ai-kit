@@ -3,8 +3,8 @@
 # Snowflake AI Kit — Installer
 #
 # Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
-# Claude Code CLI (claude) with the Cortex Code router skill,
-# if not already present, then verifies your Snowflake connection.
+# agent integrations (Claude Code, Cursor, Codex) with the Cortex Code
+# router skill, if not already present, then verifies your Snowflake connection.
 #
 # Usage:
 #   bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
@@ -190,11 +190,75 @@ install_skills() {
   return 0
 }
 
+# ─── Cursor integration ──────────────────────────────────────
+
+install_cursor_skill() {
+  local cursor_skill_dir="$HOME/.cursor/skills-cursor/cortex-code"
+  local cursor_rules_dir="$HOME/.cursor/rules"
+
+  if [ -f "${cursor_skill_dir}/SKILL.md" ] && ! $UPDATE; then
+    ok "Cursor skill already installed"
+    msg "  Re-run with --update to overwrite"
+    return 0
+  fi
+
+  # Locate the repo root (works when running from within the repo)
+  local repo_root
+  repo_root="$(cd "$(dirname "$0")" && pwd)"
+
+  if [ -f "$repo_root/integrations/cursor/install.sh" ]; then
+    msg "Installing Cursor integration..."
+    bash "$repo_root/integrations/cursor/install.sh"
+    return $?
+  fi
+
+  # Fallback: try from a temp clone
+  if [ -n "$tmp_dir" ] && [ -f "$tmp_dir/repo/integrations/cursor/install.sh" ]; then
+    bash "$tmp_dir/repo/integrations/cursor/install.sh"
+    return $?
+  fi
+
+  warn "Could not find Cursor integration installer."
+  msg "  Manual install: git clone $REPO_URL && bash integrations/cursor/install.sh"
+  return 1
+}
+
+# ─── Codex integration ───────────────────────────────────────
+
+install_codex_tool() {
+  if command -v cortexcode-tool &>/dev/null && ! $UPDATE; then
+    ok "cortexcode-tool already installed"
+    msg "  Re-run with --update to overwrite"
+    return 0
+  fi
+
+  local repo_root
+  repo_root="$(cd "$(dirname "$0")" && pwd)"
+
+  if [ -f "$repo_root/integrations/codex/install.sh" ]; then
+    msg "Installing Codex integration (cortexcode-tool)..."
+    bash "$repo_root/integrations/codex/install.sh"
+    return $?
+  fi
+
+  if [ -n "$tmp_dir" ] && [ -f "$tmp_dir/repo/integrations/codex/install.sh" ]; then
+    bash "$tmp_dir/repo/integrations/codex/install.sh"
+    return $?
+  fi
+
+  warn "Could not find Codex integration installer."
+  msg "  Manual install: git clone $REPO_URL && bash integrations/codex/install.sh"
+  return 1
+}
+
 # ─── Parse arguments ────────────────────────────────────────
 
 CHECK_ONLY=false
 UPDATE=false
 WITH_CLAUDE=false
+WITH_CURSOR=false
+WITH_CODEX=false
+WITH_ALL=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -210,10 +274,23 @@ while [ $# -gt 0 ]; do
       WITH_CLAUDE=true
       shift
       ;;
+    --with-cursor)
+      WITH_CURSOR=true
+      shift
+      ;;
+    --with-codex)
+      WITH_CODEX=true
+      shift
+      ;;
+    --with-all)
+      WITH_ALL=true
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
-      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + router skill."
+      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally"
+      echo "agent integrations (Claude Code, Cursor, Codex) with the Cortex Code router skill."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
@@ -221,6 +298,9 @@ while [ $# -gt 0 ]; do
       echo "  --check, -c      Check installation status without installing"
       echo "  --update, -u     Re-install skills (overwrite existing)"
       echo "  --with-claude    Also install Claude Code CLI and Claude-to-Cortex router skill"
+      echo "  --with-cursor    Install Cortex Code skill + routing rule for Cursor"
+      echo "  --with-codex     Install cortexcode-tool CLI for Codex"
+      echo "  --with-all       Install integrations for all supported agents"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -229,6 +309,13 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+# --with-all enables all agent integrations
+if $WITH_ALL; then
+  WITH_CLAUDE=true
+  WITH_CURSOR=true
+  WITH_CODEX=true
+fi
 
 # ─── Execute ────────────────────────────────────────────────
 
@@ -242,7 +329,10 @@ if $CHECK_ONLY; then
   check_cmd snow   && ok "Snowflake CLI (snow) installed"   || warn "Snowflake CLI (snow) not found"
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed" || warn "Cortex Code CLI (cortex) not found"
   check_cmd claude && ok "Claude Code CLI (claude) installed" || warn "Claude Code CLI (claude) not found"
-  [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude-to-Cortex Code Router skill installed" || warn "Claude-to-Cortex Code Router skill not found"
+  [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude Code router skill installed" || warn "Claude Code router skill not found"
+  [ -f "$HOME/.cursor/skills-cursor/cortex-code/SKILL.md" ] && ok "Cursor skill installed" || warn "Cursor skill not found"
+  [ -f "$HOME/.cursor/rules/cortex-snowflake-routing.mdc" ] && ok "Cursor routing rule installed" || warn "Cursor routing rule not found"
+  check_cmd cortexcode-tool && ok "cortexcode-tool installed (Codex/CLI)" || warn "cortexcode-tool not found (Codex/CLI)"
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -271,10 +361,22 @@ fi
 if $install_claude; then
   install_claude_code_cli || true
 
-  step "Installing skills..."
+  step "Installing Claude Code router skill..."
   install_skills || true
 else
   msg "Skipping Claude Code CLI (use --with-claude to include)"
+fi
+
+# Cursor integration (opt-in)
+if $WITH_CURSOR; then
+  step "Installing Cursor integration..."
+  install_cursor_skill || true
+fi
+
+# Codex integration (opt-in)
+if $WITH_CODEX; then
+  step "Installing Codex integration..."
+  install_codex_tool || true
 fi
 
 step "Checking Snowflake connection..."
@@ -288,6 +390,12 @@ echo "  snow --version       # Verify Snowflake CLI"
 echo "  cortex --version     # Verify Cortex Code CLI"
 if $install_claude; then
   echo "  claude --version     # Verify Claude Code CLI"
+fi
+if $WITH_CURSOR; then
+  echo "  # Restart Cursor to activate the routing rule"
+fi
+if $WITH_CODEX; then
+  echo "  cortexcode-tool --version  # Verify Codex CLI tool"
 fi
 echo "  cortex               # Start Cortex Code"
 echo ""

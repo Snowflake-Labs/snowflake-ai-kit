@@ -17,6 +17,9 @@ param(
     [switch]$Check,
     [switch]$Update,
     [switch]$WithClaude,
+    [switch]$WithCursor,
+    [switch]$WithCodex,
+    [switch]$WithAll,
     [switch]$Help
 )
 
@@ -231,19 +234,30 @@ function Install-Skills {
 if ($Help) {
     Write-Host "Snowflake AI Kit -- Installer (Windows)"
     Write-Host ""
-    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + router skill."
+    Write-Host "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally"
+    Write-Host "agent integrations (Claude Code, Cursor, Codex) with the Cortex Code router skill."
     Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
-    Write-Host "  -Check       Check installation status without installing"
-    Write-Host "  -Update      Re-install skills (overwrite existing)"
-    Write-Host "  -WithClaude  Also install Claude Code CLI and Claude-to-Cortex router skill"
-    Write-Host "  -Help        Show this help"
+    Write-Host "  -Check        Check installation status without installing"
+    Write-Host "  -Update       Re-install skills (overwrite existing)"
+    Write-Host "  -WithClaude   Also install Claude Code CLI and Claude-to-Cortex router skill"
+    Write-Host "  -WithCursor   Install Cortex Code skill + routing rule for Cursor"
+    Write-Host "  -WithCodex    Install cortexcode-tool CLI for Codex"
+    Write-Host "  -WithAll      Install integrations for all supported agents"
+    Write-Host "  -Help         Show this help"
     return
 }
 
 # === Execute ===================================================
+
+# -WithAll enables all agent integrations
+if ($WithAll) {
+    $WithClaude = $true
+    $WithCursor = $true
+    $WithCodex = $true
+}
 
 Write-Host ""
 Write-Host "Snowflake AI Kit -- Installer" -ForegroundColor White
@@ -255,7 +269,10 @@ if ($Check) {
     if (Test-Command "snow")   { Write-Ok "Snowflake CLI (snow) installed" }   else { Write-Warn "Snowflake CLI (snow) not found" }
     if (Test-Command "cortex") { Write-Ok "Cortex Code CLI (cortex) installed" } else { Write-Warn "Cortex Code CLI (cortex) not found" }
     if (Test-Command "claude") { Write-Ok "Claude Code CLI (claude) installed" }   else { Write-Warn "Claude Code CLI (claude) not found" }
-    if (Test-Path (Join-Path $SkillDir "SKILL.md")) { Write-Ok "Claude-to-Cortex Code Router skill installed" } else { Write-Warn "Claude-to-Cortex Code Router skill not found" }
+    if (Test-Path (Join-Path $SkillDir "SKILL.md")) { Write-Ok "Claude Code router skill installed" } else { Write-Warn "Claude Code router skill not found" }
+    $cursorSkill = Join-Path $env:USERPROFILE ".cursor\skills-cursor\cortex-code\SKILL.md"
+    if (Test-Path $cursorSkill) { Write-Ok "Cursor skill installed" } else { Write-Warn "Cursor skill not found" }
+    if (Test-Command "cortexcode-tool") { Write-Ok "cortexcode-tool installed (Codex/CLI)" } else { Write-Warn "cortexcode-tool not found (Codex/CLI)" }
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
@@ -283,11 +300,25 @@ elseif ([Environment]::UserInteractive) {
 if ($installClaude) {
     Install-ClaudeCodeCLI | Out-Null
 
-    Write-Step "Installing skills..."
+    Write-Step "Installing Claude Code router skill..."
     Install-Skills | Out-Null
 }
 else {
     Write-Msg "Skipping Claude Code CLI (use -WithClaude to include)"
+}
+
+# Cursor integration (opt-in)
+if ($WithCursor) {
+    Write-Step "Installing Cursor integration..."
+    Write-Warn "Cursor integration requires bash (install.sh). Run from WSL or Git Bash:"
+    Write-Msg "  bash integrations/cursor/install.sh"
+}
+
+# Codex integration (opt-in)
+if ($WithCodex) {
+    Write-Step "Installing Codex integration..."
+    Write-Warn "Codex integration requires bash (install.sh). Run from WSL or Git Bash:"
+    Write-Msg "  bash integrations/codex/install.sh"
 }
 
 Write-Step "Checking Snowflake connection..."
@@ -301,6 +332,12 @@ Write-Host "  snow --version       # Verify Snowflake CLI"
 Write-Host "  cortex --version     # Verify Cortex Code CLI"
 if ($installClaude) {
     Write-Host "  claude --version     # Verify Claude Code CLI"
+}
+if ($WithCursor) {
+    Write-Host "  # Restart Cursor to activate the routing rule"
+}
+if ($WithCodex) {
+    Write-Host "  cortexcode-tool --version  # Verify Codex CLI tool"
 }
 Write-Host "  cortex               # Start Cortex Code"
 Write-Host ""

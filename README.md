@@ -9,6 +9,7 @@ Developer tools for building on Snowflake with AI coding agents. One-command ins
 - [Skills](#skills)
 - [Plugins](#plugins)
  - [Cortex Code Router Skill vs Cortex Code Plugin for Claude](#cortex-code-router-skill-vs-cortex-code-plugin-for-claude)
+- [Multi-Agent Integrations](#multi-agent-integrations)
 - [Builder Apps](#builder-apps)
 - [Troubleshooting](#troubleshooting)
 
@@ -26,6 +27,8 @@ The installer sets up these components:
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
 | [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) *(optional)* | AI coding agent by Anthropic | System PATH (via npm) |
 | [Claude Code to Cortex Code Router Skill](#claude-code-to-cortex-code-router-skill) *(optional)* | Route Snowflake operations from Claude Code to Cortex Code | `~/.claude/skills/cortex-code/` |
+| [Cursor integration](#cursor) *(optional)* | Cortex Code skill + auto-routing rule for Cursor | `~/.cursor/skills-cursor/cortex-code/` |
+| [Codex integration](#codex) *(optional)* | Standalone CLI tool for OpenAI Codex agent | `~/.local/bin/cortexcode-tool` |
 
 ### Install
 
@@ -41,6 +44,9 @@ cd snowflake-ai-kit
 | `--check` / `-Check` | Check installation status without installing |
 | `--update` / `-Update` | Re-install skills (overwrite existing) |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI and router skill (opt-in) |
+| `--with-cursor` / `-WithCursor` | Install Cortex Code skill + routing rule for Cursor |
+| `--with-codex` / `-WithCodex` | Install cortexcode-tool CLI for Codex |
+| `--with-all` / `-WithAll` | Install integrations for all supported agents |
 | `--help` / `-Help` | Show help |
 
 #### macOS / Linux
@@ -48,6 +54,7 @@ cd snowflake-ai-kit
 ```bash
 bash install.sh                  # default: Snow CLI + Cortex Code CLI
 bash install.sh --with-claude    # also install Claude Code CLI + Cortex Code router skill
+bash install.sh --with-all       # install all agent integrations
 ```
 
 #### Windows (PowerShell)
@@ -55,6 +62,7 @@ bash install.sh --with-claude    # also install Claude Code CLI + Cortex Code ro
 ```powershell
 .\install.ps1                    # default: Snow CLI + Cortex Code CLI
 .\install.ps1 -WithClaude        # also install Claude Code CLI + Cortex Code router skill
+.\install.ps1 -WithAll           # install all agent integrations
 ```
 
 #### npx (any platform)
@@ -180,6 +188,71 @@ Both work with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Th
 | **Install** | `bash install.sh --with-claude` | `claude plugin install cortex-code-plugin@snowflake-ai-kit` ([details](#cortex-code-plugin-for-claude-code)) |
 | **Conflict?** | No -- install both if you want automatic routing AND explicit commands | No -- install both |
 
+## Multi-Agent Integrations
+
+Cortex Code can be used as a backend for multiple AI coding agents. Each integration routes Snowflake operations from the host agent to Cortex Code CLI, giving the agent access to 35+ bundled Snowflake skills.
+
+| Agent | Integration type | Install flag | Details |
+|---|---|---|---|
+| **Claude Code** | Skill-based (SKILL.md) | `--with-claude` | [Router skill](#claude-code-to-cortex-code-router-skill) |
+| **Cursor** | Skill + `.mdc` routing rule | `--with-cursor` | [Setup](#cursor) |
+| **Windsurf** | Skill-based (Cascade auto-discovers) | `--with-claude` | Same skill as Claude Code — Cascade reads `~/.claude/skills/` |
+| **Codex** | Standalone CLI (`cortexcode-tool`) | `--with-codex` | [Setup](#codex) |
+| **VSCode / Terminal** | Standalone CLI (`cortexcode-tool`) | `--with-codex` | Same CLI tool, run directly |
+
+All integrations share the same core skill at `agent-to-agent-skills/claude-cortex-code-router/` — no code duplication across agents.
+
+### Cursor
+
+Installs the Cortex Code skill into Cursor's skill directory and adds an auto-routing rule (`.mdc`) that detects Snowflake-related prompts.
+
+```bash
+bash install.sh --with-cursor
+# or standalone:
+bash integrations/cursor/install.sh
+```
+
+After install, restart Cursor. The routing rule (`cortex-snowflake-routing.mdc`) activates automatically for prompts containing Snowflake keywords.
+
+To uninstall: `bash integrations/cursor/uninstall.sh`
+
+See [`integrations/cursor/`](integrations/cursor/) for details.
+
+### Codex
+
+Installs `cortexcode-tool`, a standalone Python CLI that wraps `cortex` for non-TTY environments like OpenAI Codex. Uses `--bypass` mode and streams JSON output.
+
+```bash
+bash install.sh --with-codex
+# or standalone:
+bash integrations/codex/install.sh
+```
+
+The Codex config (`cortexcode-tool-codex.yaml`) uses `~/.cache/` paths to work within Codex's sandbox. The tool auto-detects your Snowflake connection from `~/.snowflake/connections.toml`.
+
+To uninstall: `bash integrations/codex/uninstall.sh`
+
+See [`integrations/codex/`](integrations/codex/) for details.
+
+### Windsurf
+
+No separate integration needed. Windsurf's Cascade agent auto-discovers skills from `~/.claude/skills/`. Install the Claude Code router skill (`--with-claude`) and Windsurf picks it up automatically.
+
+### Security Model
+
+All integrations support configurable security envelopes:
+
+| Envelope | Allowed operations |
+|---|---|
+| **RO** (read-only) | SELECT, DESCRIBE, SHOW, list operations |
+| **RW** (read-write) | RO + INSERT, UPDATE, DELETE, CREATE, ALTER |
+| **RESEARCH** | RO + web search, documentation lookups |
+| **DEPLOY** | RW + deployment operations (CREATE APPLICATION, etc.) |
+
+Approval modes: `auto` (no prompts), `prompt` (ask before executing), `strict` (require explicit approval for each operation). Configure per-agent in the integration's config file.
+
+See [`integrations/README.md`](integrations/README.md) for the full architecture overview.
+
 ## Builder Apps
 
 ### Cortex Agent App
@@ -202,6 +275,8 @@ See [`builder-apps/cortex-agent/`](builder-apps/cortex-agent/) for setup and usa
 | Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |
 | Skill install fails | The repo is internal — you need access to Snowflake-Labs. Try: `git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git` manually. |
 | Skill already installed | Run with `--update` to overwrite: `bash <(curl -sSL .../install.sh) --update` |
+| Cursor skill not detected | Restart Cursor after install. Check `~/.cursor/skills-cursor/cortex-code/SKILL.md` exists. |
+| `cortexcode-tool: command not found` | Ensure `~/.local/bin` is in `$PATH`. Re-run: `bash integrations/codex/install.sh` |
 
 ## License
 

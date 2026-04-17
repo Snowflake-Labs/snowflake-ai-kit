@@ -1,0 +1,73 @@
+# Cortexcode Tool Configuration
+# Copy to ~/.config/cortexcode-tool/config.yaml and customize
+#
+# NOTE: Paths using tilde (~) are shell-expanded by the ConfigManager.
+# Examples: ~/.config/cortexcode-tool/, ~/Documents/
+#
+# SECURITY: Ensure config.yaml has permissions 600 (user read/write only)
+#
+# CURSOR USERS: Use the Claude Code skill instead (~/.claude/skills/cortex-code/)
+# This config is for standalone CLI usage and other IDEs (VSCode, Windsurf)
+
+# Security settings (v2.0.0)
+security:
+  # Approval mode: "auto" (recommended for CLI), "prompt", "envelope_only"
+  # "auto" - Auto-approve all operations (best for non-interactive CLI usage)
+  # "prompt" - Show approval prompt before each execution (interactive mode)
+  # "envelope_only" - Rely on envelope blocklist only (fastest)
+  approval_mode: "auto"
+
+  # Audit log path (required for auto/envelope_only modes)
+  audit_log_path: "~/.config/cortexcode-tool/audit.log"
+
+  # Prompt sanitization (removes PII, detects injection)
+  sanitize_conversation_history: true
+
+  # Credential file blocking
+  block_credential_paths: true
+  credential_path_patterns:
+    - "~/.ssh/**"
+    - "~/.aws/**"
+    - "~/.snowflake/**"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/credentials.json"
+    - "**/credentials.yaml"
+
+# Cortex Code settings
+cortex:
+  # Default connection name (from cortex connections list)
+  connection_name: "default"
+
+  # Default security envelope: "RO", "RW", "RESEARCH", "DEPLOY", "NONE"
+  default_envelope: "RW"
+
+  # Cache settings
+  cache_dir: "~/.cache/cortexcode-tool"
+  cache_ttl_seconds: 3600
+
+  # Session history limit for context enrichment
+  session_history_limit: 3
+
+# IDE integration settings
+ide:
+  # Target IDEs to generate config for
+  targets:
+    - "cursor"
+    - "vscode"
+
+  # Cursor-specific settings
+  cursor:
+    rules_dir: ".cursor/rules"
+    rule_file: "cortexcode-snowflake.mdc"
+
+  # VSCode-specific settings
+  vscode:
+    tasks_file: ".vscode/tasks.json"
+    snippets_file: ".vscode/cortexcode.code-snippets"
+
+# Logging settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"  # json or text
+  file: "~/.config/cortexcode-tool/cortexcode-tool.log"
