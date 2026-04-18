@@ -67,9 +67,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # (including snowflake_sql_execute and MCP tools) without --bypass or
     # --dangerously-allow-all-tool-calls which may be blocked by org policy.
     # Envelope security is enforced via --disallowed-tools blocklist.
+    # NOTE: Do NOT use -p with --input-format stream-json -- the -p flag is
+    # ignored in stream-json input mode. Instead, send the prompt via stdin
+    # as a JSON user message (see below).
     cmd = [
         "cortex",
-        "-p", prompt,
         "--output-format", "stream-json",
         "--input-format", "stream-json"
     ]
@@ -127,7 +129,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json (prompt via stdin)"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:
@@ -135,17 +137,31 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     print(debug_cmd, file=sys.stderr)
 
     try:
-        # Start process. stdin=DEVNULL is critical: --input-format stream-json
-        # puts Cortex in programmatic mode but it must not wait on stdin for
-        # approval responses — closing it lets auto-approval proceed immediately.
+        # Start process with stdin=PIPE so we can send the prompt as a
+        # stream-json user message. Previously used stdin=DEVNULL with -p flag,
+        # but -p is ignored in --input-format stream-json mode -- the prompt
+        # must arrive via stdin as a JSON user message.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.PIPE,
             text=True,
             bufsize=1
         )
+
+        # Send the prompt as a stream-json user message, then close stdin
+        # so Cortex knows no more input is coming and will process + exit.
+        prompt_message = json.dumps({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt}]
+            }
+        }) + "\n"
+        process.stdin.write(prompt_message)
+        process.stdin.flush()
+        process.stdin.close()
 
         results = {
             "session_id": None,
