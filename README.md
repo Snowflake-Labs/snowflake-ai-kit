@@ -79,9 +79,9 @@ With the [plugin](#cortex-code-plugin-for-claude-code) installed, Claude Code au
 
 ```bash
 claude                         # Start Claude Code — Snowflake queries auto-route to Cortex
-claude /cortex-code:review     # Run a Cortex Code review from Claude Code
-claude /cortex-code:rescue     # Hand off a stuck task to Cortex Code
 ```
+
+Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code. See the [plugin docs](plugins/cortex-code/) for slash commands, security model, and configuration.
 
 ## Skills
 
