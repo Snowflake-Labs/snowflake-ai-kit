@@ -10,7 +10,11 @@ import shutil
 import subprocess
 import sys
 import argparse
+from pathlib import Path
 from typing import List, Dict, Optional
+
+sys.path.insert(0, str(Path(__file__).parent))
+from session_state import load_active_session, save_active_session
 
 
 # Credential file patterns — block prompts referencing these paths.
@@ -79,7 +83,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
                              approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None) -> Dict:
+                             allowed_tools: Optional[List[str]] = None,
+                             resume_session_id: Optional[str] = None) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
@@ -140,6 +145,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         "--output-format", "stream-json",
         "--input-format", "stream-json"
     ]
+
+    # Resume prior cortex session so follow-up turns see earlier context.
+    if resume_session_id:
+        cmd.extend(["--resume", resume_session_id])
+        print(f"[cortex] Resuming session {resume_session_id}", file=sys.stderr)
 
     # Add connection if specified
     if connection:
@@ -247,10 +257,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
                 event_type = event.get("type")
 
-                # Extract session ID
+                # Extract session ID and persist so next turn can --resume.
                 if event_type == "system" and event.get("subtype") == "init":
                     results["session_id"] = event.get("session_id")
                     print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                    save_active_session(results["session_id"])
 
                 # Handle assistant responses
                 elif event_type == "assistant":
@@ -332,7 +343,21 @@ def main():
     parser.add_argument("--allowed-tools", nargs="+",
                        help="Tools that are allowed (for prompt mode)")
     parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
+    parser.add_argument("--resume-last", action="store_true",
+                       help="Resume the most recent cortex session for multi-turn continuation")
+    parser.add_argument("--resume", dest="resume_session_id", default=None,
+                       help="Resume a specific cortex session by id")
     args = parser.parse_args()
+
+    # Resolve which session (if any) to resume.
+    resume_session_id = args.resume_session_id
+    if args.resume_last and not resume_session_id:
+        active = load_active_session()
+        if active:
+            resume_session_id = active["session_id"]
+        else:
+            print("→ --resume-last requested but no active session found; starting fresh.",
+                  file=sys.stderr)
 
     # Execute Cortex
     results = execute_cortex_streaming(
@@ -341,7 +366,8 @@ def main():
         disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
         approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools
+        allowed_tools=args.allowed_tools,
+        resume_session_id=resume_session_id,
     )
 
     # Output results as JSON
