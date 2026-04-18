@@ -117,10 +117,15 @@ cortex skill add owner/repo
 
 ### Cortex Code Plugin for Claude Code
 
-Use Cortex Code from Claude Code. The plugin does two things:
+Automatically route Snowflake work from Claude Code to Cortex Code. When you ask about your Snowflake data, the plugin detects the intent and delegates to Cortex Code -- no slash command needed. Just ask naturally:
 
-1. **Auto-routing**: Snowflake-related prompts are automatically detected and routed to Cortex Code for execution (SQL queries, data governance, skill-based workflows).
-2. **Slash commands**: Explicit commands like `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review` for on-demand Cortex Code workflows.
+- "Show me the top 10 customers by revenue"
+- "Check data quality for the SALES_DATA table"
+- "Create a dynamic table that refreshes hourly"
+
+Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in Claude Code as usual.
+
+The plugin also includes slash commands for on-demand workflows: `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more.
 
 #### Install via Claude Code marketplace
 
@@ -136,21 +141,7 @@ claude plugin install cortex-code@snowflake-ai-kit
 
 To update later: `claude plugin update cortex-code`
 
-Available commands:
-
-| Command | Description |
-|---|---|
-| `/cortex-code:review` | Code review via Cortex Code |
-| `/cortex-code:security-review` | Security-focused review |
-| `/cortex-code:sql-review` | SQL review |
-| `/cortex-code:dbt-review` | dbt project review |
-| `/cortex-code:data-review` | Data pipeline review |
-| `/cortex-code:adversarial-review` | Adversarial/red-team review |
-| `/cortex-code:rescue` | Hand off a stuck task to Cortex Code |
-| `/cortex-code:status` | Check Cortex Code availability |
-| `/cortex-code:setup` | Configure the plugin |
-
-> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation.*
+> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, slash command reference, security model, and configuration.*
 
 ## Builder Apps
 

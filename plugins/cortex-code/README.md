@@ -1,23 +1,10 @@
 # Cortex Code plugin for Claude Code
 
-Use Cortex Code (CoCo) from inside Claude Code — slash commands for reviews and task delegation, plus automatic routing of Snowflake operations.
+Route Snowflake work from Claude Code to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 35+ built-in skills handle the work. Non-Snowflake prompts stay in Claude Code.
 
 ## What You Get
 
-### Slash Commands (explicit)
-
-- `/cortex-code:review` for a Cortex Code review of your changes
-- `/cortex-code:adversarial-review` for a steerable challenge review
-- `/cortex-code:data-review` for Snowflake data engineering review (SQL, pipelines, schema, warehouse cost)
-- `/cortex-code:dbt-review` for dbt model review (materialization, testing, lineage)
-- `/cortex-code:sql-review` for Snowflake SQL optimization review (performance, anti-patterns, cost)
-- `/cortex-code:security-review` for Snowflake security review (RBAC, credentials, data governance)
-- `/cortex-code:rescue` to delegate work to Cortex Code
-- `/cortex-code:status`, `/cortex-code:result`, `/cortex-code:cancel` to manage background jobs
-- `/cortex-code:router-setup` to discover Cortex skills and verify auto-routing
-- `/cortex-code:router-config` to view or change auto-routing settings
-
-### Auto-Routing (implicit)
+### Auto-Routing (the main thing)
 
 The plugin includes a built-in router that automatically detects Snowflake-related prompts and routes them to Cortex Code — no slash command needed. Just ask about your Snowflake data naturally.
 
@@ -30,6 +17,21 @@ Examples that stay in Claude Code:
 - "Read the config.json file"
 - "Fix the bug in auth.py"
 - "Write a Python unit test"
+
+### Slash Commands (on-demand workflows)
+
+For explicit Cortex Code workflows, use slash commands:
+
+- `/cortex-code:review` — code review
+- `/cortex-code:adversarial-review` — steerable challenge review
+- `/cortex-code:data-review` — Snowflake data engineering review
+- `/cortex-code:dbt-review` — dbt model review
+- `/cortex-code:sql-review` — SQL optimization review
+- `/cortex-code:security-review` — security review (RBAC, credentials, governance)
+- `/cortex-code:rescue` — delegate work to Cortex Code
+- `/cortex-code:status`, `/cortex-code:result`, `/cortex-code:cancel` — manage background jobs
+- `/cortex-code:router-setup` — discover Cortex skills and verify auto-routing
+- `/cortex-code:router-config` — view or change auto-routing settings
 
 ## Requirements
 
@@ -44,10 +46,10 @@ Run from your terminal (not inside a Claude Code session):
 
 ```bash
 claude plugin marketplace add https://github.com/Snowflake-Labs/snowflake-ai-kit
-claude plugin install cortex-code-plugin@snowflake-ai-kit
+claude plugin install cortex-code@snowflake-ai-kit
 ```
 
-To update later: `claude plugin update cortex-code-plugin`
+To update later: `claude plugin update cortex-code`
 
 ### Manual setup (local clone)
 
@@ -57,7 +59,7 @@ If you cloned the repo, add the marketplace from the local path:
 
 ```bash
 claude plugin marketplace add /path/to/snowflake-ai-kit
-claude plugin install cortex-code-plugin@snowflake-ai-kit
+claude plugin install cortex-code@snowflake-ai-kit
 ```
 
 ### Setup
@@ -78,7 +80,57 @@ One simple first run:
 /cortex-code:result
 ```
 
-## Usage
+## Auto-Routing
+
+### How It Works
+
+The plugin includes a `cortex-router` skill that activates automatically (no slash command needed). On session start, it:
+
+1. Runs `discover_cortex.py` to enumerate available Cortex skills
+2. Caches the result to `/tmp/cortex-capabilities.json`
+3. Listens for Snowflake-related prompts during the session
+
+When you type a prompt, the router uses LLM-based semantic analysis (not keyword matching) to decide whether to route to Cortex Code or handle locally in Claude Code.
+
+### Security Model
+
+The router wraps Cortex execution with a security layer. Three approval modes:
+
+| Mode | Behavior | Audit | Best For |
+|------|----------|-------|----------|
+| `prompt` (default) | Ask user before execution | Optional | Interactive, production |
+| `auto` | Auto-approve | Required | Automated workflows |
+| `envelope_only` | Auto-approve, no tool prediction | Required | Low latency, trusted envs |
+
+**Security envelopes** control what Cortex can do:
+- **RO**: Read-only — blocks Edit, Write, destructive Bash
+- **RW**: Read-write — blocks destructive operations
+- **RESEARCH**: Read + web access
+- **DEPLOY**: Full access (use cautiously)
+
+Built-in protections: PII sanitization, credential path blocking, SHA256-validated cache, structured audit logging.
+
+### Configuration
+
+```bash
+# View current settings
+/cortex-code:router-config
+
+# Change approval mode
+/cortex-code:router-config --set approval_mode=auto
+```
+
+See `scripts/router/config.yaml.example` for all available options.
+
+### Re-discover Skills
+
+If Cortex skills change mid-session:
+
+```bash
+/cortex-code:router-setup
+```
+
+## Slash Command Reference
 
 ### `/cortex-code:review`
 
@@ -177,85 +229,4 @@ Cancels an active background job.
 ```bash
 /cortex-code:cancel
 /cortex-code:cancel task-abc123
-```
-
-## Typical Flows
-
-### Review Before Shipping
-
-```bash
-/cortex-code:review
-```
-
-### Hand A Problem To Cortex Code
-
-```bash
-/cortex-code:rescue investigate why the build is failing in CI
-```
-
-### Start Something Long-Running
-
-```bash
-/cortex-code:adversarial-review --background
-/cortex-code:rescue --background investigate the flaky test
-```
-
-Then check in with:
-
-```bash
-/cortex-code:status
-/cortex-code:result
-```
-
-## Auto-Routing
-
-### How It Works
-
-The plugin includes a `cortex-router` skill that activates automatically (no slash command needed). On session start, it:
-
-1. Runs `discover_cortex.py` to enumerate available Cortex skills
-2. Caches the result to `/tmp/cortex-capabilities.json`
-3. Listens for Snowflake-related prompts during the session
-
-When you type a prompt, the router uses LLM-based semantic analysis (not keyword matching) to decide whether to route to Cortex Code or handle locally in Claude Code.
-
-### Security Model
-
-The router wraps Cortex execution with a security layer. Three approval modes:
-
-| Mode | Behavior | Audit | Best For |
-|------|----------|-------|----------|
-| `prompt` (default) | Ask user before execution | Optional | Interactive, production |
-| `auto` | Auto-approve | Required | Automated workflows |
-| `envelope_only` | Auto-approve, no tool prediction | Required | Low latency, trusted envs |
-
-**Security envelopes** control what Cortex can do:
-- **RO**: Read-only — blocks Edit, Write, destructive Bash
-- **RW**: Read-write — blocks destructive operations
-- **RESEARCH**: Read + web access
-- **DEPLOY**: Full access (use cautiously)
-
-Built-in protections: PII sanitization, credential path blocking, SHA256-validated cache, structured audit logging.
-
-### Configuration
-
-```bash
-# View current settings
-/cortex-code:router-config
-
-# Change approval mode
-/cortex-code:router-config --set approval_mode=auto
-
-# Full config file
-~/.claude/skills/cortex-code/config.yaml
-```
-
-See `scripts/router/config.yaml.example` for all available options.
-
-### Re-discover Skills
-
-If Cortex skills change mid-session:
-
-```bash
-/cortex-code:router-setup
 ```
