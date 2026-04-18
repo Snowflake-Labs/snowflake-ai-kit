@@ -101,7 +101,12 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
-        output = {"systemMessage": result}
+        output = {
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": result,
+            }
+        }
         print(json.dumps(output))
     else:
         print("{}")
