@@ -1,0 +1,65 @@
+# Cortex Code Skill Configuration
+# Copy to ~/.claude/skills/cortex-code/config.yaml
+# Docs: SECURITY.md | README.md
+
+security:
+  # prompt = approval before execution (default, most secure)
+  # auto   = auto-approve with mandatory audit logging (v1.x compat)
+  # envelope_only = auto-approve, no tool prediction (fastest)
+  approval_mode: "prompt"
+
+  # Minimum confidence for tool prediction (prompt mode)
+  tool_prediction_confidence_threshold: 0.7
+
+  # Audit logging (mandatory for auto/envelope_only)
+  audit_log_path: "~/.claude/skills/cortex-code/audit.log"
+  audit_log_rotation: "10MB"
+  audit_log_retention: 30  # days
+
+  # PII removal + injection detection
+  sanitize_conversation_history: true
+
+  # Secure cache (SHA256 validated)
+  cache_dir: "~/.cache/cortex-skill"
+  cache_ttl: 86400  # 24 hours
+
+  # Block routing when prompts reference these credential paths
+  credential_file_allowlist:
+    - "~/.ssh/**"
+    - "~/.aws/credentials"
+    - "~/.aws/config"
+    - "~/.snowflake/**"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/credentials.json"
+    - "**/secrets.json"
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/.npmrc"
+    - "**/.pypirc"
+
+  # Which envelopes are allowed (RO, RW, RESEARCH, DEPLOY)
+  allowed_envelopes:
+    - "RO"
+    - "RW"
+    - "RESEARCH"
+    - "DEPLOY"
+
+# --- Deployment Profiles (uncomment one) ---
+
+# Team: restrict envelopes, longer retention
+# security:
+#   approval_mode: "prompt"
+#   audit_log_retention: 90
+#   allowed_envelopes: ["RO", "RW"]
+
+# Enterprise: org policy at ~/.snowflake/cortex/claude-skill-policy.yaml
+# security:
+#   approval_mode: "prompt"
+#   tool_prediction_confidence_threshold: 0.8
+#   audit_log_retention: 365
+#   allowed_envelopes: ["RO"]
+
+# Env var overrides:
+#   CORTEX_SKILL_CONFIG       - override config path
+#   CORTEX_SKILL_ORG_POLICY   - override org policy path

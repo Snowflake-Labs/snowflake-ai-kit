@@ -39,3 +39,6 @@ Thumbs.db
 
 # Snowflake session state
 *.snowflake/
+
+# Standalone skill backup (moved out of ~/.claude/skills/)
+standalone-skill-backup/
