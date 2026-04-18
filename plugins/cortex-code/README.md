@@ -62,23 +62,15 @@ claude plugin marketplace add /path/to/snowflake-ai-kit
 claude plugin install cortex-code@snowflake-ai-kit
 ```
 
-### Setup
+### Verify (optional)
 
-Then run:
+To check that everything is wired up:
 
 ```bash
 /cortex-code:setup
 ```
 
-This checks whether the `cortex` CLI is installed and ready.
-
-One simple first run:
-
-```bash
-/cortex-code:review --background
-/cortex-code:status
-/cortex-code:result
-```
+This confirms `cortex` is on your PATH and that skill discovery ran. Auto-routing and slash commands work without this step -- it's just a diagnostic.
 
 ## Auto-Routing
 
