@@ -17,12 +17,13 @@ The installer sets up Snowflake CLI and Cortex Code CLI. The [Cortex Code plugin
 
 ### What's Included
 
-The installer sets up these components:
+This repo includes:
 
 | Component | What it does | Install location |
 |---|---|---|
 | [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
 | [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
+| [Cortex Code plugin for Claude Code](plugins/cortex-code/) | Auto-route Snowflake prompts from Claude Code to Cortex Code | [Claude Code marketplace](#install-via-claude-code-marketplace) (separate install) |
 
 ### Install
 
