@@ -6,6 +6,7 @@ Caches results for the current Claude Code session.
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -34,6 +35,27 @@ def run_command(cmd):
 
 def discover_cortex_skills():
     """Discover all available Cortex Code skills."""
+    cortex_path = shutil.which("cortex")
+    cortex_missing = False
+
+    if not cortex_path:
+        cortex_missing = True
+    else:
+        # Verify cortex is functional (not a stub)
+        try:
+            check = subprocess.run(
+                ["cortex", "--version"],
+                capture_output=True, text=True, timeout=5
+            )
+            if check.returncode != 0:
+                cortex_missing = True
+        except (subprocess.TimeoutExpired, OSError):
+            cortex_missing = True
+
+    if cortex_missing:
+        print("Cortex Code CLI not found — skipping discovery.", file=sys.stderr)
+        return {}
+
     print("Discovering Cortex Code capabilities...", file=sys.stderr)
 
     # Run cortex skill list
@@ -179,6 +201,12 @@ def main():
 
     # Discover capabilities
     capabilities = discover_cortex_skills()
+
+    # If empty (cortex missing or no skills found), the systemMessage was already
+    # printed to stdout by discover_cortex_skills(). Exit early to avoid printing
+    # a second JSON object that would break the hook protocol.
+    if not capabilities:
+        return 0
 
     # Cache using CacheManager with SHA256 fingerprint validation
     try:

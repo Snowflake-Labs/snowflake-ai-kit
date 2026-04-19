@@ -8,6 +8,7 @@ into the conversation context. Runs in <50ms -- no LLM calls, no network.
 
 import sys
 import re
+import shutil
 
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
@@ -101,12 +102,29 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "UserPromptSubmit",
-                "additionalContext": result,
+        # Snowflake prompt detected -- check if cortex CLI is available
+        if not shutil.which("cortex"):
+            install_msg = (
+                "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
+                "snow CLI, or any other workaround. "
+                "Load the cortex-code:cortex-setup skill NOW using the Skill tool, "
+                "then follow its instructions to install the CLI. "
+                "If the user declines, tell them to visit "
+                "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
+            )
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": install_msg,
+                }
             }
-        }
+        else:
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": result,
+                }
+            }
         print(json.dumps(output))
     else:
         print("{}")

@@ -2,11 +2,15 @@
 
 Route Snowflake work from Claude Code to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 35+ built-in skills handle the work. Non-Snowflake prompts stay in Claude Code.
 
-## What You Get
+## How It Works
 
-### Auto-Routing (the main thing)
+The plugin includes a `cortex-router` skill that activates automatically. On session start, it:
 
-The plugin includes a built-in router that automatically detects Snowflake-related prompts and routes them to Cortex Code — no slash command needed. Just ask about your Snowflake data naturally.
+1. Runs `discover_cortex.py` to enumerate available Cortex skills
+2. Caches the result locally (SHA256-validated, 24-hour TTL)
+3. Listens for Snowflake-related prompts during the session
+
+When you type a prompt, a lightweight keyword filter (`prompt_filter.py`) checks for Snowflake-related patterns and routes matching prompts to Cortex Code.
 
 Examples that auto-route to Cortex Code:
 - "Show me the top 10 customers by revenue"
@@ -18,25 +22,9 @@ Examples that stay in Claude Code:
 - "Fix the bug in auth.py"
 - "Write a Python unit test"
 
-### Slash Commands (on-demand workflows)
-
-For explicit Cortex Code workflows, use slash commands:
-
-- `/cortex-code:review` — code review
-- `/cortex-code:adversarial-review` — steerable challenge review
-- `/cortex-code:data-review` — Snowflake data engineering review
-- `/cortex-code:dbt-review` — dbt model review
-- `/cortex-code:sql-review` — SQL optimization review
-- `/cortex-code:security-review` — security review (RBAC, credentials, governance)
-- `/cortex-code:rescue` — delegate work to Cortex Code
-- `/cortex-code:status`, `/cortex-code:result`, `/cortex-code:cancel` — manage background jobs
-- `/cortex-code:router-setup` — discover Cortex skills and verify auto-routing
-- `/cortex-code:router-config` — view or change auto-routing settings
-
 ## Requirements
 
 - **Cortex Code CLI** (`cortex`) installed and on your PATH
-- **Node.js 18.18 or later**
 
 ## Install
 
@@ -53,7 +41,7 @@ To update later: `claude plugin update cortex-code`
 
 ### Manual setup (local clone)
 
-Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), Node.js 18.18+.
+Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code).
 
 If you cloned the repo, add the marketplace from the local path:
 
@@ -62,29 +50,7 @@ claude plugin marketplace add /path/to/snowflake-ai-kit
 claude plugin install cortex-code@snowflake-ai-kit
 ```
 
-### Verify (optional)
-
-To check that everything is wired up:
-
-```bash
-/cortex-code:setup
-```
-
-This confirms `cortex` is on your PATH and that skill discovery ran. Auto-routing and slash commands work without this step -- it's just a diagnostic.
-
-## Auto-Routing
-
-### How It Works
-
-The plugin includes a `cortex-router` skill that activates automatically (no slash command needed). On session start, it:
-
-1. Runs `discover_cortex.py` to enumerate available Cortex skills
-2. Caches the result to `/tmp/cortex-capabilities.json`
-3. Listens for Snowflake-related prompts during the session
-
-When you type a prompt, the router uses LLM-based semantic analysis (not keyword matching) to decide whether to route to Cortex Code or handle locally in Claude Code.
-
-### Security Model
+## Security Model
 
 The router wraps Cortex execution with a security layer. Three approval modes:
 
@@ -102,123 +68,14 @@ The router wraps Cortex execution with a security layer. Three approval modes:
 
 Built-in protections: PII sanitization, credential path blocking, SHA256-validated cache, structured audit logging.
 
-### Configuration
+## Configuration
+
+The router config file lives at `scripts/router/config.yaml.example`. To customize:
 
 ```bash
-# View current settings
-/cortex-code:router-config
-
-# Change approval mode
-/cortex-code:router-config --set approval_mode=auto
+cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/cortex-code/config.yaml
 ```
 
-See `scripts/router/config.yaml.example` for all available options.
+Edit the config to change approval mode, allowed envelopes, audit settings, and sanitization options.
 
-### Re-discover Skills
-
-If Cortex skills change mid-session:
-
-```bash
-/cortex-code:router-setup
-```
-
-## Slash Command Reference
-
-### `/cortex-code:review`
-
-Runs a Cortex Code review on your current work.
-
-```bash
-/cortex-code:review
-/cortex-code:review --base main
-/cortex-code:review --background
-```
-
-Use `--base <ref>` for branch review. Supports `--wait` and `--background`.
-This command is read-only.
-
-### `/cortex-code:adversarial-review`
-
-Runs a **steerable** review that questions the implementation and design.
-
-```bash
-/cortex-code:adversarial-review
-/cortex-code:adversarial-review --base main challenge whether this caching design is safe
-/cortex-code:adversarial-review --background look for race conditions
-```
-
-Takes optional focus text after the flags. Read-only.
-
-### `/cortex-code:data-review`
-
-Snowflake data engineering review: SQL correctness, pipeline reliability, schema evolution, warehouse cost.
-
-```bash
-/cortex-code:data-review
-/cortex-code:data-review --base main focus on the COPY INTO changes
-```
-
-### `/cortex-code:dbt-review`
-
-dbt model review: materialization strategy, incremental correctness, testing coverage, lineage impact.
-
-```bash
-/cortex-code:dbt-review
-/cortex-code:dbt-review --background
-```
-
-### `/cortex-code:sql-review`
-
-Snowflake SQL optimization: query performance, anti-patterns, cost.
-
-```bash
-/cortex-code:sql-review
-```
-
-### `/cortex-code:security-review`
-
-Snowflake security: RBAC, credentials, data governance, access policies.
-
-```bash
-/cortex-code:security-review
-```
-
-### `/cortex-code:rescue`
-
-Hands a task to Cortex Code.
-
-```bash
-/cortex-code:rescue investigate why the tests started failing
-/cortex-code:rescue fix the failing test with the smallest safe patch
-/cortex-code:rescue --background investigate the regression
-/cortex-code:rescue -c my_connection --model claude-sonnet-4-5-20250514 fix the bug
-```
-
-Supports `-c connection`, `--model`, `--effort`, `--write`, `--background`.
-
-### `/cortex-code:status`
-
-Shows running and recent Cortex Code jobs.
-
-```bash
-/cortex-code:status
-/cortex-code:status task-abc123
-```
-
-### `/cortex-code:result`
-
-Shows the stored output for a finished job.
-
-```bash
-/cortex-code:result
-/cortex-code:result task-abc123
-```
-
-### `/cortex-code:cancel`
-
-Cancels an active background job.
-
-```bash
-/cortex-code:cancel
-/cortex-code:cancel task-abc123
-```
+Skill discovery runs automatically on session start. To force a re-discovery, start a new Claude Code session.

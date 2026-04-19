@@ -81,7 +81,7 @@ With the [plugin](#cortex-code-plugin-for-claude-code) installed, Claude Code au
 claude                         # Start Claude Code — Snowflake queries auto-route to Cortex
 ```
 
-Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code. See the [plugin docs](plugins/cortex-code/) for slash commands, security model, and configuration.
+Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code. See the [plugin docs](plugins/cortex-code/) for security model and configuration.
 
 ## Skills
 
@@ -125,8 +125,6 @@ Automatically route Snowflake work from Claude Code to Cortex Code. When you ask
 
 Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in Claude Code as usual.
 
-The plugin also includes slash commands for on-demand workflows: `/cortex-code:review`, `/cortex-code:rescue`, `/cortex-code:security-review`, and more.
-
 #### Install via Claude Code marketplace
 
 No clone required. Run from your terminal:
@@ -141,7 +139,7 @@ claude plugin install cortex-code@snowflake-ai-kit
 
 To update later: `claude plugin update cortex-code`
 
-> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, slash command reference, security model, and configuration.*
+> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, security model, and configuration.*
 
 ## Builder Apps
 

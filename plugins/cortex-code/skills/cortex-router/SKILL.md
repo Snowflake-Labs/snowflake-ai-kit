@@ -70,7 +70,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py"
 This script:
 1. Runs `cortex skill list` to enumerate all available Cortex skills
 2. Reads each skill's SKILL.md frontmatter and trigger patterns
-3. Caches capabilities in `/tmp/cortex-capabilities.json` for this session
+3. Caches capabilities locally (SHA256-validated, 24-hour TTL)
 4. Returns structured data about what Cortex can handle
 
 Expected output: JSON mapping of skill names to their trigger patterns and capabilities.

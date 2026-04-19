@@ -6,10 +6,25 @@ Handles tool use events and final results.
 """
 
 import json
+import shutil
 import subprocess
 import sys
 import argparse
 from typing import List, Dict, Optional
+
+
+def check_cortex_cli() -> bool:
+    """Check if cortex CLI is available and functional."""
+    if not shutil.which("cortex"):
+        return False
+    try:
+        result = subprocess.run(
+            ["cortex", "--version"],
+            capture_output=True, text=True, timeout=5
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
 
 
 # Known tools for inversion logic (allowed -> disallowed)
@@ -62,6 +77,20 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
+    # Pre-flight: ensure cortex CLI is installed
+    if not check_cortex_cli():
+        msg = ("Cortex Code CLI not found. "
+               "Use the cortex-setup skill to install it, or visit "
+               "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli")
+        print(msg, file=sys.stderr)
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": msg
+        }
+
     # Build command with programmatic auto-approval mode.
     # --input-format stream-json enables headless auto-approval of all tool calls
     # (including snowflake_sql_execute and MCP tools) without --bypass or
