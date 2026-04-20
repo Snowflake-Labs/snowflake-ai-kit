@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
+from envelope_policy import decide as envelope_decide
 from session_state import load_active_session, save_active_session
 
 
@@ -53,11 +54,11 @@ def check_cortex_cli() -> bool:
 
 
 # Prompt-level security envelope instructions.
-# --disallowed-tools is NOT used because:
-#   1. --dangerously-allow-all-tool-calls overrides --disallowed-tools
-#   2. --disallowed-tools doesn't work for sql_execute (non-builtin tool)
-# Instead, envelope constraints are injected into the prompt where the LLM
-# can follow them. This is advisory, not enforced at the CLI level.
+# Hard enforcement happens through `--permission-prompt-tool stdio`: cortex
+# emits a control_request for every tool call and this wrapper replies via
+# envelope_policy.decide(). The prompt text below is a soft hint so the LLM
+# shapes its plan to the envelope (fewer denied tool calls, cleaner UX). Hard
+# gate is the policy function -- the LLM cannot talk its way past it.
 ENVELOPE_INSTRUCTIONS = {
     "RO": (
         "# Security Envelope: READ-ONLY\n"
@@ -101,15 +102,34 @@ def build_envelope_prompt(prompt: str, envelope: str) -> str:
     return prompt
 
 
+def _send_control_response(stdin, request_id: str, behavior: str, message: str = "") -> None:
+    """Write a control_response back to cortex's stdin. Safe no-op if pipe is closed."""
+    payload = {
+        "type": "control_response",
+        "response": {
+            "subtype": "success",
+            "request_id": request_id,
+            "response": {"behavior": behavior, "message": message},
+        },
+    }
+    try:
+        stdin.write(json.dumps(payload) + "\n")
+        stdin.flush()
+    except (BrokenPipeError, ValueError):
+        # cortex already exited -- nothing to do.
+        pass
+
+
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              envelope: str = "RW",
                              resume_session_id: Optional[str] = None) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
-    Uses --dangerously-allow-all-tool-calls for headless auto-approval of
-    all tool calls (including DDL). Security envelope is enforced via
-    prompt-level instructions, not CLI flags.
+    Uses --permission-prompt-tool stdio to route every tool call through this
+    wrapper, which decides allow/deny via envelope_policy.decide(). This is
+    hard enforcement: cortex will NOT execute a tool until we respond. LLM
+    output cannot bypass it.
 
     Args:
         prompt: The enriched prompt to send to Cortex
@@ -154,16 +174,14 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     # Build command for headless execution.
     # --input-format stream-json: programmatic mode (prompt via stdin).
-    # --dangerously-allow-all-tool-calls: REQUIRED for DDL and bash to work.
-    #   Without this flag, DDL (CREATE/ALTER/DROP) and bash commands trigger
-    #   interactive permission prompts that timeout in headless mode.
-    #   Note: --disallowed-tools is NOT used because bypass overrides it,
-    #   and it doesn't work for sql_execute anyway.
+    # --permission-prompt-tool stdio: route every tool call through us as a
+    #   control_request; we reply allow/deny based on the envelope policy.
+    #   This is hard enforcement at the CLI boundary, not LLM self-policing.
     cmd = [
         "cortex",
         "--output-format", "stream-json",
         "--input-format", "stream-json",
-        "--dangerously-allow-all-tool-calls",
+        "--permission-prompt-tool", "stdio",
     ]
 
     # Resume prior cortex session so follow-up turns see earlier context.
@@ -175,7 +193,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     if connection:
         cmd.extend(["-c", connection])
 
-    debug_cmd = f"cortex --output-format stream-json --input-format stream-json --dangerously-allow-all-tool-calls (envelope={envelope})"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json --permission-prompt-tool stdio (envelope={envelope})"
     if connection:
         debug_cmd += f" -c {connection}"
     print(debug_cmd, file=sys.stderr)
@@ -194,8 +212,10 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             bufsize=1
         )
 
-        # Send the prompt as a stream-json user message, then close stdin
-        # so Cortex knows no more input is coming and will process + exit.
+        # Send the user prompt. stdin stays OPEN for the duration of the turn
+        # so we can write control_response messages back when cortex asks for
+        # permission (--permission-prompt-tool stdio emits control_request on
+        # stdout and awaits a control_response on stdin, same pipe).
         prompt_message = json.dumps({
             "type": "user",
             "message": {
@@ -205,85 +225,100 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         }) + "\n"
         process.stdin.write(prompt_message)
         process.stdin.flush()
-        process.stdin.close()
 
         results = {
             "session_id": None,
             "events": [],
-            "permission_requests": [],
+            "permission_decisions": [],
             "final_result": None,
             "error": None
         }
 
-        # Read streaming output
+        # Read streaming output. Two interleaved event kinds matter:
+        #   - control_request (subtype=can_use_tool) -- permission ask; we reply
+        #     immediately with a control_response based on envelope_policy.
+        #   - result -- turn complete; break.
         for line in process.stdout:
             if not line.strip():
                 continue
 
             try:
                 event = json.loads(line)
-                results["events"].append(event)
-
-                event_type = event.get("type")
-
-                # Extract session ID and persist so next turn can --resume.
-                if event_type == "system" and event.get("subtype") == "init":
-                    results["session_id"] = event.get("session_id")
-                    print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
-                    save_active_session(results["session_id"])
-
-                # Handle assistant responses
-                elif event_type == "assistant":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
-
-                    for item in content:
-                        if item.get("type") == "text":
-                            print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
-
-                        elif item.get("type") == "tool_use":
-                            tool_name = item.get("name")
-                            print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
-
-                # Handle permission requests (via user messages with tool_result containing denials)
-                elif event_type == "user":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
-
-                    for item in content:
-                        if item.get("type") == "tool_result":
-                            tool_content = item.get("content", "")
-                            if "Permission denied" in tool_content or "denied" in tool_content.lower():
-                                results["permission_requests"].append({
-                                    "tool_use_id": item.get("tool_use_id"),
-                                    "content": tool_content
-                                })
-                                print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
-
-                # Handle final result — break to stop blocking on stdout
-                elif event_type == "result":
-                    results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result received.", file=sys.stderr)
-                    break  # Cortex is done; exit read loop
-
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
 
-        # Terminate the process — it stays alive waiting for more stdin
+            results["events"].append(event)
+            event_type = event.get("type")
+
+            # Extract session ID and persist so next turn can --resume.
+            if event_type == "system" and event.get("subtype") == "init":
+                results["session_id"] = event.get("session_id")
+                print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                save_active_session(results["session_id"])
+
+            elif event_type == "control_request":
+                req = event.get("request", {}) or {}
+                if req.get("subtype") != "can_use_tool":
+                    # Not a permission ask; ignore other control request subtypes.
+                    continue
+                tool_name = req.get("tool_name", "")
+                tool_input = req.get("input", {}) or {}
+                action = tool_input.get("action", "")
+                resource = tool_input.get("resource", "")
+                behavior, reason = envelope_decide(envelope, tool_name, action, resource)
+                preview = (resource or "")[:120].replace("\n", " ")
+                print(f"[policy] {envelope}: {behavior} {tool_name} — {preview}",
+                      file=sys.stderr)
+                results["permission_decisions"].append({
+                    "tool_name": tool_name,
+                    "action": action,
+                    "resource": resource,
+                    "behavior": behavior,
+                    "reason": reason,
+                })
+                _send_control_response(
+                    process.stdin,
+                    event.get("request_id", ""),
+                    behavior,
+                    reason,
+                )
+
+            elif event_type == "assistant":
+                message = event.get("message", {}) or {}
+                for item in (message.get("content") or []):
+                    if item.get("type") == "text":
+                        print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
+                    elif item.get("type") == "tool_use":
+                        print(f"[Cortex] Using tool: {item.get('name')}", file=sys.stderr)
+
+            elif event_type == "result":
+                results["final_result"] = event.get("result")
+                print(f"[Cortex] Result received.", file=sys.stderr)
+                break  # turn complete
+
+        # Turn complete: close stdin so cortex exits cleanly.
         try:
-            process.terminate()
+            process.stdin.close()
+        except (BrokenPipeError, ValueError):
+            pass
+
+        try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
 
-        # Check for errors
-        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected)
-            stderr_output = process.stderr.read()
+        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected on kill)
+            stderr_output = process.stderr.read() if process.stderr else ""
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
-            print(f"Stderr: {stderr_output}", file=sys.stderr)
+            if stderr_output:
+                print(f"Stderr: {stderr_output}", file=sys.stderr)
 
         return results
 
