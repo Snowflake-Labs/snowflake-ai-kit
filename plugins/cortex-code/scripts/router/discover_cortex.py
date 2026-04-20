@@ -6,6 +6,8 @@ Caches results for the current Claude Code session.
 
 import argparse
 import json
+import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -100,10 +102,18 @@ def discover_cortex_skills():
     return skills
 
 
+def get_cortex_share_dir() -> Path:
+    """Return the Cortex Code data directory for the current platform."""
+    if platform.system() == "Windows":
+        local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return local_app_data / "cortex"
+    else:
+        return Path.home() / ".local" / "share" / "cortex"
+
+
 def read_skill_metadata(skill_name):
     """Read SKILL.md frontmatter for a specific skill."""
-    # Cortex bundled skills are typically in ~/.local/share/cortex/{version}/bundled_skills/
-    cortex_share = Path.home() / ".local/share/cortex"
+    cortex_share = get_cortex_share_dir()
 
     # Find the most recent version directory
     if not cortex_share.exists():
