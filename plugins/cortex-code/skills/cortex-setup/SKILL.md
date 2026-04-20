@@ -36,44 +36,41 @@ which cortex 2>/dev/null && cortex --version || echo "cortex not installed"
 which snow 2>/dev/null && snow --version || echo "snow not installed"
 ```
 
-### 3. Run the installer
+### 3. Install Cortex Code CLI
 
-**Option A — npx (any platform, requires Node.js):**
+The installer is bundled with the snowflake-ai-kit repo. Find and run it:
 
+**Step 3a — Find the installer:**
+
+macOS / Linux:
 ```bash
-npx @snowflake-labs/ai-kit
+find ~ -maxdepth 4 -name "install.sh" -path "*/snowflake-ai-kit/*" 2>/dev/null | head -1
 ```
 
-**Option B — Windows (PowerShell, no Node.js):**
-
-Run the bundled PowerShell installer:
-
+Windows (PowerShell):
 ```powershell
-powershell -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}\..\..\install.ps1"
+Get-ChildItem -Path $HOME -Recurse -Depth 4 -Filter "install.ps1" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "snowflake-ai-kit" } | Select-Object -First 1 -ExpandProperty FullName
 ```
 
-If that path does not exist (plugin installed from npm cache), run:
+**Step 3b — Run the installer:**
 
+If found (macOS/Linux):
+```bash
+bash /path/to/snowflake-ai-kit/install.sh
+```
+
+If found (Windows — look for install.ps1 in the same directory):
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -File /path/to/snowflake-ai-kit/install.ps1
 ```
 
-**Option C — macOS / Linux (bash):**
-
+If NOT found, ask the user to clone the repo first:
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/../../install.sh"
+git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git
+bash snowflake-ai-kit/install.sh
 ```
 
-If that path does not exist, run:
-
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
-```
-
-The installer handles:
-- Snowflake CLI (`snow`) via pipx/pip/brew (macOS/Linux) or pip (Windows)
-- Cortex Code CLI (`cortex`) via the official installer
-- PATH configuration
+The installer handles Snowflake CLI, Cortex Code CLI, and connection verification.
 
 ### 4. Verify installation
 
@@ -113,8 +110,7 @@ After setup, the cortex-router skill should work. Tell the user to try their ori
 
 ## Notes
 
-- The installer requires Python 3.10+ on the system
+- Cortex Code CLI installer requires an active internet connection
 - On macOS, Homebrew may be used as a fallback for Snow CLI
-- The installer is idempotent — safe to run again if partially completed
 - Do NOT suggest `pip install snowflake-cortex-code` or similar — that package does not exist
 - On Windows, if `bash` is not available, use the PowerShell (`install.ps1`) or npx method

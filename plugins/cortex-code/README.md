@@ -4,15 +4,13 @@ Route Snowflake work from Claude Code to Cortex Code automatically. Ask about yo
 
 ## How It Works
 
-The plugin includes a `cortex-router` skill that activates automatically. On session start, it:
+**Two ways to route prompts to Cortex Code:**
 
-1. Runs `discover_cortex.py` to enumerate available Cortex skills
-2. Caches the result locally (SHA256-validated, 24-hour TTL)
-3. Listens for Snowflake-related prompts during the session
+### Auto-routing (default)
 
-When you type a prompt, a lightweight keyword filter (`prompt_filter.py`) checks for Snowflake-related patterns and routes matching prompts to Cortex Code.
+A lightweight keyword filter (`prompt_filter.py`) runs on every prompt. When it detects Snowflake-related patterns, it loads the `cortex-router` skill which delegates to Cortex Code.
 
-Examples that auto-route to Cortex Code:
+Examples that auto-route:
 - "Show me the top 10 customers by revenue"
 - "Check data quality for the SALES_DATA table"
 - "Create a dynamic table that refreshes hourly"
@@ -21,6 +19,18 @@ Examples that stay in Claude Code:
 - "Read the config.json file"
 - "Fix the bug in auth.py"
 - "Write a Python unit test"
+
+### Explicit invocation (`$cortex-run`)
+
+Type `$cortex-run` followed by your prompt to force routing to Cortex Code, bypassing the keyword filter. Useful when:
+
+- Auto-routing didn't pick up your prompt
+- You want to be explicit about using Cortex Code
+- Your prompt mixes Snowflake and non-Snowflake work
+
+```
+$cortex-run analyze query performance for the last 7 days
+```
 
 ## Requirements
 

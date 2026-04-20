@@ -13,6 +13,27 @@ import argparse
 from typing import List, Dict, Optional
 
 
+# Credential file patterns — block prompts referencing these paths.
+# This check runs unconditionally (can't be skipped by LLM shortcutting).
+CREDENTIAL_PATTERNS = [
+    ".ssh/", ".snowflake/", ".env", "credentials.json",
+    "_key.p8", "_key.pem", ".aws/credentials", ".kube/config",
+    "private_key", "secret_key", "api_key_file", "token.json",
+]
+
+
+def check_credential_paths(prompt: str) -> Optional[str]:
+    """Block prompts that reference credential file paths.
+
+    Returns the matched pattern if blocked, None if safe.
+    """
+    prompt_lower = prompt.lower()
+    for pattern in CREDENTIAL_PATTERNS:
+        if pattern in prompt_lower:
+            return pattern
+    return None
+
+
 def check_cortex_cli() -> bool:
     """Check if cortex CLI is available and functional."""
     if not shutil.which("cortex"):
@@ -77,6 +98,21 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
+    # Pre-flight: check for credential file paths in prompt
+    blocked_pattern = check_credential_paths(prompt)
+    if blocked_pattern:
+        msg = (f"BLOCKED: Prompt references credential path '{blocked_pattern}'. "
+               "Refusing to send to Cortex Code for security. "
+               "Remove credential references from your prompt and try again.")
+        print(f"⛔ {msg}", file=sys.stderr)
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": msg
+        }
+
     # Pre-flight: ensure cortex CLI is installed
     if not check_cortex_cli():
         msg = ("Cortex Code CLI not found. "
@@ -244,20 +280,26 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                                 })
                                 print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
 
-                # Handle final result
+                # Handle final result — break to stop blocking on stdout
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
+                    print(f"[Cortex] Result received.", file=sys.stderr)
+                    break  # Cortex is done; exit read loop
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
 
-        # Wait for process to complete
-        process.wait()
+        # Terminate the process — it stays alive waiting for more stdin
+        try:
+            process.terminate()
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
 
         # Check for errors
-        if process.returncode != 0:
+        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected)
             stderr_output = process.stderr.read()
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
