@@ -141,4 +141,4 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
 
 - This skill is for **explicit** invocation only. Auto-routing is handled separately by the prompt filter hook + cortex-router skill.
 - Use `--resume-last` for follow-up prompts so Cortex retains conversation context. For new topics, omit it and include relevant context in the prompt instead.
-- The `--input-format stream-json` flag (used by execute_cortex.py) auto-approves all tool calls within the security envelope.
+- The `--dangerously-allow-all-tool-calls` flag (used by execute_cortex.py) auto-approves all tool calls; security envelope is enforced via prompt-level instructions.

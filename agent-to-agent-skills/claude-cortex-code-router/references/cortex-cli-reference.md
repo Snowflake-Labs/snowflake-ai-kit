@@ -4,10 +4,12 @@
 
 ### Headless Execution
 ```bash
-cortex -p "your prompt here" --output-format stream-json
+cortex -p "your prompt here" --output-format stream-json --dangerously-allow-all-tool-calls
 ```
 
 Executes Cortex in headless mode with streaming JSON output.
+`--dangerously-allow-all-tool-calls` is REQUIRED for DDL (CREATE, ALTER, DROP) and bash commands.
+Without it, these operations trigger interactive permission prompts that timeout in headless mode.
 
 **Output Format**: NDJSON (newline-delimited JSON)
 - Each line is a complete JSON object

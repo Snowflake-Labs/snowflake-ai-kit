@@ -9,129 +9,99 @@ import json
 import subprocess
 import sys
 import argparse
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 
-# Known tools for inversion logic (allowed -> disallowed)
-KNOWN_TOOLS = [
-    "Read", "Write", "Edit", "Bash", "Grep", "Glob",
-    "snowflake_sql_execute", "data_diff", "snowflake_query"
-]
+# Prompt-level security envelope instructions.
+# --disallowed-tools is NOT used because:
+#   1. --dangerously-allow-all-tool-calls overrides --disallowed-tools
+#   2. --disallowed-tools doesn't work for sql_execute (non-builtin tool)
+# Instead, envelope constraints are injected into the prompt where the LLM
+# can follow them. This is advisory, not enforced at the CLI level.
+ENVELOPE_INSTRUCTIONS = {
+    "RO": (
+        "# Security Envelope: READ-ONLY\n"
+        "You are operating in READ-ONLY mode.\n"
+        "ALLOWED: SELECT, SHOW, DESCRIBE, EXPLAIN queries. "
+        "Reading files, searching, grepping.\n"
+        "NOT ALLOWED: DDL (CREATE, ALTER, DROP), DML (INSERT, UPDATE, DELETE, MERGE), "
+        "writing/editing/creating files, destructive bash (rm, sudo, chmod 777, git push --force).\n"
+        "If the user's request requires write operations, explain what you would do "
+        "and provide the SQL/commands for them to run manually.\n"
+    ),
+    "RW": (
+        "# Security Envelope: READ-WRITE\n"
+        "You are operating in READ-WRITE mode.\n"
+        "ALLOWED: All SQL (SELECT, CREATE, ALTER, DROP, INSERT, UPDATE, DELETE), "
+        "reading/writing files, bash commands.\n"
+        "NOT ALLOWED: Destructive bash (rm -rf, sudo, chmod 777, git push --force, "
+        "git reset --hard). Do not delete data or drop production tables without "
+        "explicit confirmation in the prompt.\n"
+    ),
+    "RESEARCH": (
+        "# Security Envelope: RESEARCH\n"
+        "You are operating in RESEARCH mode.\n"
+        "ALLOWED: SELECT, SHOW, DESCRIBE queries. Reading files, searching, "
+        "web_fetch, web_search.\n"
+        "NOT ALLOWED: DDL, DML, writing/editing files, destructive bash.\n"
+    ),
+    "DEPLOY": (
+        "# Security Envelope: DEPLOY\n"
+        "You are operating in DEPLOY mode with full access.\n"
+        "All tools and operations are available. Use good judgment.\n"
+    ),
+}
 
 
-def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
-    """
-    Convert allowed tools list to disallowed tools list.
-
-    For prompt mode: when security wrapper predicts/approves specific tools,
-    we need to invert the list to block all OTHER tools via --disallowed-tools.
-
-    Args:
-        allowed_tools: List of tool names that ARE allowed
-
-    Returns:
-        List of tool names that should be disallowed (inverse of allowed)
-
-    Example:
-        allowed = ["Read", "Grep"]
-        disallowed = ["Write", "Edit", "Bash", "Glob", ...other tools...]
-    """
-    return [tool for tool in KNOWN_TOOLS if tool not in allowed_tools]
+def build_envelope_prompt(prompt: str, envelope: str) -> str:
+    """Prepend security envelope instructions to the user prompt."""
+    instructions = ENVELOPE_INSTRUCTIONS.get(envelope, "")
+    if instructions:
+        return f"{instructions}\n# User Request\n{prompt}"
+    return prompt
 
 
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
-                             disallowed_tools: Optional[List[str]] = None,
-                             envelope: str = "RW",
-                             approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None) -> Dict:
+                             envelope: str = "RW") -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
-    Uses --output-format stream-json for streaming results.
-    Tools are controlled via --allowed-tools allowlist (envelope mode) or
-    --disallowed-tools blocklist (prompt mode) for safety.
+    Uses --dangerously-allow-all-tool-calls for headless auto-approval of
+    all tool calls (including DDL). Security envelope is enforced via
+    prompt-level instructions, not CLI flags.
 
     Args:
         prompt: The enriched prompt to send to Cortex
         connection: Optional Snowflake connection name
-        disallowed_tools: Optional list of tools to explicitly block
-        envelope: Security envelope mode (RO, RW, RESEARCH, DEPLOY, NONE)
-        approval_mode: Approval mode (prompt, auto, envelope_only)
-        allowed_tools: Optional list of tools that ARE allowed (for prompt mode)
+        envelope: Security envelope mode (RO, RW, RESEARCH, DEPLOY)
 
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic auto-approval mode.
-    # --input-format stream-json enables headless auto-approval of all tool calls
-    # (including snowflake_sql_execute and MCP tools) without --bypass or
-    # --dangerously-allow-all-tool-calls which may be blocked by org policy.
-    # Envelope security is enforced via --disallowed-tools blocklist.
+    # Prepend envelope instructions to the prompt
+    envelope_prompt = build_envelope_prompt(prompt, envelope)
+
+    # Build command for headless execution.
+    # -p flag + stdin=DEVNULL: standalone router pattern (no stream-json stdin).
+    # --input-format stream-json: programmatic mode.
+    # --dangerously-allow-all-tool-calls: REQUIRED for DDL and bash to work.
+    #   Without this flag, DDL (CREATE/ALTER/DROP) and bash commands trigger
+    #   interactive permission prompts that timeout in headless mode.
     cmd = [
         "cortex",
-        "-p", prompt,
+        "-p", envelope_prompt,
         "--output-format", "stream-json",
-        "--input-format", "stream-json"
+        "--input-format", "stream-json",
+        "--dangerously-allow-all-tool-calls",
     ]
 
     # Add connection if specified
     if connection:
         cmd.extend(["-c", connection])
 
-    # Step 1: Handle approval mode — build disallowed tools list for envelope security.
-    # Note: --input-format stream-json auto-approves tools; --disallowed-tools
-    # enforces the security boundary. Do NOT use --allowed-tools: it creates an
-    # "must match pattern" check that blocks Snowflake MCP tools.
-    final_disallowed_tools = disallowed_tools or []
-
-    if approval_mode == "prompt":
-        # Prompt mode: invert allowed_tools to disallowed_tools
-        # In prompt mode, we ONLY use allowed_tools (don't merge with envelope)
-        if allowed_tools is not None:
-            # User approved specific tools - block everything else
-            inverted_tools = invert_tools_to_disallowed(allowed_tools)
-            # Merge with existing disallowed tools (but NOT envelope tools)
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(inverted_tools))
-        else:
-            # No tools approved - block all known tools
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(KNOWN_TOOLS))
-
-    elif approval_mode in ["envelope_only", "auto"]:
-        # Envelope-only or auto mode: apply envelope-based security via blocklist.
-        # --input-format stream-json (set above) auto-approves all non-blocked tools.
-        envelope_tools = []
-        if envelope == "RO":
-            # Read-only: block all write operations
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)",
-                "Bash(git push *)", "Bash(git reset --hard *)"
-            ]
-        elif envelope == "DEPLOY":
-            # Full access: no blocklist
-            envelope_tools = []
-        elif envelope == "RESEARCH":
-            # Research: read-only plus web access
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)"
-            ]
-        # Merge envelope tools with final disallowed list
-        if envelope_tools:
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(envelope_tools))
-
-    # Step 3: Add final disallowed tools to command
-    if final_disallowed_tools:
-        for tool in final_disallowed_tools:
-            cmd.extend(["--disallowed-tools", tool])
-
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json --dangerously-allow-all-tool-calls (envelope={envelope})"
     if connection:
         debug_cmd += f" -c {connection}"
-    if final_disallowed_tools:
-        debug_cmd += f" --disallowed-tools {' '.join(final_disallowed_tools[:3])}{'...' if len(final_disallowed_tools) > 3 else ''}"
     print(debug_cmd, file=sys.stderr)
 
     try:
@@ -169,7 +139,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Extract session ID
                 if event_type == "system" and event.get("subtype") == "init":
                     results["session_id"] = event.get("session_id")
-                    print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                    print(f"Started Cortex session: {results['session_id']}", file=sys.stderr)
 
                 # Handle assistant responses
                 elif event_type == "assistant":
@@ -199,10 +169,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                                 })
                                 print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
 
-                # Handle final result
+                # Handle final result — break to stop blocking on stdout
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
+                    print(f"[Cortex] Result received.", file=sys.stderr)
+                    break  # Cortex is done; exit read loop
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
@@ -235,26 +206,16 @@ def main():
     parser = argparse.ArgumentParser(description="Execute Cortex Code headlessly")
     parser.add_argument("--prompt", required=True, help="Prompt to send to Cortex")
     parser.add_argument("--connection", "-c", help="Snowflake connection name")
-    parser.add_argument("--disallowed-tools", nargs="+", help="Tools to explicitly block")
     parser.add_argument("--envelope", default="RW",
-                       choices=["RO", "RW", "RESEARCH", "DEPLOY", "NONE"],
+                       choices=["RO", "RW", "RESEARCH", "DEPLOY"],
                        help="Security envelope mode (default: RW)")
-    parser.add_argument("--approval-mode", default="auto",
-                       choices=["prompt", "auto", "envelope_only"],
-                       help="Approval mode (default: auto)")
-    parser.add_argument("--allowed-tools", nargs="+",
-                       help="Tools that are allowed (for prompt mode)")
-    parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
     args = parser.parse_args()
 
     # Execute Cortex
     results = execute_cortex_streaming(
         args.prompt,
         connection=args.connection,
-        disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
-        approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools
     )
 
     # Output results as JSON

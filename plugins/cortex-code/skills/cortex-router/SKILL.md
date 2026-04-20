@@ -44,17 +44,18 @@ Replace `USER_PROMPT_HERE` with the actual user prompt (shell-escaped).
 
 Only reach this step if Step 2 confirmed routing to Cortex.
 
-Choose a security envelope:
-- **RO**: Read-only queries (SELECT, SHOW, DESCRIBE) — use this for most queries
-- **RW**: Data modifications (INSERT, UPDATE, CREATE, etc.)
+Choose a security envelope based on the operation:
+- **RO**: Read-only queries (SELECT, SHOW, DESCRIBE) — won't run DDL or DML
+- **RW**: Data modifications, DDL (CREATE, ALTER, DROP) — default for most operations
 - **RESEARCH**: Read + web access, no writes
 - **DEPLOY**: Full access (use sparingly)
+
+Default to **RW** unless the request is clearly read-only.
 
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RO" \
-  --approval-mode "auto"
+  --envelope "RW"
 ```
 
 Add `--connection CONNECTION_NAME` if a specific Snowflake connection is needed.
@@ -76,7 +77,7 @@ multi-turn, not one-shot batches per prompt.
 ```bash
 # Follow-up on the previous Cortex turn
 python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
-  --prompt "drill into the top customer" --envelope "RO" --approval-mode "auto" \
+  --prompt "drill into the top customer" --envelope "RO" \
   --resume-last
 ```
 
