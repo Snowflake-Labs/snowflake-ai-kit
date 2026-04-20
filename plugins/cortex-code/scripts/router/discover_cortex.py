@@ -137,7 +137,7 @@ def read_skill_metadata(skill_name):
 def parse_skill_md(skill_path):
     """Parse SKILL.md file and extract frontmatter."""
     try:
-        with open(skill_path, 'r') as f:
+        with open(skill_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Extract YAML frontmatter

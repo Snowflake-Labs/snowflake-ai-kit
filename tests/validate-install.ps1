@@ -1,11 +1,17 @@
 #
 # validate-install.ps1 -- Post-install validation for Snowflake AI Kit
 #
-# Run after install.ps1 to verify everything landed correctly.
+# Validates the cortex-code plugin structure and configuration.
+# Updated for the plugin architecture (plugins/cortex-code/).
 #
 # Usage:
-#   .\tests\validate-install.ps1
+#   .\tests\validate-install.ps1                      # Auto-detect plugin dir
+#   .\tests\validate-install.ps1 -PluginDir "C:\..."  # Explicit path
 #
+
+param(
+    [string]$PluginDir = ""
+)
 
 $ErrorActionPreference = "Continue"
 $Pass = 0; $Fail = 0; $Warn = 0
@@ -30,8 +36,32 @@ function Test-Check {
 }
 
 Write-Host ""
-Write-Host "Snowflake AI Kit -- Install Validation" -ForegroundColor White
-Write-Host "======================================" 
+Write-Host "Snowflake AI Kit -- Install Validation (Plugin Architecture)" -ForegroundColor White
+Write-Host "============================================================" 
+Write-Host ""
+
+# Resolve plugin directory: explicit param > repo-relative > installed cache
+if (-not $PluginDir) {
+    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $RepoRoot = Split-Path -Parent $ScriptDir
+    $repoPlugin = Join-Path $RepoRoot "plugins\cortex-code"
+    if (Test-Path $repoPlugin) {
+        $PluginDir = $repoPlugin
+    }
+    else {
+        # Fall back to installed plugin cache
+        $PluginDir = Join-Path $env:USERPROFILE ".claude\plugins\cache\snowflake-ai-kit\cortex-code"
+        # Find latest version dir
+        if (Test-Path $PluginDir) {
+            $latest = Get-ChildItem $PluginDir -Directory | Sort-Object Name -Descending | Select-Object -First 1
+            if ($latest) { $PluginDir = $latest.FullName }
+        }
+    }
+}
+
+$RouterDir = Join-Path $PluginDir "scripts\router"
+Write-Host "Plugin dir: $PluginDir" -ForegroundColor DarkGray
+Write-Host "Router dir: $RouterDir" -ForegroundColor DarkGray
 Write-Host ""
 
 # === 1. CLI availability ======================================
@@ -44,8 +74,8 @@ Test-Check "snow CLI in PATH" $snowFound
 $cortexFound = [bool](Get-Command "cortex" -ErrorAction SilentlyContinue)
 Test-Check "cortex CLI in PATH" $cortexFound
 
-$claudeFound = [bool](Get-Command "claude" -ErrorAction SilentlyContinue)
-Test-Check "claude CLI in PATH" $claudeFound -IsWarning:$true
+$pythonFound = [bool](Get-Command "python" -ErrorAction SilentlyContinue) -or [bool](Get-Command "python3" -ErrorAction SilentlyContinue)
+Test-Check "Python in PATH" $pythonFound
 
 if ($snowFound) {
     $snowVer = & snow --version 2>&1
@@ -57,92 +87,96 @@ if ($cortexFound) {
     Test-Check "cortex --version runs ($cortexVer)" ($LASTEXITCODE -eq 0)
 }
 
-if ($claudeFound) {
-    $claudeVer = & claude --version 2>&1
-    Test-Check "claude --version runs ($claudeVer)" ($LASTEXITCODE -eq 0)
-}
-
-# === 2. Skill file structure =================================
+# === 2. Plugin file structure =================================
 
 Write-Host ""
-Write-Host "Skill files" -ForegroundColor Cyan
+Write-Host "Plugin structure" -ForegroundColor Cyan
 
-$skillDir = Join-Path $env:USERPROFILE ".claude\skills\cortex-code"
+# Plugin manifest
+$pluginJson = Join-Path $PluginDir ".claude-plugin\plugin.json"
+Test-Check "plugin.json exists" (Test-Path $pluginJson)
 
-# Core files
-$coreFiles = @("SKILL.md", "README.md", "config.yaml.example")
-foreach ($f in $coreFiles) {
-    $p = Join-Path $skillDir $f
-    Test-Check "core: $f" (Test-Path $p)
+# Skills dirs
+$skillDirs = @("cortex-router", "cortex-run", "cortex-setup")
+foreach ($d in $skillDirs) {
+    $p = Join-Path $PluginDir "skills\$d"
+    Test-Check "skills/$d exists" (Test-Path $p)
 }
 
-# Scripts
-$scripts = @(
+# Router scripts (current architecture)
+$routerScripts = @(
+    "config.yaml.example",
     "discover_cortex.py",
+    "envelope_policy.py",
     "execute_cortex.py",
     "predict_tools.py",
+    "prompt_filter.py",
     "read_cortex_sessions.py",
     "route_request.py",
-    "security_wrapper.py"
+    "session_state.py"
 )
-foreach ($f in $scripts) {
-    $p = Join-Path $skillDir "scripts\$f"
-    Test-Check "scripts: $f" (Test-Path $p)
+$allRouter = $true
+foreach ($f in $routerScripts) {
+    if (-not (Test-Path (Join-Path $RouterDir $f))) {
+        Test-Check "router: $f" $false
+        $allRouter = $false
+    }
+}
+if ($allRouter) {
+    Test-Check "All $($routerScripts.Count) router scripts present" $true
 }
 
-# Security module
-$secFiles = @(
-    "__init__.py",
-    "approval_handler.py",
-    "audit_logger.py",
-    "cache_manager.py",
-    "config_manager.py",
-    "prompt_sanitizer.py"
-)
-foreach ($f in $secFiles) {
-    $p = Join-Path $skillDir "security\$f"
-    Test-Check "security: $f" (Test-Path $p)
-}
+# Test files
+Test-Check "test_envelope_policy.py exists" (Test-Path (Join-Path $RouterDir "test_envelope_policy.py"))
+Test-Check "test_plugin_units.py exists" (Test-Path (Join-Path $RouterDir "test_plugin_units.py"))
 
-$policyPath = Join-Path $skillDir "security\policies\default_policy.yaml"
-Test-Check "security: policies/default_policy.yaml" (Test-Path $policyPath)
-
-# References
-$refs = @(
-    "cortex-cli-reference.md",
-    "routing-examples.md"
-)
-foreach ($f in $refs) {
-    $p = Join-Path $skillDir "references\$f"
-    Test-Check "references: $f" (Test-Path $p)
-}
-
-# Optional docs (warn-only if missing)
-$optDocs = @("SECURITY.md")
-foreach ($f in $optDocs) {
-    $p = Join-Path $skillDir $f
-    Test-Check "optional: $f" (Test-Path $p) -IsWarning:$true
-}
-
-# === 3. File content sanity ==================================
+# === 3. Content checks ========================================
 
 Write-Host ""
 Write-Host "Content checks" -ForegroundColor Cyan
 
-$skillMd = Join-Path $skillDir "SKILL.md"
-if (Test-Path $skillMd) {
-    $content = Get-Content $skillMd -Raw
-    Test-Check "SKILL.md is non-empty" ($content.Length -gt 100)
-    Test-Check "SKILL.md contains routing keyword" ($content -match "(?i)(route|cortex|claude)")
+# plugin.json is valid JSON
+if (Test-Path $pluginJson) {
+    try {
+        Get-Content $pluginJson -Raw | ConvertFrom-Json | Out-Null
+        Test-Check "plugin.json is valid JSON" $true
+    }
+    catch {
+        Test-Check "plugin.json is valid JSON" $false
+    }
 }
 
-$configExample = Join-Path $skillDir "config.yaml.example"
-if (Test-Path $configExample) {
-    $content = Get-Content $configExample -Raw
-    Test-Check "config.yaml.example is non-empty" ($content.Length -gt 10)
+# envelope_policy.py defines decide()
+$epPath = Join-Path $RouterDir "envelope_policy.py"
+if (Test-Path $epPath) {
+    $content = Get-Content $epPath -Raw
+    Test-Check "envelope_policy.py defines decide()" ($content -match "^def decide\(" )
 }
 
-# === 4. Snowflake connection =================================
+# execute_cortex.py uses --permission-prompt-tool
+$exPath = Join-Path $RouterDir "execute_cortex.py"
+if (Test-Path $exPath) {
+    $content = Get-Content $exPath -Raw
+    Test-Check "execute_cortex.py uses --permission-prompt-tool" ($content -match "permission-prompt-tool")
+    Test-Check "execute_cortex.py imports envelope_policy" ($content -match "from envelope_policy import")
+}
+
+# session_state.py defines expected functions
+$ssPath = Join-Path $RouterDir "session_state.py"
+if (Test-Path $ssPath) {
+    $content = Get-Content $ssPath -Raw
+    Test-Check "session_state.py defines load_active_session()" ($content -match "def load_active_session")
+    Test-Check "session_state.py defines save_active_session()" ($content -match "def save_active_session")
+    Test-Check "session_state.py defines clear_active_session()" ($content -match "def clear_active_session")
+}
+
+# config.yaml.example is non-empty
+$cfgPath = Join-Path $RouterDir "config.yaml.example"
+if (Test-Path $cfgPath) {
+    Test-Check "config.yaml.example is non-empty" ((Get-Item $cfgPath).Length -gt 10)
+}
+
+# === 4. Snowflake connection ==================================
 
 Write-Host ""
 Write-Host "Snowflake connection" -ForegroundColor Cyan
@@ -163,7 +197,7 @@ Test-Check "No leftover temp dirs" ($null -eq $leftover -or $leftover.Count -eq 
 # === Summary ==================================================
 
 Write-Host ""
-Write-Host "======================================" 
+Write-Host "============================================================" 
 Write-Host "Results: " -NoNewline
 Write-Host "$Pass passed" -ForegroundColor Green -NoNewline
 Write-Host ", " -NoNewline
