@@ -101,7 +101,28 @@ Before sending the prompt, prepend relevant context from the current Claude Code
 [The original prompt]
 ```
 
-Keep context minimal. Cortex runs statelessly — it only sees what you send.
+Keep context minimal — Cortex only sees what you send in each prompt (unless resuming a session).
+
+## Multi-turn: `--resume-last` vs fresh
+
+Every Cortex invocation returns a `session_id` that is persisted automatically. Follow-up
+turns can resume that session so Cortex sees the prior conversation — real multi-turn,
+not one-shot batches per prompt.
+
+- **Add `--resume-last`** when the current prompt is a continuation of the
+  previous Cortex turn: "keep going", "apply the top suggestion", "dig deeper",
+  "also show me ...", "and for last quarter", "fix that", or any clarification
+  of an answer Cortex just gave.
+- **Omit `--resume-last`** (start fresh) when the user switches topics, asks
+  about a different database/warehouse, or begins a clearly new task.
+- `--resume <session_id>` is also accepted if you have an explicit id.
+
+```bash
+# Follow-up on the previous Cortex turn
+python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+  --prompt "also show me the column types" --envelope "RO" \
+  --resume-last
+```
 
 ## Examples
 
@@ -119,5 +140,5 @@ Keep context minimal. Cortex runs statelessly — it only sees what you send.
 ## Notes
 
 - This skill is for **explicit** invocation only. Auto-routing is handled separately by the prompt filter hook + cortex-router skill.
-- Each Cortex execution is stateless — include relevant context in the prompt.
+- Use `--resume-last` for follow-up prompts so Cortex retains conversation context. For new topics, omit it and include relevant context in the prompt instead.
 - The `--input-format stream-json` flag (used by execute_cortex.py) auto-approves all tool calls within the security envelope.
