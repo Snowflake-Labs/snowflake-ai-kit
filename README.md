@@ -82,7 +82,15 @@ With the [plugin](#cortex-code-plugin-for-claude-code) installed, Claude Code au
 claude                         # Start Claude Code — Snowflake queries auto-route to Cortex
 ```
 
-Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code. See the [plugin docs](plugins/cortex-code/) for security model and configuration.
+Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code.
+
+To explicitly invoke Cortex Code (bypassing auto-routing):
+
+```
+$cortex-run analyze query performance for the last 7 days
+```
+
+See the [plugin docs](plugins/cortex-code/) for security model and configuration.
 
 ## Skills
 
