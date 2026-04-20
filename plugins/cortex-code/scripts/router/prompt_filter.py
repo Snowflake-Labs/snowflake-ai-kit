@@ -66,12 +66,13 @@ def check_prompt(prompt: str) -> str | None:
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
             return (
-                "[CORTEX ROUTER] This prompt matches Snowflake-related patterns. "
-                "Load the cortex-code:cortex-router skill using the Skill tool NOW, "
-                "then follow its instructions: run route_request.py to confirm routing, "
-                "then execute via execute_cortex.py with the appropriate security envelope. "
-                "Do NOT load cortex-run (that is for explicit user invocation only). "
-                "Do NOT handle this with snow CLI or direct SQL -- delegate to Cortex Code."
+                "[CORTEX ROUTER] This prompt may need Cortex Code CLI. "
+                "Load the cortex-code:cortex-router skill using the Skill tool, "
+                "then follow ALL steps IN ORDER — do NOT skip any steps. "
+                "Step 1: verify cortex CLI is installed. "
+                "Step 2: run route_request.py to check if this should go to Cortex or stay in Claude Code. "
+                "Step 3: ONLY if Step 2 says route=cortex, execute via execute_cortex.py. "
+                "Do NOT load cortex-run (that is for explicit $cortex-run invocation only)."
             )
 
     return None
