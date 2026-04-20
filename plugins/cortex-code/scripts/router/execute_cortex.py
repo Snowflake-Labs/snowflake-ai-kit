@@ -244,20 +244,26 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                                 })
                                 print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
 
-                # Handle final result
+                # Handle final result — break to stop blocking on stdout
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
+                    print(f"[Cortex] Result received.", file=sys.stderr)
+                    break  # Cortex is done; exit read loop
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
 
-        # Wait for process to complete
-        process.wait()
+        # Terminate the process — it stays alive waiting for more stdin
+        try:
+            process.terminate()
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
 
         # Check for errors
-        if process.returncode != 0:
+        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected)
             stderr_output = process.stderr.read()
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
