@@ -13,6 +13,27 @@ import argparse
 from typing import List, Dict, Optional
 
 
+# Credential file patterns — block prompts referencing these paths.
+# This check runs unconditionally (can't be skipped by LLM shortcutting).
+CREDENTIAL_PATTERNS = [
+    ".ssh/", ".snowflake/", ".env", "credentials.json",
+    "_key.p8", "_key.pem", ".aws/credentials", ".kube/config",
+    "private_key", "secret_key", "api_key_file", "token.json",
+]
+
+
+def check_credential_paths(prompt: str) -> Optional[str]:
+    """Block prompts that reference credential file paths.
+
+    Returns the matched pattern if blocked, None if safe.
+    """
+    prompt_lower = prompt.lower()
+    for pattern in CREDENTIAL_PATTERNS:
+        if pattern in prompt_lower:
+            return pattern
+    return None
+
+
 def check_cortex_cli() -> bool:
     """Check if cortex CLI is available and functional."""
     if not shutil.which("cortex"):
@@ -77,6 +98,21 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
+    # Pre-flight: check for credential file paths in prompt
+    blocked_pattern = check_credential_paths(prompt)
+    if blocked_pattern:
+        msg = (f"BLOCKED: Prompt references credential path '{blocked_pattern}'. "
+               "Refusing to send to Cortex Code for security. "
+               "Remove credential references from your prompt and try again.")
+        print(f"⛔ {msg}", file=sys.stderr)
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": msg
+        }
+
     # Pre-flight: ensure cortex CLI is installed
     if not check_cortex_cli():
         msg = ("Cortex Code CLI not found. "
