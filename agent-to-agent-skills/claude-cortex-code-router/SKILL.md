@@ -209,14 +209,13 @@ This script:
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--input-format stream-json` puts Cortex in programmatic mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without requiring `--bypass` or `--dangerously-allow-all-tool-calls` which may be disabled by organization policy.
+**Key Insight**: `--dangerously-allow-all-tool-calls` is REQUIRED for DDL (CREATE, ALTER, DROP) and bash commands to work in headless mode. Without it, these operations trigger interactive permission prompts that timeout. `--input-format stream-json` alone only auto-approves read-only SQL (SELECT). Security envelope constraints are enforced via prompt-level instructions prepended to the user prompt, not via `--disallowed-tools` (which is overridden by the bypass flag and doesn't work for sql_execute anyway).
 
-**Security Envelopes**:
-- **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
+**Security Envelopes** (enforced via prompt-level instructions):
+- **RO** (Read-Only): Blocks DDL, DML, file writes, destructive Bash
 - **RW** (Read-Write): Blocks destructive operations like rm -rf, sudo
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist
-- **NONE**: Custom blocklist via --disallowed-tools parameter
+- **DEPLOY**: Full access with no restrictions
 
 **Event Stream Handling**:
 - `type: assistant` → Cortex's responses, display to user
@@ -299,11 +298,11 @@ The skill now uses a security wrapper that provides:
 
 ### Programmatic Mode with Auto-Approval
 
-When using auto or envelope_only modes:
+`--dangerously-allow-all-tool-calls` combined with `--input-format stream-json` enables full headless execution:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Bypasses organization policies that block `--bypass` or `--dangerously-allow-all-tool-calls`
-- Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
+- DDL (CREATE, ALTER, DROP) and bash commands work without timeout
+- Security is controlled via prompt-level envelope instructions, not `--disallowed-tools`
 
 ### Stateless Execution
 Each Cortex invocation is stateless. Context must be explicitly provided via enriched prompts.
@@ -401,12 +400,10 @@ security:
   audit_log_path: "~/.claude/skills/cortex-code/audit.log"
 ```
 
-### Error: Tools still requiring approval (legacy issue)
-**Cause**: Missing `--input-format stream-json` flag
+### Error: "Permission request failed or timed out" for DDL
+**Cause**: Missing `--dangerously-allow-all-tool-calls` flag. `--input-format stream-json` alone only auto-approves SELECT queries; DDL (CREATE, ALTER, DROP) and bash commands require the bypass flag.
 
-**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode.
-
-**Note**: v2.0.0 handles this automatically via security wrapper.
+**Solution**: Ensure `--dangerously-allow-all-tool-calls` is in the cortex command. The execute_cortex.py script adds this automatically. Security envelope is enforced via prompt-level instructions.
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause**: Routing logic didn't detect Snowflake keywords

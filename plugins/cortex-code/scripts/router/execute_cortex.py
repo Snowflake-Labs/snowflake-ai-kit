@@ -11,9 +11,10 @@ import subprocess
 import sys
 import argparse
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
+from envelope_policy import decide as envelope_decide
 from session_state import load_active_session, save_active_session
 
 
@@ -52,53 +53,89 @@ def check_cortex_cli() -> bool:
         return False
 
 
-# Known tools for inversion logic (allowed -> disallowed)
-KNOWN_TOOLS = [
-    "Read", "Write", "Edit", "Bash", "Grep", "Glob",
-    "snowflake_sql_execute", "data_diff", "snowflake_query"
-]
+# Prompt-level security envelope instructions.
+# Hard enforcement happens through `--permission-prompt-tool stdio`: cortex
+# emits a control_request for every tool call and this wrapper replies via
+# envelope_policy.decide(). The prompt text below is a soft hint so the LLM
+# shapes its plan to the envelope (fewer denied tool calls, cleaner UX). Hard
+# gate is the policy function -- the LLM cannot talk its way past it.
+ENVELOPE_INSTRUCTIONS = {
+    "RO": (
+        "# Security Envelope: READ-ONLY\n"
+        "You are operating in READ-ONLY mode.\n"
+        "ALLOWED: SELECT, SHOW, DESCRIBE, EXPLAIN queries. "
+        "Reading files, searching, grepping.\n"
+        "NOT ALLOWED: DDL (CREATE, ALTER, DROP), DML (INSERT, UPDATE, DELETE, MERGE), "
+        "writing/editing/creating files, destructive bash (rm, sudo, chmod 777, git push --force).\n"
+        "If the user's request requires write operations, explain what you would do "
+        "and provide the SQL/commands for them to run manually.\n"
+    ),
+    "RW": (
+        "# Security Envelope: READ-WRITE\n"
+        "You are operating in READ-WRITE mode.\n"
+        "ALLOWED: All SQL (SELECT, CREATE, ALTER, DROP, INSERT, UPDATE, DELETE), "
+        "reading/writing files, bash commands.\n"
+        "NOT ALLOWED: Destructive bash (rm -rf, sudo, chmod 777, git push --force, "
+        "git reset --hard). Do not delete data or drop production tables without "
+        "explicit confirmation in the prompt.\n"
+    ),
+    "RESEARCH": (
+        "# Security Envelope: RESEARCH\n"
+        "You are operating in RESEARCH mode.\n"
+        "ALLOWED: SELECT, SHOW, DESCRIBE queries. Reading files, searching, "
+        "web_fetch, web_search.\n"
+        "NOT ALLOWED: DDL, DML, writing/editing files, destructive bash.\n"
+    ),
+    "DEPLOY": (
+        "# Security Envelope: DEPLOY\n"
+        "You are operating in DEPLOY mode with full access.\n"
+        "All tools and operations are available. Use good judgment.\n"
+    ),
+}
 
 
-def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
-    """
-    Convert allowed tools list to disallowed tools list.
+def build_envelope_prompt(prompt: str, envelope: str) -> str:
+    """Prepend security envelope instructions to the user prompt."""
+    instructions = ENVELOPE_INSTRUCTIONS.get(envelope, "")
+    if instructions:
+        return f"{instructions}\n# User Request\n{prompt}"
+    return prompt
 
-    For prompt mode: when security wrapper predicts/approves specific tools,
-    we need to invert the list to block all OTHER tools via --disallowed-tools.
 
-    Args:
-        allowed_tools: List of tool names that ARE allowed
-
-    Returns:
-        List of tool names that should be disallowed (inverse of allowed)
-
-    Example:
-        allowed = ["Read", "Grep"]
-        disallowed = ["Write", "Edit", "Bash", "Glob", ...other tools...]
-    """
-    return [tool for tool in KNOWN_TOOLS if tool not in allowed_tools]
+def _send_control_response(stdin, request_id: str, behavior: str, message: str = "") -> None:
+    """Write a control_response back to cortex's stdin. Safe no-op if pipe is closed."""
+    payload = {
+        "type": "control_response",
+        "response": {
+            "subtype": "success",
+            "request_id": request_id,
+            "response": {"behavior": behavior, "message": message},
+        },
+    }
+    try:
+        stdin.write(json.dumps(payload) + "\n")
+        stdin.flush()
+    except (BrokenPipeError, ValueError):
+        # cortex already exited -- nothing to do.
+        pass
 
 
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
-                             disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
-                             approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None,
                              resume_session_id: Optional[str] = None) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
-    Uses --output-format stream-json for streaming results.
-    Tools are controlled via --allowed-tools allowlist (envelope mode) or
-    --disallowed-tools blocklist (prompt mode) for safety.
+    Uses --permission-prompt-tool stdio to route every tool call through this
+    wrapper, which decides allow/deny via envelope_policy.decide(). This is
+    hard enforcement: cortex will NOT execute a tool until we respond. LLM
+    output cannot bypass it.
 
     Args:
         prompt: The enriched prompt to send to Cortex
         connection: Optional Snowflake connection name
-        disallowed_tools: Optional list of tools to explicitly block
-        envelope: Security envelope mode (RO, RW, RESEARCH, DEPLOY, NONE)
-        approval_mode: Approval mode (prompt, auto, envelope_only)
-        allowed_tools: Optional list of tools that ARE allowed (for prompt mode)
+        envelope: Security envelope mode (RO, RW, RESEARCH, DEPLOY)
+        resume_session_id: Optional session ID to resume for multi-turn
 
     Returns:
         Dictionary with execution results
@@ -132,18 +169,19 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": msg
         }
 
-    # Build command with programmatic auto-approval mode.
-    # --input-format stream-json enables headless auto-approval of all tool calls
-    # (including snowflake_sql_execute and MCP tools) without --bypass or
-    # --dangerously-allow-all-tool-calls which may be blocked by org policy.
-    # Envelope security is enforced via --disallowed-tools blocklist.
-    # NOTE: Do NOT use -p with --input-format stream-json -- the -p flag is
-    # ignored in stream-json input mode. Instead, send the prompt via stdin
-    # as a JSON user message (see below).
+    # Prepend envelope instructions to the prompt
+    envelope_prompt = build_envelope_prompt(prompt, envelope)
+
+    # Build command for headless execution.
+    # --input-format stream-json: programmatic mode (prompt via stdin).
+    # --permission-prompt-tool stdio: route every tool call through us as a
+    #   control_request; we reply allow/deny based on the envelope policy.
+    #   This is hard enforcement at the CLI boundary, not LLM self-policing.
     cmd = [
         "cortex",
         "--output-format", "stream-json",
-        "--input-format", "stream-json"
+        "--input-format", "stream-json",
+        "--permission-prompt-tool", "stdio",
     ]
 
     # Resume prior cortex session so follow-up turns see earlier context.
@@ -155,60 +193,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     if connection:
         cmd.extend(["-c", connection])
 
-    # Step 1: Handle approval mode — build disallowed tools list for envelope security.
-    # Note: --input-format stream-json auto-approves tools; --disallowed-tools
-    # enforces the security boundary. Do NOT use --allowed-tools: it creates an
-    # "must match pattern" check that blocks Snowflake MCP tools.
-    final_disallowed_tools = disallowed_tools or []
-
-    if approval_mode == "prompt":
-        # Prompt mode: invert allowed_tools to disallowed_tools
-        # In prompt mode, we ONLY use allowed_tools (don't merge with envelope)
-        if allowed_tools is not None:
-            # User approved specific tools - block everything else
-            inverted_tools = invert_tools_to_disallowed(allowed_tools)
-            # Merge with existing disallowed tools (but NOT envelope tools)
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(inverted_tools))
-        else:
-            # No tools approved - block all known tools
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(KNOWN_TOOLS))
-
-    elif approval_mode in ["envelope_only", "auto"]:
-        # Envelope-only or auto mode: apply envelope-based security via blocklist.
-        # --input-format stream-json (set above) auto-approves all non-blocked tools.
-        envelope_tools = []
-        if envelope == "RO":
-            # Read-only: block all write operations
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)",
-                "Bash(git push *)", "Bash(git reset --hard *)"
-            ]
-        elif envelope == "DEPLOY":
-            # Full access: no blocklist
-            envelope_tools = []
-        elif envelope == "RESEARCH":
-            # Research: read-only plus web access
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)"
-            ]
-        # Merge envelope tools with final disallowed list
-        if envelope_tools:
-            final_disallowed_tools = list(set(final_disallowed_tools) | set(envelope_tools))
-
-    # Step 3: Add final disallowed tools to command
-    if final_disallowed_tools:
-        for tool in final_disallowed_tools:
-            cmd.extend(["--disallowed-tools", tool])
-
-    debug_cmd = f"cortex --output-format stream-json --input-format stream-json (prompt via stdin)"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json --permission-prompt-tool stdio (envelope={envelope})"
     if connection:
         debug_cmd += f" -c {connection}"
-    if final_disallowed_tools:
-        debug_cmd += f" --disallowed-tools {' '.join(final_disallowed_tools[:3])}{'...' if len(final_disallowed_tools) > 3 else ''}"
     print(debug_cmd, file=sys.stderr)
 
     try:
@@ -225,96 +212,113 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             bufsize=1
         )
 
-        # Send the prompt as a stream-json user message, then close stdin
-        # so Cortex knows no more input is coming and will process + exit.
+        # Send the user prompt. stdin stays OPEN for the duration of the turn
+        # so we can write control_response messages back when cortex asks for
+        # permission (--permission-prompt-tool stdio emits control_request on
+        # stdout and awaits a control_response on stdin, same pipe).
         prompt_message = json.dumps({
             "type": "user",
             "message": {
                 "role": "user",
-                "content": [{"type": "text", "text": prompt}]
+                "content": [{"type": "text", "text": envelope_prompt}]
             }
         }) + "\n"
         process.stdin.write(prompt_message)
         process.stdin.flush()
-        process.stdin.close()
 
         results = {
             "session_id": None,
             "events": [],
-            "permission_requests": [],
+            "permission_decisions": [],
             "final_result": None,
             "error": None
         }
 
-        # Read streaming output
+        # Read streaming output. Two interleaved event kinds matter:
+        #   - control_request (subtype=can_use_tool) -- permission ask; we reply
+        #     immediately with a control_response based on envelope_policy.
+        #   - result -- turn complete; break.
         for line in process.stdout:
             if not line.strip():
                 continue
 
             try:
                 event = json.loads(line)
-                results["events"].append(event)
-
-                event_type = event.get("type")
-
-                # Extract session ID and persist so next turn can --resume.
-                if event_type == "system" and event.get("subtype") == "init":
-                    results["session_id"] = event.get("session_id")
-                    print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
-                    save_active_session(results["session_id"])
-
-                # Handle assistant responses
-                elif event_type == "assistant":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
-
-                    for item in content:
-                        if item.get("type") == "text":
-                            print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
-
-                        elif item.get("type") == "tool_use":
-                            tool_name = item.get("name")
-                            print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
-
-                # Handle permission requests (via user messages with tool_result containing denials)
-                elif event_type == "user":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
-
-                    for item in content:
-                        if item.get("type") == "tool_result":
-                            tool_content = item.get("content", "")
-                            if "Permission denied" in tool_content or "denied" in tool_content.lower():
-                                results["permission_requests"].append({
-                                    "tool_use_id": item.get("tool_use_id"),
-                                    "content": tool_content
-                                })
-                                print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
-
-                # Handle final result — break to stop blocking on stdout
-                elif event_type == "result":
-                    results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result received.", file=sys.stderr)
-                    break  # Cortex is done; exit read loop
-
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
 
-        # Terminate the process — it stays alive waiting for more stdin
+            results["events"].append(event)
+            event_type = event.get("type")
+
+            # Extract session ID and persist so next turn can --resume.
+            if event_type == "system" and event.get("subtype") == "init":
+                results["session_id"] = event.get("session_id")
+                print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                save_active_session(results["session_id"])
+
+            elif event_type == "control_request":
+                req = event.get("request", {}) or {}
+                if req.get("subtype") != "can_use_tool":
+                    # Not a permission ask; ignore other control request subtypes.
+                    continue
+                tool_name = req.get("tool_name", "")
+                tool_input = req.get("input", {}) or {}
+                action = tool_input.get("action", "")
+                resource = tool_input.get("resource", "")
+                behavior, reason = envelope_decide(envelope, tool_name, action, resource)
+                preview = (resource or "")[:120].replace("\n", " ")
+                print(f"[policy] {envelope}: {behavior} {tool_name} — {preview}",
+                      file=sys.stderr)
+                results["permission_decisions"].append({
+                    "tool_name": tool_name,
+                    "action": action,
+                    "resource": resource,
+                    "behavior": behavior,
+                    "reason": reason,
+                })
+                _send_control_response(
+                    process.stdin,
+                    event.get("request_id", ""),
+                    behavior,
+                    reason,
+                )
+
+            elif event_type == "assistant":
+                message = event.get("message", {}) or {}
+                for item in (message.get("content") or []):
+                    if item.get("type") == "text":
+                        print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
+                    elif item.get("type") == "tool_use":
+                        print(f"[Cortex] Using tool: {item.get('name')}", file=sys.stderr)
+
+            elif event_type == "result":
+                results["final_result"] = event.get("result")
+                print(f"[Cortex] Result received.", file=sys.stderr)
+                break  # turn complete
+
+        # Turn complete: close stdin so cortex exits cleanly.
         try:
-            process.terminate()
+            process.stdin.close()
+        except (BrokenPipeError, ValueError):
+            pass
+
+        try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
 
-        # Check for errors
-        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected)
-            stderr_output = process.stderr.read()
+        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected on kill)
+            stderr_output = process.stderr.read() if process.stderr else ""
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
-            print(f"Stderr: {stderr_output}", file=sys.stderr)
+            if stderr_output:
+                print(f"Stderr: {stderr_output}", file=sys.stderr)
 
         return results
 
@@ -333,16 +337,9 @@ def main():
     parser = argparse.ArgumentParser(description="Execute Cortex Code headlessly")
     parser.add_argument("--prompt", required=True, help="Prompt to send to Cortex")
     parser.add_argument("--connection", "-c", help="Snowflake connection name")
-    parser.add_argument("--disallowed-tools", nargs="+", help="Tools to explicitly block")
     parser.add_argument("--envelope", default="RW",
-                       choices=["RO", "RW", "RESEARCH", "DEPLOY", "NONE"],
+                       choices=["RO", "RW", "RESEARCH", "DEPLOY"],
                        help="Security envelope mode (default: RW)")
-    parser.add_argument("--approval-mode", default="auto",
-                       choices=["prompt", "auto", "envelope_only"],
-                       help="Approval mode (default: auto)")
-    parser.add_argument("--allowed-tools", nargs="+",
-                       help="Tools that are allowed (for prompt mode)")
-    parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
     parser.add_argument("--resume-last", action="store_true",
                        help="Resume the most recent cortex session for multi-turn continuation")
     parser.add_argument("--resume", dest="resume_session_id", default=None,
@@ -363,10 +360,7 @@ def main():
     results = execute_cortex_streaming(
         args.prompt,
         connection=args.connection,
-        disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
-        approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools,
         resume_session_id=resume_session_id,
     )
 
