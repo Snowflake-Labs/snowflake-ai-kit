@@ -2,23 +2,27 @@
 
 ## What This Repo Is
 
-Developer tools for building on Snowflake with AI coding agents. Includes installers (shell + PowerShell + npx), a Claude-to-Cortex Code router skill, and a sample Cortex Agent chat app (React + FastAPI).
-
-**Org:** Snowflake-Labs (INTERNAL visibility)
+Developer tools for building on Snowflake with AI coding agents. Includes a Claude Code plugin (auto-routes Snowflake prompts to Cortex Code), installers (shell + PowerShell + npx), a standalone router skill, and a sample Cortex Agent chat app (React + FastAPI).
 
 ## Architecture
 
 ```
-install.sh / install.ps1 / bin/install.mjs   ← one-command installers
+plugins/
+  cortex-code/                                ← Claude Code plugin (v3.0.1)
+    .claude-plugin/plugin.json                ← plugin manifest
+    hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)
+    scripts/router/
+      prompt_filter.py                        ← keyword detection, fires additionalContext
+      discover_cortex.py                      ← finds Cortex CLI + discovers skills
+      execute_cortex.py                       ← spawns cortex CLI, credential blocking
+      route_request.py                        ← indicator scoring + skill trigger matching
+    skills/
+      cortex-router/                          ← auto-routing skill
+      cortex-run/                             ← explicit invocation ($cortex-run)
+      cortex-setup/                           ← CLI install + connection setup
+install.sh / install.ps1 / bin/install.mjs    ← one-command installers
 agent-to-agent-skills/
-  claude-cortex-code-router/                  ← router skill v2.0.0
-    SKILL.md                                  ← skill definition (installed to ~/.claude/skills/cortex-code/)
-    scripts/
-      discover_cortex.py                      ← dual-format parser (discovers 32+ skills)
-      execute_cortex.py                       ← stdin=DEVNULL fix required
-    tests/                                    ← 209 tests (96 unit, 45 integration, 46 security, 22 regression)
-    security/                                 ← security envelope implementation
-    config.yaml.example
+  claude-cortex-code-router/                  ← standalone router skill (legacy)
 builder-apps/
   cortex-agent/                               ← React + FastAPI sample app
 tests/
@@ -28,21 +32,17 @@ tests/
 
 ## Critical Rules
 
-1. **All 209 tests must pass before merging.** Run `cd agent-to-agent-skills/claude-cortex-code-router && pytest tests/` to verify.
-2. **License split:** Root LICENSE is Apache 2.0. The router skill README states "Copyright 2026 Snowflake Inc. All rights reserved." Do not change either.
-3. **Branch protection:** PRs required on main. 0 approvals needed, bypass allowed.
-4. **Never commit credentials.** Use environment variables or Snowflake built-in auth.
-5. **README uses HTTPS clone URLs** (not SSH) — keep it that way for external users.
+1. **Never commit credentials.** Use environment variables or Snowflake built-in auth.
+2. **License:** Root LICENSE is Apache 2.0.
+3. **Branch protection:** PRs required on main.
+4. **README uses HTTPS clone URLs** (not SSH) — keep it that way for external users.
 
-## Python Scripts
+## Plugin Scripts
 
-- `discover_cortex.py` — parses Cortex Code skill output in two formats (table and list). If the output format changes, both parsers need updating.
-- `execute_cortex.py` — spawns `cortex` CLI. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input. Do not remove it.
-
-## Related Repos
-
-- `Snowflake-Labs/subagent-cortex-code` — public repo with the same router skill, still at v1.0.0 strings. Changes here should eventually be synced there.
-- `snowflake-eng/cortex-code-skills` — bundled skills repo (separate from this).
+- `prompt_filter.py` — reads `message` field from stdin JSON. Returns `additionalContext` for Snowflake-related prompts, `{}` otherwise.
+- `discover_cortex.py` — finds Cortex CLI binary and parses skill output. Has Windows/macOS/Linux path handling.
+- `execute_cortex.py` — spawns `cortex` CLI subprocess. Key behaviors: credential path blocking (`CREDENTIAL_PATTERNS`), break-on-result, `process.terminate()` cleanup. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input — do not remove it.
+- `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching at line 88 can produce false positives.
 
 ## Installers
 
@@ -53,8 +53,3 @@ The three installers (`install.sh`, `install.ps1`, `bin/install.mjs`) share the 
 - Skip anything already installed; verify Snowflake connection at the end
 
 Do not convert these to `pip install` or `npm install` patterns — they are intentionally standalone.
-
-## Auth
-
-- SSH remote (id_rsa key for Snowflake-Labs)
-- `gh auth login` (iamontheinet account) for GitHub CLI operations
