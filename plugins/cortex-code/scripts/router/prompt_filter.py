@@ -72,6 +72,9 @@ def check_prompt(prompt: str) -> str | None:
                 "Step 1: verify cortex CLI is installed. "
                 "Step 2: run route_request.py to check if this should go to Cortex or stay in Claude Code. "
                 "Step 3: ONLY if Step 2 says route=cortex, execute via execute_cortex.py. "
+                "If this prompt is a follow-up to a previous Cortex turn "
+                "(continue/keep going/drill in/also/fix that), pass --resume-last "
+                "to execute_cortex.py so Cortex sees prior context. "
                 "Do NOT load cortex-run (that is for explicit $cortex-run invocation only)."
             )
 

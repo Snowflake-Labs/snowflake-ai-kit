@@ -4,7 +4,7 @@ description: Auto-routing skill loaded by the prompt filter hook. Routes Snowfla
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.0.0
+  version: 3.1.0
   compatibility: Requires Cortex Code CLI installed and configured
 ---
 
@@ -59,6 +59,27 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
 
 Add `--connection CONNECTION_NAME` if a specific Snowflake connection is needed.
 
+### Multi-turn: `--resume-last` vs fresh
+
+Every cortex invocation returns a `session_id` that the router persists. Follow-up
+turns can resume that session so Cortex sees the prior conversation -- real
+multi-turn, not one-shot batches per prompt.
+
+- **Add `--resume-last`** when the current prompt is a continuation of the
+  previous Cortex turn: "keep going", "apply the top suggestion", "dig deeper",
+  "also show me ...", "and for last quarter", "fix that", or any clarification
+  of an answer Cortex just gave.
+- **Omit `--resume-last`** (start fresh) when the user switches topics, asks
+  about a different database/warehouse, or begins a clearly new task.
+- `--resume <session_id>` is also accepted if you have an explicit id.
+
+```bash
+# Follow-up on the previous Cortex turn
+python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+  --prompt "drill into the top customer" --envelope "RO" --approval-mode "auto" \
+  --resume-last
+```
+
 **Timeout**: This command may take 30-90 seconds. If it takes longer than 2 minutes, it likely hung — kill the process and tell the user to try `$cortex-run` for direct invocation.
 
 ## Step 4: Return Results
@@ -70,7 +91,7 @@ Format Cortex's output for the user:
 
 ## Notes
 
-- Each Cortex invocation is **stateless** — context must be in the prompt
 - Cortex has bundled skills for: data-quality, semantic-view, cost-intelligence, ML, governance, security, lineage, dynamic-tables, and more
 - For simple SQL queries that don't need Cortex skills, Step 2 should route to Claude Code
 - If `route_request.py` is missing or fails, fall back to Claude Code tools
+- Multi-turn context is preserved across invocations via `--resume-last` (see Step 3)
