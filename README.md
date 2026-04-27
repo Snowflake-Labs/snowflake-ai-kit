@@ -72,7 +72,7 @@ After installing, open a terminal and run:
 ```bash
 cortex                         # Start Cortex Code (interactive AI assistant)
 snow connection list           # Verify your Snowflake connection
-cortex skill list              # Browse 35+ built-in skills
+cortex skill list              # Browse 40+ built-in skills
 ```
 
 With the [plugin](#cortex-code-plugin-for-claude-code) installed, Claude Code automatically routes Snowflake prompts to Cortex Code:
@@ -95,7 +95,7 @@ See the [plugin docs](plugins/cortex-code/) for security model and configuration
 
 ### Bundled Skills (Cortex Code CLI)
 
-Cortex Code CLI ships with 35+ built-in skills that activate automatically based on your prompt. No setup required -- they're included in every install.
+Cortex Code CLI ships with 40+ built-in skills that activate automatically based on your prompt. No setup required -- they're included in every install.
 
 View all available skills:
 
@@ -112,7 +112,7 @@ Skills are organized by source:
 | **EXTERNAL** | Added via `cortex skill add <path>`. Point to local directories or Git repos. |
 | **PROJECT** | Discovered from the current working directory (e.g. `.claude/skills/`). |
 
-Examples of bundled skills: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `dashboard`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`.
+Examples of bundled skills: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
 
 Add a custom skill from a local path or GitHub:
 
