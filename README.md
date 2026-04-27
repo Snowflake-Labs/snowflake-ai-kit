@@ -9,6 +9,7 @@ Developer tools for building on Snowflake with AI coding agents. Includes a one-
 - [Skills](#skills)
 - [Plugins](#plugins)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
 ## Get Started
 
@@ -161,6 +162,17 @@ To update later: `/plugin update cortex-code`
 | Connection errors | Run `snow connection add` to create `~/.snowflake/connections.toml`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
 | Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |
 | Plugin not routing | Make sure the plugin is enabled: check `~/.claude/settings.json` has `"enabledPlugins": { "cortex-code@snowflake-ai-kit": true }` |
+
+## Contributing
+
+All PRs run CI automatically on **macOS** and **Windows** via GitHub Actions ([`test.yml`](.github/workflows/test.yml)). The full test suite (209 tests) must pass on both platforms before merging.
+
+To run tests locally:
+
+```bash
+bash tests/run-tests.sh --verbose        # macOS / Linux
+.\tests\run-tests.ps1 -Verbose           # Windows (PowerShell)
+```
 
 ## License
 
