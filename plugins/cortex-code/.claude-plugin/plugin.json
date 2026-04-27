@@ -1,0 +1,13 @@
+{
+  "name": "cortex-code",
+  "version": "3.0.1",
+  "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
+  "author": {
+    "name": "Snowflake"
+  },
+  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code",
+  "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
+  "license": "Apache-2.0",
+  "keywords": ["snowflake", "cortex-code", "auto-routing", "sql", "data"],
+  "skills": "./skills"
+}

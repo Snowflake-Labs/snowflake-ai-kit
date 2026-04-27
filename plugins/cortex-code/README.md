@@ -1,0 +1,99 @@
+# Cortex Code plugin for Claude Code
+
+Route Snowflake work from Claude Code to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 35+ built-in skills handle the work. Non-Snowflake prompts stay in Claude Code.
+
+## How It Works
+
+**Two ways to route prompts to Cortex Code:**
+
+### Auto-routing (default)
+
+A lightweight keyword filter (`prompt_filter.py`) runs on every prompt. When it detects Snowflake-related patterns, it loads the `cortex-router` skill which delegates to Cortex Code.
+
+Examples that auto-route:
+- "Show me the top 10 customers by revenue"
+- "Check data quality for the SALES_DATA table"
+- "Create a dynamic table that refreshes hourly"
+
+Examples that stay in Claude Code:
+- "Read the config.json file"
+- "Fix the bug in auth.py"
+- "Write a Python unit test"
+
+### Explicit invocation (`$cortex-run`)
+
+Type `$cortex-run` followed by your prompt to force routing to Cortex Code, bypassing the keyword filter. Useful when:
+
+- Auto-routing didn't pick up your prompt
+- You want to be explicit about using Cortex Code
+- Your prompt mixes Snowflake and non-Snowflake work
+
+```
+$cortex-run analyze query performance for the last 7 days
+```
+
+## Requirements
+
+- **Cortex Code CLI** (`cortex`) installed and on your PATH
+
+## Install
+
+### Via the Claude Code marketplace (recommended)
+
+Run these commands inside Claude Code:
+
+```
+/plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+/plugin install cortex-code@snowflake-ai-kit
+```
+
+To update later: `/plugin update cortex-code`
+
+> **Coming soon:** This plugin will be available from the [official Anthropic marketplace](https://code.claude.com/docs/en/discover-plugins#official-anthropic-marketplace).
+
+### Manual setup (local clone)
+
+Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code).
+
+If you cloned the repo, add the marketplace from the local path:
+
+```
+/plugin marketplace add /path/to/snowflake-ai-kit
+/plugin install cortex-code@snowflake-ai-kit
+```
+
+## Security Model
+
+The router wraps Cortex execution with a security layer. Three approval modes:
+
+| Mode | Behavior | Audit | Best For |
+|------|----------|-------|----------|
+| `prompt` (default) | Ask user before execution | Optional | Interactive, production |
+| `auto` | Auto-approve | Required | Automated workflows |
+| `envelope_only` | Auto-approve, no tool prediction | Required | Low latency, trusted envs |
+
+**Security envelopes** control what Cortex can do:
+- **RO**: Read-only — blocks Edit, Write, destructive Bash
+- **RW**: Read-write — blocks destructive operations
+- **RESEARCH**: Read + web access
+- **DEPLOY**: Full access (use cautiously)
+
+Built-in protections: PII sanitization, credential path blocking, SHA256-validated cache, structured audit logging.
+
+## Configuration
+
+The router config file lives at `scripts/router/config.yaml.example`. To customize:
+
+```bash
+cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/cortex-code/config.yaml
+```
+
+Edit the config to change approval mode, allowed envelopes, audit settings, and sanitization options.
+
+Skill discovery runs automatically on session start. To force a re-discovery, start a new Claude Code session.
+
+## License
+
+Copyright (c) Snowflake Inc. All rights reserved.
+
+The skills in this project are licensed under the [Snowflake Skills License](../../LICENSE-SKILLS.md).

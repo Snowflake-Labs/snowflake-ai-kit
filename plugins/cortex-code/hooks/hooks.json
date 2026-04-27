@@ -1,0 +1,25 @@
+{
+  "description": "Cortex Code plugin hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

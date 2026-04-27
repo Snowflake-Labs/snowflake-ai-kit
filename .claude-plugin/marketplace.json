@@ -1,0 +1,26 @@
+{
+  "name": "snowflake-ai-kit",
+  "owner": {
+    "name": "Snowflake"
+  },
+  "metadata": {
+    "description": "Snowflake AI toolkit — plugins, skills, and builder apps for coding agents",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cortex-code",
+      "description": "Use Cortex Code from Claude Code — slash commands for reviews and task delegation, plus automatic routing of Snowflake operations to Cortex Code.",
+      "version": "2.0.0",
+      "source": "./plugins/cortex-code",
+      "author": {
+        "name": "Snowflake"
+      },
+      "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code",
+      "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
+      "license": "Apache-2.0",
+      "keywords": ["snowflake", "cortex-code", "code-review", "sql", "dbt", "security", "auto-routing"],
+      "category": "developer-tools"
+    }
+  ]
+}
