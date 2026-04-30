@@ -39,14 +39,17 @@ BASE_SNOWFLAKE_TOOLS = ["snowflake_sql_execute", "bash", "read"]
 
 
 def load_capabilities():
-    """Load cached Cortex capabilities."""
-    cache_path = Path("/tmp/cortex-capabilities.json")
-
-    if not cache_path.exists():
+    """Load cached Cortex capabilities via CacheManager."""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from security.config_manager import ConfigManager
+        from security.cache_manager import CacheManager
+        config_manager = ConfigManager()
+        cache_dir = Path(config_manager.get("security.cache_dir")).expanduser()
+        cache_manager = CacheManager(cache_dir)
+        return cache_manager.read("cortex-capabilities") or {}
+    except Exception:
         return {}
-
-    with open(cache_path, 'r') as f:
-        return json.load(f)
 
 
 def predict_tools(prompt, envelope=None):

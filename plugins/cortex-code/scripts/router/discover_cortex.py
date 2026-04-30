@@ -21,11 +21,11 @@ from security.config_manager import ConfigManager
 
 
 def run_command(cmd):
-    """Run shell command and return output."""
+    """Run command and return output."""
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
+            cmd.split(),
+            shell=False,
             capture_output=True,
             text=True,
             timeout=10

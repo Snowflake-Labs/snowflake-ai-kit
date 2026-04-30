@@ -38,12 +38,13 @@ security:
     - "**/.npmrc"
     - "**/.pypirc"
 
-  # Which envelopes are allowed (RO, RW, RESEARCH, DEPLOY)
+  # Which envelopes are allowed (RO, RW, RESEARCH)
+  # Note: DEPLOY grants full access — only enable if you understand the blast radius.
   allowed_envelopes:
     - "RO"
     - "RW"
     - "RESEARCH"
-    - "DEPLOY"
+    # - "DEPLOY"  # Uncomment to enable full-access mode
 
 # --- Deployment Profiles (uncomment one) ---
 
