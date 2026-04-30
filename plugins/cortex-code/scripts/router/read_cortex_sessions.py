@@ -43,6 +43,12 @@ def parse_session_file(session_path, sanitize=True):
         Dictionary with session data, or None on error
     """
     try:
+        # Guard against pathologically large session files (10MB limit)
+        file_size = session_path.stat().st_size
+        if file_size > 10 * 1024 * 1024:
+            print(f"Skipping oversized session file ({file_size} bytes): {session_path}", file=sys.stderr)
+            return None
+
         with open(session_path, 'r') as f:
             lines = f.readlines()
 

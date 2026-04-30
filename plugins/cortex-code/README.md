@@ -92,6 +92,29 @@ Edit the config to change approval mode, allowed envelopes, audit settings, and 
 
 Skill discovery runs automatically on session start. To force a re-discovery, start a new Claude Code session.
 
+## Testing
+
+Tests live in `tests/run-tests.sh` at the repo root. Two tiers:
+
+```bash
+# Structural + unit tests (no network, runs in CI)
+bash tests/run-tests.sh
+
+# Include integration tests (requires cortex CLI + Snowflake connection)
+bash tests/run-tests.sh --integration
+```
+
+**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks.
+
+**Integration tests** (`--integration` flag): spawn real Cortex CLI sessions against a live Snowflake connection. Located at `scripts/router/test_integration.py`. Verifies:
+
+- Credential path blocking (prompts referencing `.ssh/`, `.env`, etc. are rejected pre-flight)
+- End-to-end query flow (RO envelope, permission protocol, result event)
+- Envelope enforcement (RO blocks DDL — via hard gate denial or LLM self-policing)
+- Process cleanup (no orphaned `cortex` processes after execution)
+
+Set `CORTEX_TEST_CONNECTION` env var to test against a specific Snowflake connection (defaults to your CLI default).
+
 ## License
 
 Copyright (c) Snowflake Inc. All rights reserved.

@@ -323,6 +323,15 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         return results
 
     except Exception as e:
+        # Prevent orphaned cortex processes on unexpected exceptions
+        try:
+            process.terminate()
+            process.wait(timeout=2)
+        except Exception:
+            try:
+                process.kill()
+            except Exception:
+                pass
         return {
             "session_id": None,
             "events": [],

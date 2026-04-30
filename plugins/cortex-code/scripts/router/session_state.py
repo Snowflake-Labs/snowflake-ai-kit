@@ -57,6 +57,7 @@ def save_active_session(session_id: str) -> None:
         with os.fdopen(fd, "w") as f:
             json.dump(payload, f)
         os.replace(tmp_name, path)
+        os.chmod(path, 0o600)
     except Exception:
         try:
             os.unlink(tmp_name)

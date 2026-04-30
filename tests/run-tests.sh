@@ -23,10 +23,12 @@ ROUTER_DIR="$PLUGIN_DIR/scripts/router"
 
 SKIP_UNIT=false
 VERBOSE=false
+INTEGRATION=false
 for arg in "$@"; do
     case "$arg" in
-        --skip-unit) SKIP_UNIT=true ;;
-        --verbose)   VERBOSE=true ;;
+        --skip-unit)    SKIP_UNIT=true ;;
+        --verbose)      VERBOSE=true ;;
+        --integration)  INTEGRATION=true ;;
     esac
 done
 
@@ -210,7 +212,38 @@ else
     fi
 fi
 
-# === 5. Snowflake connection =======================================
+# === 5. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
+
+section "Integration tests"
+
+if ! $INTEGRATION; then
+    skip "Integration tests (use --integration to run)"
+else
+    if ! command -v cortex >/dev/null 2>&1; then
+        skip "Integration tests (cortex CLI not found)"
+    else
+        echo "  Running test_integration.py (this may take 30-90s)..."
+        OUTPUT=$(cd "$ROUTER_DIR" && python3 test_integration.py 2>&1)
+        EXIT_CODE=$?
+        if echo "$OUTPUT" | grep -q "^[0-9]*/[0-9]* passed$"; then
+            TOTAL_LINE=$(echo "$OUTPUT" | grep "^[0-9]*/[0-9]* passed$")
+            PASSED_INT=$(echo "$TOTAL_LINE" | cut -d/ -f1)
+            TOTAL_INT=$(echo "$TOTAL_LINE" | cut -d/ -f2 | cut -d' ' -f1)
+            if [ "$PASSED_INT" = "$TOTAL_INT" ]; then
+                pass "test_integration.py: $TOTAL_LINE"
+            else
+                fail "test_integration.py: $TOTAL_LINE"
+            fi
+        elif echo "$OUTPUT" | grep -q "^SKIP:"; then
+            skip "test_integration.py: $(echo "$OUTPUT" | grep "^SKIP:" | head -1)"
+        else
+            fail "test_integration.py: could not parse results (exit=$EXIT_CODE)"
+        fi
+        if $VERBOSE; then echo "$OUTPUT"; fi
+    fi
+fi
+
+# === 6. Snowflake connection =======================================
 
 section "Snowflake connection"
 
