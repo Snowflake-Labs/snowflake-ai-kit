@@ -44,10 +44,10 @@ Run these commands inside Claude Code:
 
 ```
 /plugin marketplace add Snowflake-Labs/snowflake-ai-kit
-/plugin install cortex-code@snowflake-ai-kit
+/plugin install snowflake-cortex-code@snowflake-ai-kit
 ```
 
-To update later: `/plugin update cortex-code`
+To update later: `/plugin update snowflake-cortex-code`
 
 > **Coming soon:** This plugin will be available from the [official Anthropic marketplace](https://code.claude.com/docs/en/discover-plugins#official-anthropic-marketplace).
 
@@ -59,7 +59,7 @@ If you cloned the repo, add the marketplace from the local path:
 
 ```
 /plugin marketplace add /path/to/snowflake-ai-kit
-/plugin install cortex-code@snowflake-ai-kit
+/plugin install snowflake-cortex-code@snowflake-ai-kit
 ```
 
 ## Security Model

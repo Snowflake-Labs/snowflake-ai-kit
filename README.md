@@ -145,10 +145,10 @@ No clone required. Run these commands inside Claude Code:
 /plugin marketplace add Snowflake-Labs/snowflake-ai-kit
 
 # Install the plugin
-/plugin install cortex-code@snowflake-ai-kit
+/plugin install snowflake-cortex-code@snowflake-ai-kit
 ```
 
-To update later: `/plugin update cortex-code`
+To update later: `/plugin update snowflake-cortex-code`
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, security model, and configuration.*
 
@@ -161,7 +161,7 @@ To update later: `/plugin update cortex-code`
 | `pip`/`pipx` not found | Install Python 3.10+ first: [python.org](https://www.python.org/downloads/) |
 | Connection errors | Run `snow connection add` to create `~/.snowflake/connections.toml`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
 | Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |
-| Plugin not routing | Make sure the plugin is enabled: check `~/.claude/settings.json` has `"enabledPlugins": { "cortex-code@snowflake-ai-kit": true }` |
+| Plugin not routing | Make sure the plugin is enabled: check `~/.claude/settings.json` has `"enabledPlugins": { "snowflake-cortex-code@snowflake-ai-kit": true }` |
 
 ## Contributing
 
