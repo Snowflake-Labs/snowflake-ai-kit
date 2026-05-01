@@ -1,5 +1,5 @@
 {
-  "name": "cortex-code",
+  "name": "snowflake-cortex-code",
   "version": "3.0.1",
   "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
   "author": {
