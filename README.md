@@ -136,19 +136,19 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in Cl
 
 #### Install via Claude Code marketplace
 
-> **Coming soon:** This plugin will be available from the [official Anthropic marketplace](https://code.claude.com/docs/en/discover-plugins#official-anthropic-marketplace).
-
 No clone required. Run these commands inside Claude Code:
 
 ```
-# Add the Snowflake AI Kit as a Claude Code marketplace
-/plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+# Add the official Anthropic marketplace (one-time setup)
+/plugin marketplace add anthropics/claude-plugins-official
 
 # Install the plugin
-/plugin install snowflake-cortex-code@snowflake-ai-kit
+/plugin install snowflake-cortex-code
 ```
 
-To update later: `/plugin update snowflake-cortex-code`
+To update the marketplace catalog: `/plugin marketplace update anthropics/claude-plugins-official`
+
+To update the plugin: `/plugin update snowflake-cortex-code`
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, security model, and configuration.*
 

@@ -38,18 +38,21 @@ $cortex-run analyze query performance for the last 7 days
 
 ## Install
 
-### Via the Claude Code marketplace (recommended)
+### Via the official Claude Code marketplace (recommended)
 
 Run these commands inside Claude Code:
 
 ```
-/plugin marketplace add Snowflake-Labs/snowflake-ai-kit
-/plugin install snowflake-cortex-code@snowflake-ai-kit
+# Add the official Anthropic marketplace (one-time setup)
+/plugin marketplace add anthropics/claude-plugins-official
+
+# Install the plugin
+/plugin install snowflake-cortex-code
 ```
 
-To update later: `/plugin update snowflake-cortex-code`
+To update the marketplace catalog: `/plugin marketplace update anthropics/claude-plugins-official`
 
-> **Coming soon:** This plugin will be available from the [official Anthropic marketplace](https://code.claude.com/docs/en/discover-plugins#official-anthropic-marketplace).
+To update the plugin: `/plugin update snowflake-cortex-code`
 
 ### Manual setup (local clone)
 
