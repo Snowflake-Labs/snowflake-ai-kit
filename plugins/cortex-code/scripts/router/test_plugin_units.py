@@ -385,19 +385,19 @@ def test_contextual_routing():
 
     # "stream" alone should NOT route to cortex (no strong indicator)
     route, confidence = analyze_with_llm_logic("I want to stream video to my app", {})
-    results.append(expect("routing: 'stream' alone → claude", route, "claude"))
+    results.append(expect("routing: 'stream' alone -> claude", route, "claude"))
 
     # "stream" with snowflake context should route to cortex
     route, confidence = analyze_with_llm_logic("create a snowflake stream on my table", {})
-    results.append(expect("routing: 'snowflake stream' → cortex", route, "cortex"))
+    results.append(expect("routing: 'snowflake stream' -> cortex", route, "cortex"))
 
     # "task" alone should NOT route to cortex
     route, confidence = analyze_with_llm_logic("add a task to my todo list", {})
-    results.append(expect("routing: 'task' alone → claude", route, "claude"))
+    results.append(expect("routing: 'task' alone -> claude", route, "claude"))
 
     # "stage" alone should NOT route to cortex
     route, confidence = analyze_with_llm_logic("move this to the staging environment", {})
-    results.append(expect("routing: 'stage' alone → claude", route, "claude"))
+    results.append(expect("routing: 'stage' alone -> claude", route, "claude"))
 
     return results
 
