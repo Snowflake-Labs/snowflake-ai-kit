@@ -64,6 +64,12 @@ def check_cortex_cli() -> bool:
         return False
 
 
+# Prompt-level security envelope instructions.
+# Hard enforcement happens through `--permission-prompt-tool stdio`: cortex
+# emits a control_request for every tool call and this wrapper replies via
+# envelope_policy.decide(). The prompt text below is a soft hint so the LLM
+# shapes its plan to the envelope (fewer denied tool calls, cleaner UX). Hard
+# gate is the policy function -- the LLM cannot talk its way past it.
 ENVELOPE_INSTRUCTIONS = {
     "RO": (
         "# Security Envelope: READ-ONLY\n"

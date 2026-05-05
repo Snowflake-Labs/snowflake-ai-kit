@@ -81,34 +81,43 @@ class AuditLogger:
         return audit_id
 
     def _get_last_hash(self) -> str:
-        """Read the hash of the last log entry for chain continuity."""
+        """Read the hash of the last log entry for chain continuity.
+
+        Reads up to 8KB from the end of the file to find the last complete
+        JSON line, avoiding byte-by-byte seeking on large files.
+        """
         if not self.log_path.exists() or self.log_path.stat().st_size == 0:
             return "GENESIS"
 
         try:
             with open(self.log_path, 'rb') as f:
                 f.seek(0, 2)
-                pos = f.tell()
-                if pos == 0:
-                    return "GENESIS"
-                # Read backwards to find last complete line
-                buf = b''
-                while pos > 0:
-                    pos -= 1
-                    f.seek(pos)
-                    char = f.read(1)
-                    if char == b'\n' and buf:
-                        break
-                    buf = char + buf
-                if buf:
-                    last_entry = json.loads(buf)
+                size = f.tell()
+                # Read last 8KB (more than enough for one audit entry)
+                read_size = min(size, 8192)
+                f.seek(size - read_size)
+                chunk = f.read(read_size)
+
+            # Find the last complete line
+            lines = chunk.split(b'\n')
+            # Walk backwards to find last non-empty line
+            for line in reversed(lines):
+                line = line.strip()
+                if line:
+                    last_entry = json.loads(line)
                     return last_entry.get("entry_hash", "GENESIS")
         except (json.JSONDecodeError, OSError, KeyError):
             pass
         return "GENESIS"
 
     def _write_entry(self, entry: Dict[str, Any]) -> None:
-        """Write entry with hash chain linking to previous entry."""
+        """Write entry with hash chain linking to previous entry.
+
+        Verification algorithm: to verify entry N, strip 'entry_hash' from
+        the dict, serialize with sort_keys=True, and SHA-256 the result.
+        Compare against the stored entry_hash. Then verify entry N's
+        prev_hash matches entry N-1's entry_hash.
+        """
         prev_hash = self._get_last_hash()
         entry["prev_hash"] = prev_hash
 
