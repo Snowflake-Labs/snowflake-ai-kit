@@ -6,36 +6,47 @@ Handles tool use events and final results.
 """
 
 import json
+import re
 import shutil
 import subprocess
 import sys
 import argparse
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
 from session_state import load_active_session, save_active_session
 
 
-# Credential file patterns — block prompts referencing these paths.
-# This check runs unconditionally (can't be skipped by LLM shortcutting).
-CREDENTIAL_PATTERNS = [
-    ".ssh/", ".snowflake/", ".env", "credentials.json",
-    "_key.p8", "_key.pem", ".aws/credentials", ".kube/config",
-    "private_key", "secret_key", "api_key_file", "token.json",
+CREDENTIAL_PATTERNS: list[Tuple[re.Pattern, str]] = [
+    (re.compile(r'\.ssh/'), ".ssh/"),
+    (re.compile(r'\.snowflake/'), ".snowflake/"),
+    (re.compile(r'(?<![a-z])\.env(?:\b|[./])'), ".env"),
+    (re.compile(r'\bcredentials\.json\b'), "credentials.json"),
+    (re.compile(r'_key\.p8\b'), "_key.p8"),
+    (re.compile(r'_key\.pem\b'), "_key.pem"),
+    (re.compile(r'\.aws/credentials\b'), ".aws/credentials"),
+    (re.compile(r'\.kube/config\b'), ".kube/config"),
+    (re.compile(r'\bprivate[_-]?key\b'), "private_key"),
+    (re.compile(r'\bsecret[_-]?key\b'), "secret_key"),
+    (re.compile(r'\bapi[_-]?key[_-]?file\b'), "api_key_file"),
+    (re.compile(r'\btoken\.json\b'), "token.json"),
 ]
 
 
 def check_credential_paths(prompt: str) -> Optional[str]:
     """Block prompts that reference credential file paths.
 
-    Returns the matched pattern if blocked, None if safe.
+    Uses word-boundary-aware regex to avoid false positives
+    (e.g., '.env' no longer matches 'environment').
+
+    Returns the matched pattern label if blocked, None if safe.
     """
     prompt_lower = prompt.lower()
-    for pattern in CREDENTIAL_PATTERNS:
-        if pattern in prompt_lower:
-            return pattern
+    for pattern_re, label in CREDENTIAL_PATTERNS:
+        if pattern_re.search(prompt_lower):
+            return label
     return None
 
 
@@ -53,12 +64,6 @@ def check_cortex_cli() -> bool:
         return False
 
 
-# Prompt-level security envelope instructions.
-# Hard enforcement happens through `--permission-prompt-tool stdio`: cortex
-# emits a control_request for every tool call and this wrapper replies via
-# envelope_policy.decide(). The prompt text below is a soft hint so the LLM
-# shapes its plan to the envelope (fewer denied tool calls, cleaner UX). Hard
-# gate is the policy function -- the LLM cannot talk its way past it.
 ENVELOPE_INSTRUCTIONS = {
     "RO": (
         "# Security Envelope: READ-ONLY\n"
@@ -102,6 +107,25 @@ def build_envelope_prompt(prompt: str, envelope: str) -> str:
     return prompt
 
 
+def _check_deploy_allowed(envelope: str) -> Optional[str]:
+    """Check if DEPLOY envelope is allowed by config. Returns error message or None."""
+    if envelope != "DEPLOY":
+        return None
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from security.config_manager import ConfigManager
+        config = ConfigManager()
+        allowed = config.get("security.allowed_envelopes", [])
+        if "DEPLOY" not in allowed:
+            return (
+                "DEPLOY envelope is not in allowed_envelopes. "
+                "Enable it in your org policy or config.yaml to use DEPLOY mode."
+            )
+    except Exception:
+        pass
+    return None
+
+
 def _send_control_response(stdin, request_id: str, behavior: str, message: str = "") -> None:
     """Write a control_response back to cortex's stdin. Safe no-op if pipe is closed."""
     payload = {
@@ -116,7 +140,6 @@ def _send_control_response(stdin, request_id: str, behavior: str, message: str =
         stdin.write(json.dumps(payload) + "\n")
         stdin.flush()
     except (BrokenPipeError, ValueError):
-        # cortex already exited -- nothing to do.
         pass
 
 
@@ -155,6 +178,18 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": msg
         }
 
+    # Pre-flight: check DEPLOY envelope is allowed
+    deploy_error = _check_deploy_allowed(envelope)
+    if deploy_error:
+        print(f"⛔ {deploy_error}", file=sys.stderr)
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": deploy_error
+        }
+
     # Pre-flight: ensure cortex CLI is installed
     if not check_cortex_cli():
         msg = ("Cortex Code CLI not found. "
@@ -172,11 +207,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Prepend envelope instructions to the prompt
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
-    # Build command for headless execution.
-    # --input-format stream-json: programmatic mode (prompt via stdin).
-    # --permission-prompt-tool stdio: route every tool call through us as a
-    #   control_request; we reply allow/deny based on the envelope policy.
-    #   This is hard enforcement at the CLI boundary, not LLM self-policing.
     cmd = [
         "cortex",
         "--output-format", "stream-json",
@@ -184,12 +214,10 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         "--permission-prompt-tool", "stdio",
     ]
 
-    # Resume prior cortex session so follow-up turns see earlier context.
     if resume_session_id:
         cmd.extend(["--resume", resume_session_id])
         print(f"[cortex] Resuming session {resume_session_id}", file=sys.stderr)
 
-    # Add connection if specified
     if connection:
         cmd.extend(["-c", connection])
 
@@ -199,10 +227,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     print(debug_cmd, file=sys.stderr)
 
     try:
-        # Start process with stdin=PIPE so we can send the prompt as a
-        # stream-json user message. Previously used stdin=DEVNULL with -p flag,
-        # but -p is ignored in --input-format stream-json mode -- the prompt
-        # must arrive via stdin as a JSON user message.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -212,10 +236,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             bufsize=1
         )
 
-        # Send the user prompt. stdin stays OPEN for the duration of the turn
-        # so we can write control_response messages back when cortex asks for
-        # permission (--permission-prompt-tool stdio emits control_request on
-        # stdout and awaits a control_response on stdin, same pipe).
         prompt_message = json.dumps({
             "type": "user",
             "message": {
@@ -234,10 +254,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        # Read streaming output. Two interleaved event kinds matter:
-        #   - control_request (subtype=can_use_tool) -- permission ask; we reply
-        #     immediately with a control_response based on envelope_policy.
-        #   - result -- turn complete; break.
         for line in process.stdout:
             if not line.strip():
                 continue
@@ -251,7 +267,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             results["events"].append(event)
             event_type = event.get("type")
 
-            # Extract session ID and persist so next turn can --resume.
             if event_type == "system" and event.get("subtype") == "init":
                 results["session_id"] = event.get("session_id")
                 print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
@@ -260,7 +275,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             elif event_type == "control_request":
                 req = event.get("request", {}) or {}
                 if req.get("subtype") != "can_use_tool":
-                    # Not a permission ask; ignore other control request subtypes.
                     continue
                 tool_name = req.get("tool_name", "")
                 tool_input = req.get("input", {}) or {}
@@ -295,9 +309,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             elif event_type == "result":
                 results["final_result"] = event.get("result")
                 print(f"[Cortex] Result received.", file=sys.stderr)
-                break  # turn complete
+                break
 
-        # Turn complete: close stdin so cortex exits cleanly.
         try:
             process.stdin.close()
         except (BrokenPipeError, ValueError):
@@ -313,7 +326,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 process.kill()
                 process.wait()
 
-        if process.returncode not in (0, -15):  # -15 = SIGTERM (expected on kill)
+        if process.returncode not in (0, -15):
             stderr_output = process.stderr.read() if process.stderr else ""
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
@@ -323,7 +336,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         return results
 
     except Exception as e:
-        # Prevent orphaned cortex processes on unexpected exceptions
         try:
             process.terminate()
             process.wait(timeout=2)
@@ -355,7 +367,6 @@ def main():
                        help="Resume a specific cortex session by id")
     args = parser.parse_args()
 
-    # Resolve which session (if any) to resume.
     resume_session_id = args.resume_session_id
     if args.resume_last and not resume_session_id:
         active = load_active_session()
@@ -365,7 +376,6 @@ def main():
             print("→ --resume-last requested but no active session found; starting fresh.",
                   file=sys.stderr)
 
-    # Execute Cortex
     results = execute_cortex_streaming(
         args.prompt,
         connection=args.connection,
@@ -373,10 +383,8 @@ def main():
         resume_session_id=resume_session_id,
     )
 
-    # Output results as JSON
     print(json.dumps(results, indent=2))
 
-    # Exit with appropriate code
     if results.get("error"):
         return 1
 

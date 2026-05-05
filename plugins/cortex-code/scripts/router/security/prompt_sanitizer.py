@@ -1,7 +1,19 @@
 """Prompt sanitizer for PII removal and injection detection."""
 
 import re
+import unicodedata
 from typing import List, Dict, Any
+
+
+ZERO_WIDTH_CHARS = frozenset([
+    '\u200b',  # zero-width space
+    '\u200c',  # zero-width non-joiner
+    '\u200d',  # zero-width joiner
+    '\u2060',  # word joiner
+    '\ufeff',  # BOM / zero-width no-break space
+    '\u00ad',  # soft hyphen
+    '\u180e',  # Mongolian vowel separator
+])
 
 
 class PromptSanitizer:
@@ -9,12 +21,12 @@ class PromptSanitizer:
 
     # PII regex patterns
     CREDIT_CARD_PATTERN = re.compile(
-        r'\b(?:\d{4}[-\s]?){3}\d{4}\b'  # Matches formats: 1234-5678-9012-3456 or 1234567890123456
+        r'\b(?:\d{4}[-\s]?){3}\d{4}\b'
     )
 
     SSN_PATTERN = re.compile(
-        r'\b\d{3}-\d{2}-\d{4}\b|'  # Matches: 123-45-6789
-        r'\b\d{9}\b'  # Matches: 123456789 (exactly 9 digits)
+        r'\b\d{3}-\d{2}-\d{4}\b|'
+        r'\b\d{9}\b'
     )
 
     EMAIL_PATTERN = re.compile(
@@ -26,7 +38,7 @@ class PromptSanitizer:
     )
 
     API_KEY_PATTERN = re.compile(
-        r'\b[A-Za-z0-9]{32,}\b'  # Simple pattern for long alphanumeric strings
+        r'\b[A-Za-z0-9]{32,}\b'
     )
 
     # Injection detection patterns
@@ -37,6 +49,11 @@ class PromptSanitizer:
         re.compile(r'disregard\s+(?:all\s+|the\s+)?(previous|above|prior)', re.IGNORECASE),
         re.compile(r'bypass\s+(restrictions|rules|guidelines)', re.IGNORECASE),
     ]
+
+    def _normalize_text(self, text: str) -> str:
+        """Normalize Unicode and strip zero-width characters before pattern matching."""
+        normalized = unicodedata.normalize('NFKD', text)
+        return ''.join(c for c in normalized if c not in ZERO_WIDTH_CHARS)
 
     def sanitize(self, text: str) -> str:
         """
@@ -51,19 +68,20 @@ class PromptSanitizer:
         if not text:
             return text
 
-        # Check for injection attempts first
+        normalized = self._normalize_text(text)
+
+        # Check for injection attempts on normalized text
         for pattern in self.INJECTION_PATTERNS:
-            if pattern.search(text):
+            if pattern.search(normalized):
                 return "[POTENTIAL INJECTION DETECTED - REMOVED]"
 
-        # Remove PII
+        # Remove PII from original text (preserving structure)
         text = self.CREDIT_CARD_PATTERN.sub('<CREDIT_CARD>', text)
         text = self.SSN_PATTERN.sub('<SSN>', text)
         text = self.EMAIL_PATTERN.sub('<EMAIL>', text)
         text = self.PHONE_PATTERN.sub('<PHONE>', text)
         # Note: API_KEY_PATTERN intentionally not applied due to high false positive rate
         # (matches common base64 strings, hashes, tokens that aren't API keys)
-        # text = self.API_KEY_PATTERN.sub('<API_KEY>', text)
 
         return text
 
@@ -93,10 +111,8 @@ class PromptSanitizer:
         if not history:
             return []
 
-        # Keep only the last max_items
         limited_history = history[-max_items:] if len(history) > max_items else history
 
-        # Sanitize each item's content
         sanitized = []
         for item in limited_history:
             sanitized_item = item.copy()

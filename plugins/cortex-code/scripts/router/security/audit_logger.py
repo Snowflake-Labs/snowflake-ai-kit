@@ -1,4 +1,5 @@
-"""Structured JSON audit logging with rotation."""
+"""Structured JSON audit logging with rotation and integrity chain."""
+import hashlib
 import json
 import os
 import uuid
@@ -8,7 +9,11 @@ from typing import Any, Dict, Optional
 
 
 class AuditLogger:
-    """Audit logger with structured JSON format and file rotation.
+    """Audit logger with structured JSON format, file rotation, and hash chain.
+
+    Each log entry includes a hash of the previous entry, making tampering
+    detectable: modifying or deleting any entry breaks the chain for all
+    subsequent entries.
 
     Note: This implementation is designed for single-process use only.
     Concurrent writes from multiple processes may result in interleaved
@@ -16,7 +21,7 @@ class AuditLogger:
     scenarios, consider using a log aggregation service or file locking.
     """
 
-    VERSION = "2.0.0"
+    VERSION = "2.1.0"
 
     def __init__(
         self,
@@ -34,16 +39,12 @@ class AuditLogger:
         self.log_path = Path(log_path)
         self.rotation_size = self._parse_size(rotation_size)
         self.retention_days = retention_days
-        # TODO: Implement cleanup of rotated files older than retention_days
 
-        # Ensure log directory exists
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Create log file if doesn't exist with correct permissions
         if not self.log_path.exists():
             self.log_path.touch(mode=0o600)
         else:
-            # Set permissions on existing file
             os.chmod(self.log_path, 0o600)
 
     def log_execution(
@@ -79,13 +80,42 @@ class AuditLogger:
 
         return audit_id
 
-    def _write_entry(self, entry: Dict[str, Any]) -> None:
-        """Write entry to log file as JSON.
+    def _get_last_hash(self) -> str:
+        """Read the hash of the last log entry for chain continuity."""
+        if not self.log_path.exists() or self.log_path.stat().st_size == 0:
+            return "GENESIS"
 
-        Opens file for each write to avoid holding file handles open long-term.
-        This trades some efficiency for simplicity and crash-safety (no buffering).
-        If file was deleted externally, it will be recreated with default permissions.
-        """
+        try:
+            with open(self.log_path, 'rb') as f:
+                f.seek(0, 2)
+                pos = f.tell()
+                if pos == 0:
+                    return "GENESIS"
+                # Read backwards to find last complete line
+                buf = b''
+                while pos > 0:
+                    pos -= 1
+                    f.seek(pos)
+                    char = f.read(1)
+                    if char == b'\n' and buf:
+                        break
+                    buf = char + buf
+                if buf:
+                    last_entry = json.loads(buf)
+                    return last_entry.get("entry_hash", "GENESIS")
+        except (json.JSONDecodeError, OSError, KeyError):
+            pass
+        return "GENESIS"
+
+    def _write_entry(self, entry: Dict[str, Any]) -> None:
+        """Write entry with hash chain linking to previous entry."""
+        prev_hash = self._get_last_hash()
+        entry["prev_hash"] = prev_hash
+
+        entry_json = json.dumps(entry, sort_keys=True)
+        entry_hash = hashlib.sha256(entry_json.encode()).hexdigest()
+        entry["entry_hash"] = entry_hash
+
         with open(self.log_path, 'a') as f:
             f.write(json.dumps(entry) + '\n')
 
@@ -106,11 +136,10 @@ class AuditLogger:
                 except ValueError:
                     pass
 
-        # Default to bytes
         try:
             return int(size_str)
         except ValueError:
-            return 10 * 1024 * 1024  # Default 10MB
+            return 10 * 1024 * 1024
 
     def _rotate_if_needed(self) -> None:
         """Rotate log file if exceeds size limit."""
@@ -119,10 +148,7 @@ class AuditLogger:
 
         size = self.log_path.stat().st_size
         if size >= self.rotation_size:
-            # Rotate: rename current to .1, .1 to .2, etc.
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             rotated_path = self.log_path.with_suffix(f".{timestamp}.log")
             self.log_path.rename(rotated_path)
-
-            # Create new log file
             self.log_path.touch(mode=0o600)

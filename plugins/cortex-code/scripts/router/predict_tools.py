@@ -140,7 +140,6 @@ def main():
     """Main tool prediction function."""
     parser = argparse.ArgumentParser(description="Predict required Cortex tools")
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
-    parser.add_argument("--capabilities", help="Path to capabilities JSON", default="/tmp/cortex-capabilities.json")
     args = parser.parse_args()
 
     # Load capabilities

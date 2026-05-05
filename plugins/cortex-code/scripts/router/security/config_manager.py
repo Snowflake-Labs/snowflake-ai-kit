@@ -12,6 +12,12 @@ class ConfigValidationError(Exception):
     pass
 
 
+SECURITY_FLOOR = {
+    "approval_mode": "prompt",
+    "allowed_envelopes": frozenset(["RO", "RW", "RESEARCH"]),
+}
+
+
 class ConfigManager:
     """Manages security configuration with precedence: org policy > user config > defaults."""
 
@@ -65,13 +71,13 @@ class ConfigManager:
             )
 
         # Validate allowed_envelopes
-        valid_envelopes = {"RO", "RW", "RESEARCH", "DEPLOY", "NONE"}
+        valid_envelopes = {"RO", "RW", "RESEARCH", "DEPLOY"}
         allowed_envelopes = security.get("allowed_envelopes", [])
         for envelope in allowed_envelopes:
             if envelope not in valid_envelopes:
                 raise ConfigValidationError(
                     f"Invalid envelope: {envelope}. "
-                    f"Must be one of: {', '.join(valid_envelopes)}"
+                    f"Must be one of: {', '.join(sorted(valid_envelopes))}"
                 )
 
         # Validate numeric values
@@ -97,15 +103,36 @@ class ConfigManager:
                     f"audit_log_retention must be >= 0, got {retention}"
                 )
 
+    def _enforce_security_floor(self, config: Dict, has_org_policy: bool) -> Dict:
+        """User config cannot relax security below floor without org policy.
+
+        Without an org policy present, user config is capped at the security floor:
+        - approval_mode cannot be relaxed from 'prompt' to 'auto' or 'envelope_only'
+        - allowed_envelopes cannot include DEPLOY
+        """
+        if has_org_policy:
+            return config
+
+        security = config.get("security", {})
+
+        if security.get("approval_mode") in ("auto", "envelope_only"):
+            security["approval_mode"] = SECURITY_FLOOR["approval_mode"]
+
+        user_envelopes = set(security.get("allowed_envelopes", []))
+        security["allowed_envelopes"] = sorted(
+            user_envelopes & SECURITY_FLOOR["allowed_envelopes"]
+        )
+
+        config["security"] = security
+        return config
+
     def _expand_paths(self, config: Dict) -> Dict:
         """Expand ~ and environment variables in file paths."""
         security = config.get("security", {})
 
-        # Expand audit_log_path
         if "audit_log_path" in security:
             security["audit_log_path"] = os.path.expanduser(security["audit_log_path"])
 
-        # Expand cache_dir
         if "cache_dir" in security:
             security["cache_dir"] = os.path.expanduser(security["cache_dir"])
 
@@ -118,8 +145,8 @@ class ConfigManager:
         org_policy_path: Optional[Path]
     ) -> Dict:
         """Load configuration with 3-layer precedence."""
-        # Start with defaults
         config = copy.deepcopy(self.DEFAULT_CONFIG)
+        has_org_policy = False
 
         # Load user config if exists
         if config_path and config_path.exists():
@@ -139,18 +166,19 @@ class ConfigManager:
                 with open(org_policy_path, 'r') as f:
                     try:
                         org_policy = yaml.safe_load(f) or {}
+                        has_org_policy = True
 
-                        # If override flag set, org policy wins completely
                         if org_policy.get("security", {}).get("override_user_config"):
-                            # Merge org policy over defaults (skip user config)
                             config = self._merge_config(copy.deepcopy(self.DEFAULT_CONFIG), org_policy)
                         else:
-                            # Normal merge: org policy > user config > defaults
                             config = self._merge_config(config, org_policy)
                     except yaml.YAMLError as e:
                         print(f"Warning: Failed to parse org policy {org_policy_path}: {e}", file=sys.stderr)
             except OSError as e:
                 print(f"Warning: Failed to read org policy {org_policy_path}: {e}", file=sys.stderr)
+
+        # Enforce security floor BEFORE validation
+        config = self._enforce_security_floor(config, has_org_policy)
 
         # Validate configuration
         self._validate_config(config)

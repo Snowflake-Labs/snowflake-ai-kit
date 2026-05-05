@@ -16,14 +16,19 @@ from security.config_manager import ConfigManager
 from security.cache_manager import CacheManager
 
 
-# Snowflake/Cortex indicators
-SNOWFLAKE_INDICATORS = [
+# Snowflake/Cortex indicators — strong indicators always count
+SNOWFLAKE_INDICATORS_STRONG = [
     "snowflake", "cortex", "warehouse", "snowpark", "data warehouse",
     "cortex ai", "cortex search", "cortex analyst", "dynamic table",
     "snowflake database", "snowflake schema", "snowflake table",
     "data governance", "data quality", "trust my data",
     "ml function", "classification", "forecasting",
-    "stream", "task", "stage", "pipe"
+]
+
+# Contextual indicators — only count when a strong indicator is also present.
+# These are common English words that happen to also be Snowflake object types.
+SNOWFLAKE_INDICATORS_CONTEXTUAL = [
+    "stream", "task", "stage", "pipe",
 ]
 
 # Non-Snowflake indicators (route to Claude Code)
@@ -67,14 +72,19 @@ def analyze_with_llm_logic(prompt, capabilities):
     """
     prompt_lower = prompt.lower()
 
-    # Score based on indicators
+    # Score based on strong indicators
     snowflake_score = 0
     claude_score = 0
 
-    # Check for explicit Snowflake/Cortex mentions
-    for indicator in SNOWFLAKE_INDICATORS:
+    for indicator in SNOWFLAKE_INDICATORS_STRONG:
         if indicator in prompt_lower:
             snowflake_score += 3 if indicator in ["snowflake", "cortex"] else 1
+
+    # Only count contextual indicators if at least one strong indicator matched
+    if snowflake_score > 0:
+        for indicator in SNOWFLAKE_INDICATORS_CONTEXTUAL:
+            if indicator in prompt_lower:
+                snowflake_score += 1
 
     # Check for non-Snowflake indicators
     for indicator in CLAUDE_CODE_INDICATORS:
