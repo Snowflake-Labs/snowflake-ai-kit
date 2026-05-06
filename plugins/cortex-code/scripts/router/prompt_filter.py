@@ -5,6 +5,7 @@ Reads the user prompt from stdin, checks for Snowflake-related keywords,
 and if matched, prints a routing instruction to stdout that gets injected
 into the conversation context. Runs in <50ms -- no LLM calls, no network.
 """
+from __future__ import annotations
 
 import sys
 import re
