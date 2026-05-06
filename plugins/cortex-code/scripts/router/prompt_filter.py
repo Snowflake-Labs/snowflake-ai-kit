@@ -96,7 +96,7 @@ def main():
     prompt = ""
     if isinstance(data, dict):
         # The hook receives the full message object
-        prompt = data.get("message", "")
+        prompt = data.get("prompt", data.get("message", ""))
         if isinstance(prompt, dict):
             prompt = prompt.get("content", "")
         if isinstance(prompt, list):
