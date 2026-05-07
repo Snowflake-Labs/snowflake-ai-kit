@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
+.DS_Store
+
+# Cortex cache
+/tmp/cortex-capabilities.json
+~/.cache/cortex-skill/
+
+# User configuration (local settings)
+config.yaml
+# Exception: Claude Code and Codex need default config.yaml for proper setup
+!integrations/claude-code/config.yaml
+!integrations/codex/config.yaml
+
+# Generated/temporary directories
+.worktrees/
+semantic_view_*/
+DB_STOCK_*/
+
+# Audit logs (may contain sensitive data)
+audit.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+# Coverage reports
+.coverage
+htmlcov/
+.pytest_cache/

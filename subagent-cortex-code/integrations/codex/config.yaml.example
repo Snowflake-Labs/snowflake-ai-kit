@@ -1,0 +1,38 @@
+# Cortexcode Tool Configuration for Codex CLI
+#
+# Copy or edit this file at:
+#   ~/.local/lib/cortexcode-tool/config.yaml
+#
+# The Codex installer writes this config automatically. Keep approval_mode as
+# "prompt" for interactive Codex sessions; Codex should ask the user for approval
+# in chat, then run cortexcode-tool with --yes.
+
+security:
+  approval_mode: "prompt"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
+  sanitize_conversation_history: true
+  credential_file_allowlist:
+    - "~/.ssh/**"
+    - "~/.aws/**"
+    - "~/.snowflake/**"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/credentials.json"
+    - "**/credentials.yaml"
+  cache_dir: "~/.cache/cortexcode-tool"
+
+cortex:
+  # Set by integrations/codex/install.sh from `cortex connections list`.
+  connection_name: "default"
+  default_envelope: "RO"
+  session_history_limit: 3
+
+logging:
+  level: "INFO"
+  format: "json"
+  file: "~/.cache/cortexcode-tool/cortexcode-tool.log"
+
+# Advanced trusted automation only:
+# security:
+#   approval_mode: "auto"
+#   audit_log_path: "~/.cache/cortexcode-tool/audit.log"

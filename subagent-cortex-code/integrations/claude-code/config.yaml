@@ -1,0 +1,6 @@
+security:
+  approval_mode: "prompt"
+  sanitize_conversation_history: true
+  audit_log_path: "~/.claude/skills/cortex-code/audit.log"
+  audit_log_rotation: "10MB"
+  audit_log_retention: 30
