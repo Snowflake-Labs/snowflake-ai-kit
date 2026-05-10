@@ -1,0 +1,27 @@
+name: Test Cortex Code Action
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  cortex-code:
+    if: contains(github.event.comment.body, '@cortex-code')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cortex-code-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./actions/cortex-code
+        with:
+          snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          snowflake_user: ${{ secrets.SNOWFLAKE_USER }}
+          snowflake_private_key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          max_turns: "5"
+          timeout_minutes: "3"

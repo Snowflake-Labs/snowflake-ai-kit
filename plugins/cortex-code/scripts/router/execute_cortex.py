@@ -6,6 +6,7 @@ Handles tool use events and final results.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -233,13 +234,17 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     print(debug_cmd, file=sys.stderr)
 
     try:
+        env = os.environ.copy()
+        env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
+
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.PIPE,
             text=True,
-            bufsize=1
+            bufsize=1,
+            env=env
         )
 
         prompt_message = json.dumps({

@@ -10,6 +10,7 @@ cover the other pure/near-pure functions in the plugin router.
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -402,6 +403,37 @@ def test_contextual_routing():
     return results
 
 
+# ── Invocation source env var (telemetry tagging) ─────────────────
+
+def test_invocation_source_env():
+    """Verify CORTEX_CODE_ENTRYPOINT is set in subprocess environment."""
+    from unittest.mock import patch, MagicMock
+    from execute_cortex import execute_cortex_streaming
+
+    results = []
+    captured_env = {}
+
+    def mock_popen(cmd, **kwargs):
+        captured_env.update(kwargs.get("env") or {})
+        raise OSError("Mock: aborting after capturing env")
+
+    with patch("execute_cortex.check_cortex_cli", return_value=True):
+        with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
+            try:
+                execute_cortex_streaming("test prompt", envelope="RO")
+            except (OSError, Exception):
+                pass
+
+    results.append(expect(
+        "invocation_source: CORTEX_CODE_ENTRYPOINT is set",
+        "CORTEX_CODE_ENTRYPOINT" in captured_env, True))
+    results.append(expect(
+        "invocation_source: value is 'Claude Code Plugin'",
+        captured_env.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
+
+    return results
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 def main():
@@ -415,6 +447,7 @@ def main():
     all_results.extend(test_deploy_enforcement())
     all_results.extend(test_audit_hash_chain())
     all_results.extend(test_contextual_routing())
+    all_results.extend(test_invocation_source_env())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)
