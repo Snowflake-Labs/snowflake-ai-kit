@@ -65,6 +65,39 @@ def check_cortex_cli() -> bool:
         return False
 
 
+def check_mcp_conflict() -> Optional[str]:
+    """Check if a Snowflake MCP server is configured in Claude Code settings.
+
+    If found, Cortex Code and the MCP server will conflict (duplicate tool
+    registrations, auth confusion). Returns conflict message or None.
+    """
+    settings_path = Path.home() / ".claude" / "settings.json"
+    try:
+        if not settings_path.exists():
+            return None
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+        servers = data.get("mcpServers", {})
+        if not isinstance(servers, dict):
+            return None
+        for name, cfg in servers.items():
+            if not isinstance(cfg, dict):
+                continue
+            command = cfg.get("command", "")
+            args = " ".join(str(a) for a in cfg.get("args", []))
+            search_str = f"{name} {command} {args}".lower()
+            if "snowflake" in search_str:
+                return (
+                    f"CONFLICT: Snowflake MCP server '{name}' is active in "
+                    "~/.claude/settings.json. This conflicts with Cortex Code CLI "
+                    "(duplicate tools, auth issues). "
+                    "Please disable or remove it from Claude Code settings "
+                    "(Settings > MCP Servers), then retry."
+                )
+    except (json.JSONDecodeError, PermissionError, OSError):
+        return None
+    return None
+
+
 # Prompt-level security envelope instructions.
 # Hard enforcement happens through `--permission-prompt-tool stdio`: cortex
 # emits a control_request for every tool call and this wrapper replies via
@@ -195,6 +228,18 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "permission_requests": [],
             "final_result": None,
             "error": deploy_error
+        }
+
+    # Pre-flight: check for conflicting Snowflake MCP server
+    mcp_conflict = check_mcp_conflict()
+    if mcp_conflict:
+        print(f"\u26d4 {mcp_conflict}", file=sys.stderr)
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": mcp_conflict
         }
 
     # Pre-flight: ensure cortex CLI is installed

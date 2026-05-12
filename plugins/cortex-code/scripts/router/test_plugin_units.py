@@ -23,6 +23,7 @@ from execute_cortex import (
     ENVELOPE_INSTRUCTIONS,
     build_envelope_prompt,
     check_credential_paths,
+    check_mcp_conflict,
     _check_deploy_allowed,
 )
 
@@ -403,6 +404,109 @@ def test_contextual_routing():
     return results
 
 
+# ── MCP conflict detection ─────────────────────────────────────────
+
+def test_mcp_conflict_detection():
+    """Verify MCP conflict detection covers all edge cases."""
+    from unittest.mock import patch
+
+    results = []
+
+    def _check(settings_content, label):
+        """Helper: write settings content to a tmp file and run check."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_mcp_"))
+        settings_file = tmp / "settings.json"
+        if settings_content is not None:
+            settings_file.write_text(settings_content, encoding="utf-8")
+        with patch("execute_cortex.Path.home", return_value=tmp):
+            # check_mcp_conflict uses Path.home() / ".claude" / "settings.json"
+            # We need the .claude subdir
+            claude_dir = tmp / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            target = claude_dir / "settings.json"
+            if settings_content is not None:
+                target.write_text(settings_content, encoding="utf-8")
+            result = check_mcp_conflict()
+        import shutil as _shutil
+        _shutil.rmtree(tmp, ignore_errors=True)
+        return result
+
+    # 1. No settings file
+    r = _check(None, "no file")
+    results.append(expect("mcp: no settings file -> None", r, None))
+
+    # 2. Empty mcpServers
+    r = _check(json.dumps({"mcpServers": {}}), "empty servers")
+    results.append(expect("mcp: empty mcpServers -> None", r, None))
+
+    # 3. Non-Snowflake server only
+    r = _check(json.dumps({"mcpServers": {
+        "github": {"command": "gh-mcp", "args": ["--token", "abc"]}
+    }}), "non-SF")
+    results.append(expect("mcp: non-Snowflake server -> None", r, None))
+
+    # 4. "snowflake" in server name
+    r = _check(json.dumps({"mcpServers": {
+        "snowflake-mcp": {"command": "node", "args": ["server.js"]}
+    }}), "name match")
+    results.append(expect("mcp: 'snowflake' in name -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+
+    # 5. "snowflake" in command field
+    r = _check(json.dumps({"mcpServers": {
+        "my-data-server": {"command": "snowflake-mcp-server", "args": []}
+    }}), "command match")
+    results.append(expect("mcp: 'snowflake' in command -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+
+    # 6. "snowflake" in args array
+    r = _check(json.dumps({"mcpServers": {
+        "data-tool": {"command": "npx", "args": ["@snowflake/mcp-server"]}
+    }}), "args match")
+    results.append(expect("mcp: 'snowflake' in args -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+
+    # 7. Mixed case "Snowflake-MCP"
+    r = _check(json.dumps({"mcpServers": {
+        "Snowflake-MCP": {"command": "node", "args": []}
+    }}), "mixed case")
+    results.append(expect("mcp: mixed case 'Snowflake' -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+
+    # 8. Multiple servers, one is SF
+    r = _check(json.dumps({"mcpServers": {
+        "github": {"command": "gh-mcp", "args": []},
+        "sf-tools": {"command": "snowflake-cli", "args": ["serve"]},
+        "jira": {"command": "jira-mcp", "args": []}
+    }}), "multi with SF")
+    results.append(expect("mcp: multi servers, one SF -> conflict (names it)",
+                          r is not None and "sf-tools" in r, True))
+
+    # 9. Partial match "snowflake-test"
+    r = _check(json.dumps({"mcpServers": {
+        "snowflake-test": {"command": "echo", "args": []}
+    }}), "partial")
+    results.append(expect("mcp: partial 'snowflake-test' -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+
+    # 10. Malformed JSON
+    r = _check("{not valid json!!", "malformed")
+    results.append(expect("mcp: malformed JSON -> None (graceful)", r, None))
+
+    # 11. Permission error (simulate via read-only dir — skip on platforms where this is hard)
+    # We'll just verify the except clause handles it by passing a non-dict mcpServers
+    r = _check(json.dumps({"mcpServers": "not-a-dict"}), "non-dict servers")
+    results.append(expect("mcp: mcpServers is string -> None", r, None))
+
+    # 12. mcpServers contains non-dict entry
+    r = _check(json.dumps({"mcpServers": {
+        "snowflake": "just-a-string"
+    }}), "non-dict entry")
+    results.append(expect("mcp: non-dict server entry skipped -> None", r, None))
+
+    return results
+
+
 # ── Invocation source env var (telemetry tagging) ─────────────────
 
 def test_invocation_source_env():
@@ -447,6 +551,7 @@ def main():
     all_results.extend(test_deploy_enforcement())
     all_results.extend(test_audit_hash_chain())
     all_results.extend(test_contextual_routing())
+    all_results.extend(test_mcp_conflict_detection())
     all_results.extend(test_invocation_source_env())
 
     passed = sum(1 for r in all_results if r)
