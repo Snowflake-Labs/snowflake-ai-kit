@@ -7,9 +7,11 @@ into the conversation context. Runs in <50ms -- no LLM calls, no network.
 """
 from __future__ import annotations
 
+import json as _json
 import sys
 import re
 import shutil
+from pathlib import Path
 
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
@@ -50,6 +52,37 @@ LOCAL_KEYWORDS = [
 
 COMPILED_SF = [re.compile(p, re.IGNORECASE) for p in SNOWFLAKE_KEYWORDS]
 COMPILED_LOCAL = [re.compile(p, re.IGNORECASE) for p in LOCAL_KEYWORDS]
+
+
+def _check_mcp_conflict():
+    """Return a STOP message if a Snowflake MCP server is active, else None."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    try:
+        if not settings_path.exists():
+            return None
+        data = _json.loads(settings_path.read_text(encoding="utf-8"))
+        servers = data.get("mcpServers", {})
+        if not isinstance(servers, dict):
+            return None
+        for name, cfg in servers.items():
+            if not isinstance(cfg, dict):
+                continue
+            command = cfg.get("command", "")
+            args = " ".join(str(a) for a in cfg.get("args", []))
+            search_str = f"{name} {command} {args}".lower()
+            if "snowflake" in search_str:
+                return (
+                    f"STOP. A Snowflake MCP server '{name}' is active in "
+                    "~/.claude/settings.json. This CONFLICTS with Cortex Code CLI "
+                    "(duplicate tools, auth issues). "
+                    "Do NOT proceed with any Snowflake operations. "
+                    "Tell the user: 'A Snowflake MCP server is active and conflicts "
+                    "with Cortex Code. Please disable or remove it from Claude Code "
+                    "settings (Settings > MCP Servers) and try again.'"
+                )
+    except (ValueError, PermissionError, OSError):
+        pass
+    return None
 
 
 def check_prompt(prompt: str) -> str | None:
@@ -108,6 +141,18 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
+        # Check for MCP conflict FIRST — blocks everything if Snowflake MCP server is active
+        mcp_conflict = _check_mcp_conflict()
+        if mcp_conflict:
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": mcp_conflict,
+                }
+            }
+            print(json.dumps(output))
+            sys.exit(0)
+
         # Snowflake prompt detected -- check if cortex CLI is available
         if not shutil.which("cortex"):
             install_msg = (

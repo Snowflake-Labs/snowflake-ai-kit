@@ -8,6 +8,7 @@ Complements test_envelope_policy.py (which covers decide()). These tests
 cover the other pure/near-pure functions in the plugin router.
 """
 
+import io
 import json
 import os
 import subprocess
@@ -522,11 +523,12 @@ def test_invocation_source_env():
         raise OSError("Mock: aborting after capturing env")
 
     with patch("execute_cortex.check_cortex_cli", return_value=True):
-        with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
-            try:
-                execute_cortex_streaming("test prompt", envelope="RO")
-            except (OSError, Exception):
-                pass
+        with patch("execute_cortex.check_mcp_conflict", return_value=None):
+            with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
+                try:
+                    execute_cortex_streaming("test prompt", envelope="RO")
+                except (OSError, Exception):
+                    pass
 
     results.append(expect(
         "invocation_source: CORTEX_CODE_ENTRYPOINT is set",
@@ -534,6 +536,110 @@ def test_invocation_source_env():
     results.append(expect(
         "invocation_source: value is 'Claude Code Plugin'",
         captured_env.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
+
+    return results
+
+
+# ── prompt_filter: MCP conflict in hook flow ──────────────────────
+
+def test_prompt_filter_mcp_hook():
+    """Verify prompt_filter.main() emits STOP when MCP conflict detected."""
+    import io
+    from unittest.mock import patch
+
+    results = []
+
+    def _run_hook(stdin_data, settings_content=None):
+        """Simulate running prompt_filter.main() with given stdin and settings."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_pf_mcp_"))
+        claude_dir = tmp / ".claude"
+        claude_dir.mkdir()
+        if settings_content is not None:
+            (claude_dir / "settings.json").write_text(settings_content, encoding="utf-8")
+
+        stdin_buf = io.StringIO(json.dumps(stdin_data))
+        stdout_buf = io.StringIO()
+
+        with patch("prompt_filter.Path.home", return_value=tmp):
+            with patch("prompt_filter.sys.stdin", stdin_buf):
+                with patch("prompt_filter.sys.stdout", stdout_buf):
+                    with patch("prompt_filter.shutil.which", return_value="/usr/bin/cortex"):
+                        try:
+                            import prompt_filter
+                            prompt_filter.main()
+                        except SystemExit:
+                            pass
+
+        output = stdout_buf.getvalue().strip()
+        import shutil as _shutil
+        _shutil.rmtree(tmp, ignore_errors=True)
+        return output
+
+    # 1. Snowflake prompt + MCP conflict -> STOP message
+    out = _run_hook(
+        {"prompt": "show me my snowflake warehouses"},
+        json.dumps({"mcpServers": {"snowflake-mcp": {"command": "node", "args": []}}})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("pf_mcp: conflict -> STOP in output",
+                          "STOP" in ctx and "snowflake-mcp" in ctx, True))
+
+    # 2. Snowflake prompt + no MCP conflict -> normal routing
+    out = _run_hook(
+        {"prompt": "show me my snowflake warehouses"},
+        json.dumps({"mcpServers": {}})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("pf_mcp: no conflict -> CORTEX ROUTER",
+                          "CORTEX ROUTER" in ctx, True))
+
+    # 3. Non-Snowflake prompt + MCP conflict -> empty (no routing at all)
+    out = _run_hook(
+        {"prompt": "what is the weather today"},
+        json.dumps({"mcpServers": {"snowflake-mcp": {"command": "node", "args": []}}})
+    )
+    parsed = json.loads(out) if out else {}
+    results.append(expect("pf_mcp: non-SF prompt -> empty output",
+                          parsed == {} or parsed == {"hookSpecificOutput": None}, True))
+
+    # 4. Snowflake prompt + no settings file -> normal routing
+    out = _run_hook(
+        {"prompt": "create a snowflake stream"},
+        None  # no settings file
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("pf_mcp: no settings file -> CORTEX ROUTER",
+                          "CORTEX ROUTER" in ctx, True))
+
+    # 5. Snowflake prompt + cortex not installed + MCP conflict -> MCP takes priority
+    tmp = Path(tempfile.mkdtemp(prefix="test_pf_priority_"))
+    claude_dir = tmp / ".claude"
+    claude_dir.mkdir()
+    (claude_dir / "settings.json").write_text(
+        json.dumps({"mcpServers": {"sf": {"command": "snowflake-srv", "args": []}}}),
+        encoding="utf-8"
+    )
+    stdin_buf = io.StringIO(json.dumps({"prompt": "show me snowflake tables"}))
+    stdout_buf = io.StringIO()
+    with patch("prompt_filter.Path.home", return_value=tmp):
+        with patch("prompt_filter.sys.stdin", stdin_buf):
+            with patch("prompt_filter.sys.stdout", stdout_buf):
+                with patch("prompt_filter.shutil.which", return_value=None):
+                    try:
+                        import prompt_filter
+                        prompt_filter.main()
+                    except SystemExit:
+                        pass
+    out = stdout_buf.getvalue().strip()
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("pf_mcp: MCP conflict takes priority over missing CLI",
+                          "STOP" in ctx and "CONFLICTS" in ctx, True))
+    import shutil as _shutil
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     return results
 
@@ -552,6 +658,7 @@ def main():
     all_results.extend(test_audit_hash_chain())
     all_results.extend(test_contextual_routing())
     all_results.extend(test_mcp_conflict_detection())
+    all_results.extend(test_prompt_filter_mcp_hook())
     all_results.extend(test_invocation_source_env())
 
     passed = sum(1 for r in all_results if r)
