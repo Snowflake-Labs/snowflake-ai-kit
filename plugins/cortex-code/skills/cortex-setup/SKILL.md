@@ -8,21 +8,10 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 
 Install Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`) using the appropriate installer for the current OS.
 
-## When to use
+## Prerequisite — ALWAYS run this FIRST, unconditionally
 
-- Cortex Code CLI is not found on PATH
-- User asks to set up or install Cortex Code
-- Routing failed because `cortex` binary is missing
+Before doing ANYTHING else in this skill, you MUST run this check. This is not optional. Do not skip it even if the CLIs are already installed.
 
-## Steps
-
-**MANDATORY: Step 1 MUST be completed before ANY other steps. Do not skip.**
-
-### 1. Check for Snowflake MCP Server conflict (REQUIRED FIRST)
-
-The Snowflake MCP Server and this plugin both handle Snowflake operations. If both are active, they will conflict. Check if the MCP server is configured:
-
-**macOS / Linux:**
 ```bash
 cat ~/.claude/settings.json 2>/dev/null | python3 -c "
 import sys, json
@@ -32,14 +21,14 @@ try:
     for name, cfg in servers.items():
         cmd = cfg.get('command', '') + ' ' + ' '.join(cfg.get('args', []))
         if 'snowflake' in name.lower() or 'snowflake' in cmd.lower():
-            print(f'FOUND: {name}')
+            print(f'CONFLICT: {name}')
             sys.exit(1)
 except: pass
 print('OK: No Snowflake MCP server found')
 "
 ```
 
-**If a Snowflake MCP server is found**, tell the user:
+**If exit code is 1 (conflict found)**, STOP IMMEDIATELY and tell the user:
 
 > ⚠️ **Snowflake MCP Server detected.** The Cortex Code plugin replaces the Snowflake MCP server with more capabilities (security envelopes, session management, multi-turn). Please disable the MCP server before continuing:
 >
@@ -49,16 +38,24 @@ print('OK: No Snowflake MCP server found')
 >
 > Then re-run this setup.
 
-**Do NOT proceed with installation until the MCP server is removed.**
+**Do NOT proceed. Do NOT check CLI versions. Do NOT install anything. STOP HERE.**
 
-### 2. Detect operating system
+---
+
+## When to use
+
+- Cortex Code CLI is not found on PATH
+- User asks to set up or install Cortex Code
+- Routing failed because `cortex` binary is missing
+
+## Steps
+
+### 1. Detect OS and check current state
 
 ```python
 import platform
 print(platform.system())  # "Windows", "Darwin", or "Linux"
 ```
-
-### 3. Check current state
 
 **Windows (Command Prompt or PowerShell):**
 ```cmd
@@ -72,7 +69,7 @@ which cortex 2>/dev/null && cortex --version || echo "cortex not installed"
 which snow 2>/dev/null && snow --version || echo "snow not installed"
 ```
 
-### 4. Install Cortex Code CLI
+### 2. Install Cortex Code CLI
 
 The installer is bundled with the snowflake-ai-kit repo. Find and run it:
 
@@ -108,7 +105,7 @@ bash snowflake-ai-kit/install.sh
 
 The installer handles Snowflake CLI, Cortex Code CLI, and connection verification.
 
-### 5. Verify installation
+### 3. Verify installation
 
 **Windows:**
 ```cmd
@@ -124,7 +121,7 @@ which snow && snow --version
 
 Both commands should return version numbers.
 
-### 6. Set up Snowflake connection
+### 4. Set up Snowflake connection
 
 Check if a connection exists:
 
@@ -140,7 +137,7 @@ snow connection add
 
 This is interactive — the user will need to provide their Snowflake account URL, username, and authentication method.
 
-### 7. Confirm routing works
+### 5. Confirm routing works
 
 After setup, the cortex-router skill should work. Tell the user to try their original Snowflake prompt again.
 
