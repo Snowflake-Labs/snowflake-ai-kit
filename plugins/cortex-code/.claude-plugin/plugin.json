@@ -5,7 +5,7 @@
   "author": {
     "name": "Snowflake"
   },
-  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code",
+  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
   "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
   "license": "Apache-2.0",
   "keywords": ["snowflake", "cortex-code", "auto-routing", "sql", "data"],
