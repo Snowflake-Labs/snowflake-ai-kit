@@ -345,7 +345,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
             if event_type == "system" and event.get("subtype") == "init":
                 results["session_id"] = event.get("session_id")
-                print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                print(f"→ Started Cortex session: {results['session_id']}", flush=True)
                 save_active_session(results["session_id"])
 
             elif event_type == "control_request":
@@ -378,13 +378,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 message = event.get("message", {}) or {}
                 for item in (message.get("content") or []):
                     if item.get("type") == "text":
-                        print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
+                        print(f"[Cortex] {item.get('text', '')}", flush=True)
                     elif item.get("type") == "tool_use":
-                        print(f"[Cortex] Using tool: {item.get('name')}", file=sys.stderr)
+                        print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
 
             elif event_type == "result":
                 results["final_result"] = event.get("result")
-                print(f"[Cortex] Result received.", file=sys.stderr)
+                print(f"[Cortex] Done.", flush=True)
                 break
 
         try:
