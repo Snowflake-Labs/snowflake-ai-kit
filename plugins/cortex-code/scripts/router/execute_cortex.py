@@ -302,6 +302,62 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         else:
             env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
 
+        prompt_message = json.dumps({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": envelope_prompt}]
+            }
+        }) + "\n"
+
+        # Codex path: simple subprocess.run (no bidirectional pipe needed)
+        if is_codex:
+            print("→ Running Cortex (this takes ~20-30s)...", flush=True)
+            completed = subprocess.run(
+                cmd,
+                input=prompt_message,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+            )
+            results = {
+                "session_id": None,
+                "events": [],
+                "permission_decisions": [],
+                "final_result": None,
+                "error": None
+            }
+            # Parse all stdout lines
+            for line in completed.stdout.strip().split("\n"):
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                results["events"].append(event)
+                event_type = event.get("type")
+                if event_type == "system" and event.get("subtype") == "init":
+                    results["session_id"] = event.get("session_id")
+                    save_active_session(results["session_id"])
+                elif event_type == "assistant":
+                    message = event.get("message", {}) or {}
+                    for item in (message.get("content") or []):
+                        if item.get("type") == "text":
+                            print(f"[Cortex] {item.get('text', '')}", flush=True)
+                        elif item.get("type") == "tool_use":
+                            print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
+                elif event_type == "result":
+                    results["final_result"] = event.get("result")
+                    print(f"[Cortex] Done.", flush=True)
+
+            if completed.returncode != 0 and not results["final_result"]:
+                results["error"] = completed.stderr or f"cortex exited with code {completed.returncode}"
+
+            return results
+
+        # Claude Code path: Popen with bidirectional pipe for permission gating
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -312,19 +368,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             env=env
         )
 
-        prompt_message = json.dumps({
-            "type": "user",
-            "message": {
-                "role": "user",
-                "content": [{"type": "text", "text": envelope_prompt}]
-            }
-        }) + "\n"
         process.stdin.write(prompt_message)
         process.stdin.flush()
-
-        # For Codex (no permission prompt), close stdin so cortex knows input is complete
-        if is_codex:
-            process.stdin.close()
 
         results = {
             "session_id": None,
