@@ -96,8 +96,13 @@ def _is_codex():
 
     Detection: PLUGIN_ROOT env var is Codex-specific — Claude Code only sets
     CLAUDE_PLUGIN_ROOT. Codex sets both PLUGIN_ROOT and CLAUDE_PLUGIN_ROOT.
+    Falls back to checking stdin format in main().
     """
     return bool(os.environ.get("PLUGIN_ROOT"))
+
+
+# Module-level flag set by main() based on stdin format detection
+_detected_codex_from_stdin = False
 
 
 def check_prompt(prompt: str) -> str | None:
@@ -115,7 +120,7 @@ def check_prompt(prompt: str) -> str | None:
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
             plugin_root = _get_plugin_root()
-            if _is_codex():
+            if _is_codex() or _detected_codex_from_stdin:
                 return _codex_routing_instruction(plugin_root)
             else:
                 return _claude_code_routing_instruction()
@@ -135,9 +140,10 @@ def _codex_routing_instruction(plugin_root: str) -> str:
         "  - If output says route: claude -> STOP routing and handle the request yourself.\n"
         "  - If output says route: cortex -> proceed to Step 3.\n"
         f"Step 3: Execute via Cortex Code: python3 \"{plugin_root}/scripts/router/execute_cortex.py\" "
-        "--prompt \"<USER_PROMPT>\" --envelope \"RW\"\n"
+        "--prompt \"<USER_PROMPT>\" --envelope \"RW\" --codex\n"
         "  - Use --envelope RO for read-only queries (SELECT, SHOW, DESCRIBE).\n"
         "  - Use --envelope RW for modifications (CREATE, ALTER, INSERT).\n"
+        "  - The --codex flag is REQUIRED (enables non-interactive mode).\n"
         "  - For follow-up prompts, add --resume-last to maintain context.\n"
         "Do NOT use SnowSQL, snow CLI, or any other tool for Snowflake operations. "
         "ONLY use the cortex CLI via the scripts above."
@@ -174,6 +180,12 @@ def main():
     # Extract the prompt text
     prompt = ""
     if isinstance(data, dict):
+        # Detect Codex vs Claude Code from stdin format:
+        # Codex sends {"prompt": "..."}, Claude Code sends {"message": "..."}
+        global _detected_codex_from_stdin
+        if "prompt" in data and "message" not in data:
+            _detected_codex_from_stdin = True
+
         # The hook receives the full message object
         prompt = data.get("prompt", data.get("message", ""))
         if isinstance(prompt, dict):

@@ -441,7 +441,13 @@ def main():
                        help="Resume the most recent cortex session for multi-turn continuation")
     parser.add_argument("--resume", dest="resume_session_id", default=None,
                        help="Resume a specific cortex session by id")
+    parser.add_argument("--codex", action="store_true",
+                       help="Force Codex mode (auto-approve tools, close stdin after prompt)")
     args = parser.parse_args()
+
+    # If --codex flag passed, set PLUGIN_ROOT so execute_cortex_streaming detects Codex mode
+    if args.codex and not os.environ.get("PLUGIN_ROOT"):
+        os.environ["PLUGIN_ROOT"] = os.environ.get("CLAUDE_PLUGIN_ROOT", "/codex-plugin")
 
     resume_session_id = args.resume_session_id
     if args.resume_last and not resume_session_id:
