@@ -334,7 +334,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        for line in process.stdout:
+        # Use readline() instead of `for line in process.stdout` —
+        # the iterator protocol uses a hidden read-ahead buffer that
+        # defeats line-buffering and blocks until the buffer fills.
+        while True:
+            line = process.stdout.readline()
+            if not line:
+                break  # EOF
             if not line.strip():
                 continue
 
