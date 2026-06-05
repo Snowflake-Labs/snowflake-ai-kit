@@ -229,8 +229,19 @@ def main():
         print(f"Warning: Failed to cache capabilities: {e}", file=sys.stderr)
         print(f"Discovered {len(capabilities)} Cortex skills", file=sys.stderr)
 
-    # Output the capabilities
-    print(json.dumps(capabilities, indent=2))
+    # Output as hook-compatible JSON (SessionStart expects hookSpecificOutput format)
+    skill_summary = ", ".join(sorted(capabilities.keys())[:20])
+    context_msg = (
+        f"Cortex Code CLI is available with {len(capabilities)} skills: {skill_summary}. "
+        "Use the cortex-router to handle Snowflake-related requests."
+    )
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": context_msg,
+        }
+    }
+    print(json.dumps(output))
 
     return 0
 
