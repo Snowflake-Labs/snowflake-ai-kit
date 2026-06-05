@@ -1,0 +1,20 @@
+{
+  "name": "snowflake-ai-kit",
+  "interface": {
+    "displayName": "Snowflake AI Kit"
+  },
+  "plugins": [
+    {
+      "name": "snowflake-cortex-code",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cortex-code"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

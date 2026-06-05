@@ -511,31 +511,51 @@ def test_mcp_conflict_detection():
 # ── Invocation source env var (telemetry tagging) ─────────────────
 
 def test_invocation_source_env():
-    """Verify CORTEX_CODE_ENTRYPOINT is set in subprocess environment."""
+    """Verify CORTEX_CODE_ENTRYPOINT is set based on calling agent."""
     from unittest.mock import patch, MagicMock
     from execute_cortex import execute_cortex_streaming
 
     results = []
-    captured_env = {}
 
-    def mock_popen(cmd, **kwargs):
-        captured_env.update(kwargs.get("env") or {})
-        raise OSError("Mock: aborting after capturing env")
+    def _capture_env(plugin_root_value):
+        """Run execute_cortex_streaming with mocked Popen, capture env."""
+        captured = {}
 
-    with patch("execute_cortex.check_cortex_cli", return_value=True):
-        with patch("execute_cortex.check_mcp_conflict", return_value=None):
-            with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
-                try:
-                    execute_cortex_streaming("test prompt", envelope="RO")
-                except (OSError, Exception):
-                    pass
+        def mock_popen(cmd, **kwargs):
+            captured.update(kwargs.get("env") or {})
+            raise OSError("Mock: aborting after capturing env")
 
+        env_patch = {"PLUGIN_ROOT": plugin_root_value} if plugin_root_value else {}
+        with patch.dict(os.environ, env_patch, clear=False):
+            # Remove PLUGIN_ROOT if not set for this test
+            if not plugin_root_value and "PLUGIN_ROOT" in os.environ:
+                del os.environ["PLUGIN_ROOT"]
+            with patch("execute_cortex.check_cortex_cli", return_value=True):
+                with patch("execute_cortex.check_mcp_conflict", return_value=None):
+                    with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
+                        try:
+                            execute_cortex_streaming("test prompt", envelope="RO")
+                        except (OSError, Exception):
+                            pass
+        return captured
+
+    # Claude Code: no PLUGIN_ROOT -> "Claude Code Plugin"
+    env_no_plugin_root = _capture_env(None)
     results.append(expect(
-        "invocation_source: CORTEX_CODE_ENTRYPOINT is set",
-        "CORTEX_CODE_ENTRYPOINT" in captured_env, True))
+        "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Claude Code)",
+        "CORTEX_CODE_ENTRYPOINT" in env_no_plugin_root, True))
     results.append(expect(
-        "invocation_source: value is 'Claude Code Plugin'",
-        captured_env.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
+        "invocation_source: Claude Code -> 'Claude Code Plugin'",
+        env_no_plugin_root.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
+
+    # Codex: PLUGIN_ROOT set -> "Codex Plugin"
+    env_with_plugin_root = _capture_env("/tmp/fake-plugin-root")
+    results.append(expect(
+        "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Codex)",
+        "CORTEX_CODE_ENTRYPOINT" in env_with_plugin_root, True))
+    results.append(expect(
+        "invocation_source: Codex -> 'Codex Plugin'",
+        env_with_plugin_root.get("CORTEX_CODE_ENTRYPOINT"), "Codex Plugin"))
 
     return results
 
@@ -646,6 +666,203 @@ def test_prompt_filter_mcp_hook():
 
 # ── Main ──────────────────────────────────────────────────────────
 
+# ── Codex plugin: manifest validation ─────────────────────────────
+
+def test_codex_plugin_manifest():
+    """Verify .codex-plugin/plugin.json exists with required fields."""
+    results = []
+    plugin_root = Path(__file__).parent.parent.parent
+
+    manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
+    results.append(expect("codex_manifest: file exists", manifest_path.exists(), True))
+
+    if not manifest_path.exists():
+        return results
+
+    data = json.loads(manifest_path.read_text())
+
+    # Required top-level fields
+    results.append(expect("codex_manifest: has 'name'", "name" in data, True))
+    results.append(expect("codex_manifest: has 'version'", "version" in data, True))
+    results.append(expect("codex_manifest: has 'description'", "description" in data, True))
+    results.append(expect("codex_manifest: has 'skills'", "skills" in data, True))
+    results.append(expect("codex_manifest: has 'hooks'", "hooks" in data, True))
+
+    # Interface block
+    iface = data.get("interface", {})
+    results.append(expect("codex_manifest: has interface.displayName",
+                          "displayName" in iface, True))
+    results.append(expect("codex_manifest: has interface.category",
+                          "category" in iface, True))
+    results.append(expect("codex_manifest: has interface.capabilities",
+                          "capabilities" in iface, True))
+
+    # Name matches Claude Code manifest
+    claude_manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    if claude_manifest_path.exists():
+        claude_data = json.loads(claude_manifest_path.read_text())
+        results.append(expect("codex_manifest: name matches Claude plugin",
+                              data["name"], claude_data["name"]))
+
+    return results
+
+
+# ── Codex plugin: marketplace.json validation ─────────────────────
+
+def test_codex_marketplace_json():
+    """Verify .agents/plugins/marketplace.json at repo root."""
+    results = []
+    # Navigate from test file to repo root
+    repo_root = Path(__file__).parent.parent.parent.parent.parent
+
+    marketplace_path = repo_root / ".agents" / "plugins" / "marketplace.json"
+    results.append(expect("codex_marketplace: file exists", marketplace_path.exists(), True))
+
+    if not marketplace_path.exists():
+        return results
+
+    data = json.loads(marketplace_path.read_text())
+    results.append(expect("codex_marketplace: has 'name'", "name" in data, True))
+    results.append(expect("codex_marketplace: has 'plugins' array",
+                          isinstance(data.get("plugins"), list), True))
+
+    plugins = data.get("plugins", [])
+    results.append(expect("codex_marketplace: at least one plugin",
+                          len(plugins) >= 1, True))
+
+    if plugins:
+        plugin_entry = plugins[0]
+        results.append(expect("codex_marketplace: plugin name is snowflake-cortex-code",
+                              plugin_entry.get("name"), "snowflake-cortex-code"))
+        source = plugin_entry.get("source", {})
+        results.append(expect("codex_marketplace: source.path points to plugin dir",
+                              source.get("path"), "./plugins/cortex-code"))
+        results.append(expect("codex_marketplace: policy.installation is AVAILABLE",
+                              plugin_entry.get("policy", {}).get("installation"), "AVAILABLE"))
+
+    return results
+
+
+# ── Codex plugin: hook input format ───────────────────────────────
+
+def test_codex_hook_input_format():
+    """Verify prompt_filter works with Codex's UserPromptSubmit stdin format."""
+    from unittest.mock import patch
+
+    results = []
+
+    def _run_with_input(stdin_data):
+        """Simulate prompt_filter.main() with given stdin — no MCP conflict."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_codex_fmt_"))
+        claude_dir = tmp / ".claude"
+        claude_dir.mkdir()
+        # Empty mcpServers so no conflict
+        (claude_dir / "settings.json").write_text(
+            json.dumps({"mcpServers": {}}), encoding="utf-8"
+        )
+
+        stdin_buf = io.StringIO(json.dumps(stdin_data))
+        stdout_buf = io.StringIO()
+        with patch("prompt_filter.Path.home", return_value=tmp):
+            with patch("prompt_filter.sys.stdin", stdin_buf):
+                with patch("prompt_filter.sys.stdout", stdout_buf):
+                    with patch("prompt_filter.shutil.which", return_value="/usr/bin/cortex"):
+                        try:
+                            import prompt_filter
+                            prompt_filter.main()
+                        except SystemExit:
+                            pass
+        output = stdout_buf.getvalue().strip()
+        import shutil as _shutil
+        _shutil.rmtree(tmp, ignore_errors=True)
+        return output
+
+    # Codex format: { "prompt": "..." }
+    out = _run_with_input({"prompt": "show me my snowflake tables"})
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("codex_hook_input: 'prompt' field routes correctly",
+                          "CORTEX ROUTER" in ctx, True))
+
+    # Claude Code format: { "message": "..." }
+    out = _run_with_input({"message": "show me my snowflake warehouses"})
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("codex_hook_input: 'message' field routes correctly",
+                          "CORTEX ROUTER" in ctx, True))
+
+    # Codex format with non-Snowflake prompt -> empty
+    out = _run_with_input({"prompt": "fix the bug in main.py"})
+    parsed = json.loads(out) if out else {}
+    results.append(expect("codex_hook_input: non-SF prompt -> empty",
+                          parsed == {} or "hookSpecificOutput" not in parsed, True))
+
+    return results
+
+
+# ── Codex plugin: namespace consistency ───────────────────────────
+
+def test_codex_skill_namespace_consistency():
+    """Verify both manifests share the same name and version."""
+    results = []
+    plugin_root = Path(__file__).parent.parent.parent
+
+    claude_path = plugin_root / ".claude-plugin" / "plugin.json"
+    codex_path = plugin_root / ".codex-plugin" / "plugin.json"
+
+    if not claude_path.exists() or not codex_path.exists():
+        results.append(expect("namespace_consistency: both manifests exist", False, True))
+        return results
+
+    claude = json.loads(claude_path.read_text())
+    codex = json.loads(codex_path.read_text())
+
+    results.append(expect("namespace_consistency: names match",
+                          claude["name"], codex["name"]))
+    results.append(expect("namespace_consistency: versions match",
+                          claude["version"], codex["version"]))
+    results.append(expect("namespace_consistency: name is snowflake-cortex-code",
+                          codex["name"], "snowflake-cortex-code"))
+
+    return results
+
+
+# ── Codex plugin: hooks.json env var compat ───────────────────────
+
+def test_codex_hooks_env_compat():
+    """Verify hooks.json uses CLAUDE_PLUGIN_ROOT which Codex sets for compat."""
+    results = []
+    plugin_root = Path(__file__).parent.parent.parent
+
+    hooks_path = plugin_root / "hooks" / "hooks.json"
+    results.append(expect("hooks_compat: hooks.json exists", hooks_path.exists(), True))
+
+    if not hooks_path.exists():
+        return results
+
+    data = json.loads(hooks_path.read_text())
+    hooks = data.get("hooks", {})
+
+    # Check all hook commands reference CLAUDE_PLUGIN_ROOT (which Codex also sets)
+    all_commands = []
+    for event_name, matchers in hooks.items():
+        for matcher in matchers:
+            for hook in matcher.get("hooks", []):
+                cmd = hook.get("command", "")
+                if cmd:
+                    all_commands.append(cmd)
+
+    results.append(expect("hooks_compat: at least one hook command found",
+                          len(all_commands) > 0, True))
+
+    for cmd in all_commands:
+        uses_env = "CLAUDE_PLUGIN_ROOT" in cmd or "PLUGIN_ROOT" in cmd
+        results.append(expect(f"hooks_compat: command uses plugin root env var",
+                              uses_env, True))
+
+    return results
+
+
 def main():
     all_results = []
     all_results.extend(test_credential_paths())
@@ -660,6 +877,11 @@ def main():
     all_results.extend(test_mcp_conflict_detection())
     all_results.extend(test_prompt_filter_mcp_hook())
     all_results.extend(test_invocation_source_env())
+    all_results.extend(test_codex_plugin_manifest())
+    all_results.extend(test_codex_marketplace_json())
+    all_results.extend(test_codex_hook_input_format())
+    all_results.extend(test_codex_skill_namespace_consistency())
+    all_results.extend(test_codex_hooks_env_compat())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)

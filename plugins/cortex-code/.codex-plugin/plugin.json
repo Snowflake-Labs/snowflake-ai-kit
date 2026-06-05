@@ -1,0 +1,25 @@
+{
+  "name": "snowflake-cortex-code",
+  "version": "3.2.0",
+  "description": "Automatically route Snowflake prompts from Codex to Cortex Code for execution.",
+  "author": {
+    "name": "Snowflake",
+    "url": "https://www.snowflake.com"
+  },
+  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
+  "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
+  "license": "Apache-2.0",
+  "keywords": ["snowflake", "cortex-code", "auto-routing", "sql", "data"],
+  "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Snowflake Cortex Code",
+    "shortDescription": "Auto-route Snowflake prompts to Cortex Code",
+    "longDescription": "Automatically detect Snowflake-related prompts and route them to Cortex Code CLI for execution. Includes 40+ bundled Snowflake skills for SQL, data governance, dynamic tables, and more.",
+    "developerName": "Snowflake",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://docs.snowflake.com/en/user-guide/cortex-code",
+    "brandColor": "#29B5E8"
+  }
+}

@@ -280,7 +280,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     try:
         env = os.environ.copy()
-        env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
+        # Detect calling agent: Codex sets PLUGIN_ROOT, Claude Code does not
+        if os.environ.get("PLUGIN_ROOT"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+        else:
+            env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
 
         process = subprocess.Popen(
             cmd,

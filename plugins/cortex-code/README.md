@@ -65,6 +65,25 @@ If you cloned the repo, add the marketplace from the local path:
 /plugin install snowflake-cortex-code@snowflake-ai-kit
 ```
 
+### Via OpenAI Codex (local marketplace)
+
+Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Codex CLI](https://developers.openai.com/codex).
+
+Clone the repo and add it as a local marketplace:
+
+```bash
+codex plugin marketplace add /path/to/snowflake-ai-kit
+```
+
+Then install from the Codex plugin directory or CLI:
+
+```
+codex
+/plugins
+```
+
+Select "Snowflake AI Kit" marketplace, then "Snowflake Cortex Code", then Install.
+
 ## Security Model
 
 The router wraps Cortex execution with a security layer. Three approval modes:
