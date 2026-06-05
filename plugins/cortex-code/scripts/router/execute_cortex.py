@@ -317,6 +317,10 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         process.stdin.write(prompt_message)
         process.stdin.flush()
 
+        # For Codex (no permission prompt), close stdin so cortex knows input is complete
+        if is_codex:
+            process.stdin.close()
+
         results = {
             "session_id": None,
             "events": [],
