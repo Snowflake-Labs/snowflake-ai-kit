@@ -101,7 +101,7 @@ def check_prompt(prompt: str) -> str | None:
         if pattern.search(prompt):
             return (
                 "[CORTEX ROUTER] This prompt may need Cortex Code CLI. "
-                "Load the cortex-code:cortex-router skill using the Skill tool, "
+                "Load the snowflake-cortex-code:cortex-router skill using the Skill tool, "
                 "then follow ALL steps IN ORDER — do NOT skip any steps. "
                 "Step 1: verify cortex CLI is installed. "
                 "Step 2: run route_request.py to check if this should go to Cortex or stay in Claude Code. "
@@ -109,7 +109,7 @@ def check_prompt(prompt: str) -> str | None:
                 "If this prompt is a follow-up to a previous Cortex turn "
                 "(continue/keep going/drill in/also/fix that), pass --resume-last "
                 "to execute_cortex.py so Cortex sees prior context. "
-                "Do NOT load cortex-run (that is for explicit $cortex-run invocation only)."
+                "Do NOT load snowflake-cortex-code:cortex-run (that is for explicit $cortex-run invocation only)."
             )
 
     return None
@@ -158,7 +158,7 @@ def main():
             install_msg = (
                 "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
                 "snow CLI, or any other workaround. "
-                "Load the cortex-code:cortex-setup skill NOW using the Skill tool, "
+                "Load the snowflake-cortex-code:cortex-setup skill NOW using the Skill tool, "
                 "then follow its instructions to install the CLI. "
                 "If the user declines, tell them to visit "
                 "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"

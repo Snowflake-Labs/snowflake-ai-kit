@@ -1,6 +1,6 @@
 ---
 name: cortex-run
-description: "ONLY load this skill when the user explicitly types $cortex-run or /cortex-run. NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use cortex-code:cortex-router instead."
+description: "ONLY load this skill when the user explicitly types $cortex-run or /cortex-run. NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
@@ -20,7 +20,7 @@ Cortex Code CLI must be installed and on PATH:
 which cortex && cortex --version
 ```
 
-If `cortex` is not found, load the `cortex-code:cortex-setup` skill to install it. Do NOT proceed without it.
+If `cortex` is not found, load the `snowflake-cortex-code:cortex-setup` skill to install it. Do NOT proceed without it.
 
 ## Workflow
 
@@ -34,7 +34,7 @@ which cortex 2>/dev/null && cortex --version
 
 If `cortex` is NOT found or the command fails:
 1. Tell the user: "Cortex Code CLI is not installed. Setting it up now."
-2. Load the `cortex-code:cortex-setup` skill using the Skill tool.
+2. Load the `snowflake-cortex-code:cortex-setup` skill using the Skill tool.
 3. Follow its instructions to install the CLI.
 4. **STOP here** — do NOT proceed to Step 2 until the CLI is installed and working.
 

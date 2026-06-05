@@ -24,7 +24,7 @@ which cortex 2>/dev/null && cortex --version
 
 If `cortex` is NOT found:
 1. Tell the user: "Cortex Code CLI is not installed. Setting it up now."
-2. Load the `cortex-code:cortex-setup` skill using the Skill tool.
+2. Load the `snowflake-cortex-code:cortex-setup` skill using the Skill tool.
 3. **STOP** — do not continue until the CLI is installed.
 
 ## Step 2: Confirm Routing
