@@ -259,12 +259,22 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Prepend envelope instructions to the prompt
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
+    # Detect if running from Codex (can't do bidirectional stdin pipe for permissions)
+    is_codex = bool(os.environ.get("PLUGIN_ROOT")) or Path.home().joinpath(".codex").is_dir()
+
     cmd = [
         "cortex",
         "--output-format", "stream-json",
         "--input-format", "stream-json",
-        "--permission-prompt-tool", "stdio",
     ]
+
+    if is_codex:
+        # Codex runs commands in background terminals without stdin pipe support
+        # Use auto-approve instead of the interactive permission prompt protocol
+        cmd.append("--dangerously-allow-all-tool-calls")
+    else:
+        # Claude Code supports bidirectional stdin/stdout for permission gating
+        cmd.extend(["--permission-prompt-tool", "stdio"])
 
     if resume_session_id:
         cmd.extend(["--resume", resume_session_id])
@@ -273,7 +283,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     if connection:
         cmd.extend(["-c", connection])
 
-    debug_cmd = f"cortex --output-format stream-json --input-format stream-json --permission-prompt-tool stdio (envelope={envelope})"
+    perm_mode = "--dangerously-allow-all-tool-calls" if is_codex else "--permission-prompt-tool stdio"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json {perm_mode} (envelope={envelope})"
     if connection:
         debug_cmd += f" -c {connection}"
     print(debug_cmd, file=sys.stderr)
