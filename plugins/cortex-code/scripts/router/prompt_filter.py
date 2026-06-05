@@ -92,8 +92,15 @@ def _get_plugin_root():
 
 
 def _is_codex():
-    """Detect if running inside Codex (vs Claude Code)."""
-    return bool(os.environ.get("PLUGIN_ROOT"))
+    """Detect if running inside Codex (vs Claude Code).
+
+    Detection strategy:
+    1. PLUGIN_ROOT env var (Codex-specific, Claude Code doesn't set this)
+    2. ~/.codex directory exists (Codex config dir)
+    """
+    if os.environ.get("PLUGIN_ROOT"):
+        return True
+    return Path.home().joinpath(".codex").is_dir()
 
 
 def check_prompt(prompt: str) -> str | None:
