@@ -5,6 +5,7 @@ Uses --output-format stream-json for streaming results.
 Handles tool use events and final results.
 """
 
+import io
 import json
 import os
 import re
@@ -14,6 +15,9 @@ import sys
 import argparse
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+
+# Force unbuffered stdout so background terminals (Codex) see output immediately
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True)
 
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
