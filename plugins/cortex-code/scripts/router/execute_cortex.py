@@ -260,7 +260,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
     # Detect if running from Codex (can't do bidirectional stdin pipe for permissions)
-    is_codex = bool(os.environ.get("PLUGIN_ROOT")) or Path.home().joinpath(".codex").is_dir()
+    # PLUGIN_ROOT is Codex-specific; Claude Code only sets CLAUDE_PLUGIN_ROOT
+    is_codex = bool(os.environ.get("PLUGIN_ROOT"))
 
     cmd = [
         "cortex",
