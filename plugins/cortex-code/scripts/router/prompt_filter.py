@@ -145,7 +145,7 @@ def _codex_routing_instruction(plugin_root: str) -> str:
         "  - Use --envelope RW for modifications (CREATE, ALTER, INSERT).\n"
         "  - The --codex flag is REQUIRED (enables non-interactive mode).\n"
         "  - For follow-up prompts, add --resume-last to maintain context.\n"
-        "  - NOTE: Cortex takes ~20-30s to initialize. Be patient.\n"
+        "  - IMPORTANT: This command requires network access to Snowflake. Do NOT run it in a background terminal. Run it as a foreground command.\n"
         "Do NOT use SnowSQL, snow CLI, or any other tool for Snowflake operations. "
         "ONLY use the cortex CLI via the scripts above."
     )
