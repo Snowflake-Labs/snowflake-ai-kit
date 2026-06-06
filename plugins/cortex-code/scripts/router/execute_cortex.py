@@ -413,6 +413,104 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         }
 
 
+def _run_codex_mode(args):
+    """Codex execution path: subprocess.run with auto-approve, no MCP, no pipe.
+
+    This avoids the bidirectional stdin/stdout pipe that Codex background
+    terminals can't handle. Uses subprocess.run which cleanly passes input
+    and waits for completion.
+    """
+    envelope_prompt = build_envelope_prompt(args.prompt, args.envelope)
+
+    cmd = [
+        "cortex",
+        "--output-format", "stream-json",
+        "--input-format", "stream-json",
+        "--dangerously-allow-all-tool-calls",
+        "--no-mcp",
+    ]
+
+    if args.connection:
+        cmd.extend(["-c", args.connection])
+
+    resume_session_id = args.resume_session_id
+    if args.resume_last and not resume_session_id:
+        active = load_active_session()
+        if active:
+            resume_session_id = active["session_id"]
+    if resume_session_id:
+        cmd.extend(["--resume", resume_session_id])
+
+    prompt_message = json.dumps({
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": [{"type": "text", "text": envelope_prompt}]
+        }
+    }) + "\n"
+
+    env = os.environ.copy()
+    env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+
+    perm_mode = "--dangerously-allow-all-tool-calls --no-mcp"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json {perm_mode} (envelope={args.envelope})"
+    print(debug_cmd, file=sys.stderr)
+    print("→ Running Cortex (this takes ~20-30s)...", flush=True)
+
+    try:
+        completed = subprocess.run(
+            cmd,
+            input=prompt_message,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        error_msg = f"Command {cmd!r} timed out after 120 seconds"
+        print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
+                          "final_result": None, "error": error_msg}, indent=2))
+        return 1
+
+    # Parse all stdout lines
+    results = {
+        "session_id": None,
+        "events": [],
+        "permission_decisions": [],
+        "final_result": None,
+        "error": None
+    }
+
+    for line in completed.stdout.strip().split("\n"):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        results["events"].append(event)
+        event_type = event.get("type")
+        if event_type == "system" and event.get("subtype") == "init":
+            results["session_id"] = event.get("session_id")
+            save_active_session(results["session_id"])
+        elif event_type == "assistant":
+            message = event.get("message", {}) or {}
+            for item in (message.get("content") or []):
+                if item.get("type") == "text":
+                    print(f"[Cortex] {item.get('text', '')}", flush=True)
+                elif item.get("type") == "tool_use":
+                    print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
+        elif event_type == "result":
+            results["final_result"] = event.get("result")
+            print("[Cortex] Done.", flush=True)
+
+    if completed.returncode != 0 and not results["final_result"]:
+        results["error"] = completed.stderr or f"cortex exited with code {completed.returncode}"
+
+    print(json.dumps(results, indent=2))
+    return 0 if not results.get("error") else 1
+
+
 def main():
     """Main execution function."""
     parser = argparse.ArgumentParser(description="Execute Cortex Code headlessly")
@@ -425,7 +523,13 @@ def main():
                        help="Resume the most recent cortex session for multi-turn continuation")
     parser.add_argument("--resume", dest="resume_session_id", default=None,
                        help="Resume a specific cortex session by id")
+    parser.add_argument("--codex", action="store_true",
+                       help="Codex mode: auto-approve tools, skip MCP, use subprocess.run")
     args = parser.parse_args()
+
+    # Codex mode: simple subprocess.run path (no bidirectional pipe)
+    if args.codex:
+        return _run_codex_mode(args)
 
     resume_session_id = args.resume_session_id
     if args.resume_last and not resume_session_id:
