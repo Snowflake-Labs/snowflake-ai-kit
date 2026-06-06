@@ -5,7 +5,6 @@ Uses --output-format stream-json for streaming results.
 Handles tool use events and final results.
 """
 
-import io
 import json
 import os
 import re
@@ -15,9 +14,6 @@ import sys
 import argparse
 from pathlib import Path
 from typing import Dict, Optional, Tuple
-
-# Force unbuffered stdout so background terminals (Codex) see output immediately
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True)
 
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
@@ -263,25 +259,12 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Prepend envelope instructions to the prompt
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
-    # Detect if running from Codex (can't do bidirectional stdin pipe for permissions)
-    # PLUGIN_ROOT is Codex-specific; Claude Code only sets CLAUDE_PLUGIN_ROOT
-    is_codex = bool(os.environ.get("PLUGIN_ROOT"))
-
     cmd = [
         "cortex",
         "--output-format", "stream-json",
         "--input-format", "stream-json",
+        "--permission-prompt-tool", "stdio",
     ]
-
-    if is_codex:
-        # Codex runs commands in background terminals without stdin pipe support
-        # Use auto-approve instead of the interactive permission prompt protocol
-        # Skip MCP servers to avoid hanging on connections in sandboxed environments
-        cmd.append("--dangerously-allow-all-tool-calls")
-        cmd.append("--no-mcp")
-    else:
-        # Claude Code supports bidirectional stdin/stdout for permission gating
-        cmd.extend(["--permission-prompt-tool", "stdio"])
 
     if resume_session_id:
         cmd.extend(["--resume", resume_session_id])
@@ -290,8 +273,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     if connection:
         cmd.extend(["-c", connection])
 
-    perm_mode = "--dangerously-allow-all-tool-calls" if is_codex else "--permission-prompt-tool stdio"
-    debug_cmd = f"cortex --output-format stream-json --input-format stream-json {perm_mode} (envelope={envelope})"
+    debug_cmd = f"cortex --output-format stream-json --input-format stream-json --permission-prompt-tool stdio (envelope={envelope})"
     if connection:
         debug_cmd += f" -c {connection}"
     print(debug_cmd, file=sys.stderr)
@@ -304,62 +286,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         else:
             env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
 
-        prompt_message = json.dumps({
-            "type": "user",
-            "message": {
-                "role": "user",
-                "content": [{"type": "text", "text": envelope_prompt}]
-            }
-        }) + "\n"
-
-        # Codex path: simple subprocess.run (no bidirectional pipe needed)
-        if is_codex:
-            print("→ Running Cortex (this takes ~20-30s)...", flush=True)
-            completed = subprocess.run(
-                cmd,
-                input=prompt_message,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env=env,
-            )
-            results = {
-                "session_id": None,
-                "events": [],
-                "permission_decisions": [],
-                "final_result": None,
-                "error": None
-            }
-            # Parse all stdout lines
-            for line in completed.stdout.strip().split("\n"):
-                if not line.strip():
-                    continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                results["events"].append(event)
-                event_type = event.get("type")
-                if event_type == "system" and event.get("subtype") == "init":
-                    results["session_id"] = event.get("session_id")
-                    save_active_session(results["session_id"])
-                elif event_type == "assistant":
-                    message = event.get("message", {}) or {}
-                    for item in (message.get("content") or []):
-                        if item.get("type") == "text":
-                            print(f"[Cortex] {item.get('text', '')}", flush=True)
-                        elif item.get("type") == "tool_use":
-                            print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
-                elif event_type == "result":
-                    results["final_result"] = event.get("result")
-                    print(f"[Cortex] Done.", flush=True)
-
-            if completed.returncode != 0 and not results["final_result"]:
-                results["error"] = completed.stderr or f"cortex exited with code {completed.returncode}"
-
-            return results
-
-        # Claude Code path: Popen with bidirectional pipe for permission gating
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -370,6 +296,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             env=env
         )
 
+        prompt_message = json.dumps({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": envelope_prompt}]
+            }
+        }) + "\n"
         process.stdin.write(prompt_message)
         process.stdin.flush()
 
@@ -381,13 +314,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        # Use readline() instead of `for line in process.stdout` —
-        # the iterator protocol uses a hidden read-ahead buffer that
-        # defeats line-buffering and blocks until the buffer fills.
-        while True:
-            line = process.stdout.readline()
-            if not line:
-                break  # EOF
+        for line in process.stdout:
             if not line.strip():
                 continue
 
@@ -402,7 +329,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
             if event_type == "system" and event.get("subtype") == "init":
                 results["session_id"] = event.get("session_id")
-                print(f"→ Started Cortex session: {results['session_id']}", flush=True)
+                print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
                 save_active_session(results["session_id"])
 
             elif event_type == "control_request":
@@ -435,13 +362,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 message = event.get("message", {}) or {}
                 for item in (message.get("content") or []):
                     if item.get("type") == "text":
-                        print(f"[Cortex] {item.get('text', '')}", flush=True)
+                        print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
                     elif item.get("type") == "tool_use":
-                        print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
+                        print(f"[Cortex] Using tool: {item.get('name')}", file=sys.stderr)
 
             elif event_type == "result":
                 results["final_result"] = event.get("result")
-                print(f"[Cortex] Done.", flush=True)
+                print(f"[Cortex] Result received.", file=sys.stderr)
                 break
 
         try:
@@ -498,13 +425,7 @@ def main():
                        help="Resume the most recent cortex session for multi-turn continuation")
     parser.add_argument("--resume", dest="resume_session_id", default=None,
                        help="Resume a specific cortex session by id")
-    parser.add_argument("--codex", action="store_true",
-                       help="Force Codex mode (auto-approve tools, close stdin after prompt)")
     args = parser.parse_args()
-
-    # If --codex flag passed, set PLUGIN_ROOT so execute_cortex_streaming detects Codex mode
-    if args.codex and not os.environ.get("PLUGIN_ROOT"):
-        os.environ["PLUGIN_ROOT"] = os.environ.get("CLAUDE_PLUGIN_ROOT", "/codex-plugin")
 
     resume_session_id = args.resume_session_id
     if args.resume_last and not resume_session_id:
