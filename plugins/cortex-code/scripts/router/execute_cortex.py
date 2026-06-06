@@ -276,7 +276,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     if is_codex:
         # Codex runs commands in background terminals without stdin pipe support
         # Use auto-approve instead of the interactive permission prompt protocol
+        # Skip MCP servers to avoid hanging on connections in sandboxed environments
         cmd.append("--dangerously-allow-all-tool-calls")
+        cmd.append("--no-mcp")
     else:
         # Claude Code supports bidirectional stdin/stdout for permission gating
         cmd.extend(["--permission-prompt-tool", "stdio"])
