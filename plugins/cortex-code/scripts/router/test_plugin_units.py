@@ -517,7 +517,7 @@ def test_invocation_source_env():
 
     results = []
 
-    def _capture_env(plugin_root_value):
+    def _capture_env(set_plugin_root):
         """Run execute_cortex_streaming with mocked Popen, capture env."""
         captured = {}
 
@@ -525,11 +525,14 @@ def test_invocation_source_env():
             captured.update(kwargs.get("env") or {})
             raise OSError("Mock: aborting after capturing env")
 
-        env_patch = {"PLUGIN_ROOT": plugin_root_value} if plugin_root_value else {}
-        with patch.dict(os.environ, env_patch, clear=False):
-            # Remove PLUGIN_ROOT if not set for this test
-            if not plugin_root_value and "PLUGIN_ROOT" in os.environ:
-                del os.environ["PLUGIN_ROOT"]
+        # Use patch.dict to cleanly add/remove PLUGIN_ROOT without side effects
+        env_overrides = {"PLUGIN_ROOT": "/tmp/fake-plugin-root"} if set_plugin_root else {}
+        env_removals = [] if set_plugin_root else ["PLUGIN_ROOT"]
+
+        with patch.dict(os.environ, env_overrides, clear=False):
+            # Ensure PLUGIN_ROOT is absent for the Claude Code test
+            for key in env_removals:
+                os.environ.pop(key, None)
             with patch("execute_cortex.check_cortex_cli", return_value=True):
                 with patch("execute_cortex.check_mcp_conflict", return_value=None):
                     with patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
@@ -540,7 +543,7 @@ def test_invocation_source_env():
         return captured
 
     # Claude Code: no PLUGIN_ROOT -> "Claude Code Plugin"
-    env_no_plugin_root = _capture_env(None)
+    env_no_plugin_root = _capture_env(False)
     results.append(expect(
         "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Claude Code)",
         "CORTEX_CODE_ENTRYPOINT" in env_no_plugin_root, True))
@@ -549,7 +552,7 @@ def test_invocation_source_env():
         env_no_plugin_root.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
 
     # Codex: PLUGIN_ROOT set -> "Codex Plugin"
-    env_with_plugin_root = _capture_env("/tmp/fake-plugin-root")
+    env_with_plugin_root = _capture_env(True)
     results.append(expect(
         "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Codex)",
         "CORTEX_CODE_ENTRYPOINT" in env_with_plugin_root, True))
