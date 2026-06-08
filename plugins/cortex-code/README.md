@@ -1,6 +1,6 @@
-# Cortex Code plugin for Claude Code
+# Cortex Code plugin for Claude Code and OpenAI Codex
 
-Route Snowflake work from Claude Code to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 35+ built-in skills handle the work. Non-Snowflake prompts stay in Claude Code.
+Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
 
 ## How It Works
 
@@ -11,11 +11,11 @@ Route Snowflake work from Claude Code to Cortex Code automatically. Ask about yo
 A lightweight keyword filter (`prompt_filter.py`) runs on every prompt. When it detects Snowflake-related patterns, it loads the `cortex-router` skill which delegates to Cortex Code.
 
 Examples that auto-route:
-- "Show me the top 10 customers by revenue"
-- "Check data quality for the SALES_DATA table"
-- "Create a dynamic table that refreshes hourly"
+- "Show me my Snowflake warehouses"
+- "What databases do I have access to?"
+- "Describe the columns in SALES_DATA table"
 
-Examples that stay in Claude Code:
+Examples that stay in your agent:
 - "Read the config.json file"
 - "Fix the bug in auth.py"
 - "Write a Python unit test"
@@ -69,10 +69,10 @@ If you cloned the repo, add the marketplace from the local path:
 
 Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Codex CLI](https://developers.openai.com/codex).
 
-Clone the repo and add it as a local marketplace:
+Add the marketplace from GitHub:
 
 ```bash
-codex plugin marketplace add /path/to/snowflake-ai-kit
+codex plugin marketplace add Snowflake-Labs/snowflake-ai-kit
 ```
 
 Then install from the Codex plugin directory or CLI:
@@ -112,7 +112,7 @@ cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/corte
 
 Edit the config to change approval mode, allowed envelopes, audit settings, and sanitization options.
 
-Skill discovery runs automatically on session start. To force a re-discovery, start a new Claude Code session.
+Skill discovery runs automatically on session start. To force a re-discovery, start a new session.
 
 ## Testing
 

@@ -463,11 +463,11 @@ def _run_codex_mode(args):
             input=prompt_message,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
             env=env,
         )
     except subprocess.TimeoutExpired:
-        error_msg = f"Command {cmd!r} timed out after 120 seconds"
+        error_msg = f"Command {cmd!r} timed out after 300 seconds"
         print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
                           "final_result": None, "error": error_msg}, indent=2))
         return 1

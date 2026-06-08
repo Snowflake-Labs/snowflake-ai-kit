@@ -2,15 +2,14 @@
 #
 # Snowflake AI Kit — Installer
 #
-# Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally
-# Claude Code CLI (claude) with the Cortex Code router skill,
-# if not already present, then verifies your Snowflake connection.
+# Installs Snowflake CLI (snow) and Cortex Code CLI (cortex).
+# Optionally installs Claude Code CLI and/or OpenAI Codex CLI,
+# then verifies your Snowflake connection.
 #
 # Usage:
-#   bash <(curl -sSL https://raw.githubusercontent.com/Snowflake-Labs/snowflake-ai-kit/main/install.sh)
-#
-#   # Check what's installed
-#   bash <(curl -sSL .../install.sh) --check
+#   bash install.sh
+#   bash install.sh --check
+#   bash install.sh --with-claude --with-codex
 #
 
 set -e
@@ -18,8 +17,6 @@ set -e
 # Colors
 G='\033[0;32m' Y='\033[1;33m' R='\033[0;31m' B='\033[1m' N='\033[0m'
 
-REPO_URL="https://github.com/Snowflake-Labs/snowflake-ai-kit.git"
-SKILL_DIR="${HOME}/.claude/skills/cortex-code"
 TROUBLESHOOT="https://github.com/Snowflake-Labs/snowflake-ai-kit#troubleshooting"
 
 msg()  { echo -e "  $*"; }
@@ -48,12 +45,12 @@ check_snowflake_auth() {
     warn "No Snowflake connection configured."
     msg "  Set one up (shared by both snow and cortex CLIs):"
     msg "    snow connection add"
-    msg "  This creates ~/.snowflake/connections.toml, used by both tools."
     msg "  Docs: https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials"
-    msg "  More help: $TROUBLESHOOT"
     return 1
   fi
 }
+
+# ─── CLI installers ──────────────────────────────────────────
 
 install_snowflake_cli() {
   if check_cmd snow; then
@@ -95,106 +92,34 @@ install_claude_code_cli() {
   fi
 
   msg "Installing Claude Code CLI..."
-
-  # If npm not found, try to install Node.js first
-  if ! check_cmd npm; then
-    msg "  Node.js not found -- attempting to install..."
-    if check_cmd brew; then
-      brew install node 2>/dev/null && msg "  Node.js installed via brew"
-    elif check_cmd apt-get; then
-      curl -fsSL https://deb.nodesource.com/setup_lts.x 2>/dev/null | sudo -E bash - 2>/dev/null && sudo apt-get install -y nodejs 2>/dev/null && msg "  Node.js installed via apt"
-    elif check_cmd yum; then
-      curl -fsSL https://rpm.nodesource.com/setup_lts.x 2>/dev/null | sudo bash - 2>/dev/null && sudo yum install -y nodejs 2>/dev/null && msg "  Node.js installed via yum"
-    fi
-  fi
-
   if check_cmd npm; then
     npm install -g @anthropic-ai/claude-code 2>/dev/null && ok "Claude Code CLI installed via npm" && return 0
   fi
   warn "Could not install Claude Code CLI (requires Node.js + npm)."
-  msg "  Install Node.js from https://nodejs.org then re-run."
-  msg "  Or install manually: npm install -g @anthropic-ai/claude-code"
+  msg "  Install manually: npm install -g @anthropic-ai/claude-code"
   return 1
 }
 
-# ─── Skill installation ──────────────────────────────────────
-
-install_skills() {
-  if [ -f "${SKILL_DIR}/SKILL.md" ] && ! $UPDATE; then
-    ok "Claude-to-Cortex Code Router skill already installed"
-    msg "  Re-run with --update to overwrite"
+install_codex_cli() {
+  if check_cmd codex; then
+    ok "OpenAI Codex CLI (codex) already installed"
     return 0
   fi
 
-  msg "Installing Claude-to-Cortex Code Router skill..."
-
-  tmp_dir=$(mktemp -d)
-  trap "rm -rf '$tmp_dir'" EXIT
-
-  src=""
-
-  # Try cloning the repo
-  if git clone --depth 1 "$REPO_URL" "$tmp_dir/repo" 2>/dev/null; then
-    if [ -d "$tmp_dir/repo/agent-to-agent-skills/claude-cortex-code-router" ]; then
-      src="$tmp_dir/repo/agent-to-agent-skills/claude-cortex-code-router"
-    fi
+  msg "Installing OpenAI Codex CLI..."
+  if check_cmd npm; then
+    npm install -g @openai/codex 2>/dev/null && ok "OpenAI Codex CLI installed via npm" && return 0
   fi
-
-  # Fallback: check if script is running from within the repo
-  if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
-    script_dir="$(cd "$(dirname "$0")" && pwd)"
-    local_src="$script_dir/agent-to-agent-skills/claude-cortex-code-router"
-    if [ -f "$local_src/SKILL.md" ]; then
-      msg "  Using local repo as source..."
-      src="$local_src"
-    fi
-  fi
-
-  if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
-    warn "Could not find skill source (clone failed and not running from repo)."
-    msg "  Manual install: git clone $REPO_URL && copy agent-to-agent-skills/claude-cortex-code-router/ to $SKILL_DIR/"
-    return 1
-  fi
-
-  mkdir -p "$SKILL_DIR/scripts" "$SKILL_DIR/security/policies" "$SKILL_DIR/references"
-
-  # Core skill definition
-  cp "$src/SKILL.md" "$SKILL_DIR/"
-  cp "$src/README.md" "$SKILL_DIR/"
-  cp "$src/config.yaml.example" "$SKILL_DIR/"
-
-  # Scripts
-  for f in discover_cortex.py execute_cortex.py predict_tools.py \
-           read_cortex_sessions.py route_request.py security_wrapper.py; do
-    cp "$src/scripts/$f" "$SKILL_DIR/scripts/"
-  done
-
-  # Security module
-  for f in __init__.py approval_handler.py audit_logger.py \
-           cache_manager.py config_manager.py prompt_sanitizer.py; do
-    cp "$src/security/$f" "$SKILL_DIR/security/"
-  done
-  cp "$src/security/policies/default_policy.yaml" "$SKILL_DIR/security/policies/"
-
-  # References
-  for f in cortex-cli-reference.md routing-examples.md; do
-    cp "$src/references/$f" "$SKILL_DIR/references/"
-  done
-
-  # Optional docs
-  for f in SECURITY.md; do
-    [ -f "$src/$f" ] && cp "$src/$f" "$SKILL_DIR/"
-  done
-
-  ok "Claude-to-Cortex Code Router skill installed to ${SKILL_DIR}/"
-  return 0
+  warn "Could not install OpenAI Codex CLI (requires Node.js + npm)."
+  msg "  Install manually: npm install -g @openai/codex"
+  return 1
 }
 
 # ─── Parse arguments ────────────────────────────────────────
 
 CHECK_ONLY=false
-UPDATE=false
 WITH_CLAUDE=false
+WITH_CODEX=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -202,25 +127,26 @@ while [ $# -gt 0 ]; do
       CHECK_ONLY=true
       shift
       ;;
-    --update|-u)
-      UPDATE=true
-      shift
-      ;;
     --with-claude)
       WITH_CLAUDE=true
+      shift
+      ;;
+    --with-codex)
+      WITH_CODEX=true
       shift
       ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
-      echo "Installs Snowflake CLI (snow), Cortex Code CLI (cortex), and optionally Claude Code CLI (claude) + router skill."
+      echo "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex)."
+      echo "Optionally installs Claude Code CLI and/or OpenAI Codex CLI."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  --check, -c      Check installation status without installing"
-      echo "  --update, -u     Re-install skills (overwrite existing)"
-      echo "  --with-claude    Also install Claude Code CLI and Claude-to-Cortex router skill"
+      echo "  --with-claude    Also install Claude Code CLI"
+      echo "  --with-codex     Also install OpenAI Codex CLI"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -239,42 +165,70 @@ echo ""
 
 if $CHECK_ONLY; then
   step "Checking installation status..."
-  check_cmd snow   && ok "Snowflake CLI (snow) installed"   || warn "Snowflake CLI (snow) not found"
-  check_cmd cortex && ok "Cortex Code CLI (cortex) installed" || warn "Cortex Code CLI (cortex) not found"
-  check_cmd claude && ok "Claude Code CLI (claude) installed" || warn "Claude Code CLI (claude) not found"
-  [ -f "${SKILL_DIR}/SKILL.md" ] && ok "Claude-to-Cortex Code Router skill installed" || warn "Claude-to-Cortex Code Router skill not found"
+  check_cmd snow   && ok "Snowflake CLI (snow) installed"        || warn "Snowflake CLI (snow) not found"
+  check_cmd cortex && ok "Cortex Code CLI (cortex) installed"    || warn "Cortex Code CLI (cortex) not found"
+  check_cmd claude && ok "Claude Code CLI (claude) installed"    || warn "Claude Code CLI (claude) not found"
+  check_cmd codex  && ok "OpenAI Codex CLI (codex) installed"    || warn "OpenAI Codex CLI (codex) not found"
   check_snowflake_auth || true
   echo ""
   exit 0
 fi
 
-step "Installing CLIs..."
+step "Installing core CLIs..."
 install_snowflake_cli
 install_cortex_code_cli
 
-# Claude Code CLI is opt-in (but if already installed, just ensure skill is there)
-install_claude=false
-if $WITH_CLAUDE; then
-  install_claude=true
-elif check_cmd claude; then
-  install_claude=true
-elif [ -t 0 ]; then
-  echo ""
-  msg "Claude Code CLI is optional (requires Node.js + Anthropic API key)."
-  printf "  Install Claude Code CLI and router skill? (y/N) "
-  read -r answer
-  case "$answer" in
-    [Yy]*) install_claude=true ;;
-  esac
+# Optional: Claude Code CLI
+if $WITH_CLAUDE || check_cmd claude; then
+  step "Installing Claude Code CLI..."
+  install_claude_code_cli || true
 fi
 
-if $install_claude; then
-  install_claude_code_cli || true
+# Optional: OpenAI Codex CLI
+if $WITH_CODEX || check_cmd codex; then
+  step "Installing OpenAI Codex CLI..."
+  install_codex_cli || true
+fi
 
-  step "Installing skills..."
-  install_skills || true
-else
-  msg "Skipping Claude Code CLI (use --with-claude to include)"
+# Plugin setup: add marketplace sources if the agent CLIs are present
+step "Setting up plugins..."
+
+if check_cmd codex; then
+  if codex plugin marketplace list 2>/dev/null | grep -q "snowflake-ai-kit"; then
+    ok "Codex marketplace already configured"
+  else
+    codex plugin marketplace add Snowflake-Labs/snowflake-ai-kit 2>/dev/null \
+      && ok "Codex marketplace added (Snowflake-Labs/snowflake-ai-kit)" \
+      || warn "Could not add Codex marketplace. Run: codex plugin marketplace add Snowflake-Labs/snowflake-ai-kit"
+  fi
+  if codex plugin list 2>/dev/null | grep -q "snowflake-cortex-code.*installed"; then
+    ok "Codex plugin already installed"
+  else
+    codex plugin add snowflake-cortex-code@snowflake-ai-kit 2>/dev/null \
+      && ok "Codex plugin installed (snowflake-cortex-code)" \
+      || warn "Could not install Codex plugin. Run: codex plugin add snowflake-cortex-code@snowflake-ai-kit"
+  fi
+fi
+
+if check_cmd claude; then
+  if claude plugin marketplace list 2>/dev/null | grep -q "claude-plugins-official"; then
+    ok "Claude Code marketplace already configured"
+  else
+    claude plugin marketplace add anthropics/claude-plugins-official 2>/dev/null \
+      && ok "Claude Code marketplace added (anthropics/claude-plugins-official)" \
+      || warn "Could not add Claude Code marketplace. Run: claude plugin marketplace add anthropics/claude-plugins-official"
+  fi
+  if claude plugin list 2>/dev/null | grep -q "snowflake-cortex-code"; then
+    ok "Claude Code plugin already installed"
+  else
+    claude plugin install snowflake-cortex-code 2>/dev/null \
+      && ok "Claude Code plugin installed (snowflake-cortex-code)" \
+      || warn "Could not install Claude Code plugin. Run: claude plugin install snowflake-cortex-code"
+  fi
+fi
+
+if ! check_cmd codex && ! check_cmd claude; then
+  msg "  No agent CLI found. Install one with --with-claude or --with-codex"
 fi
 
 step "Checking Snowflake connection..."
@@ -284,10 +238,6 @@ echo ""
 echo -e "${G}All done!${N}"
 echo ""
 echo "Next steps:"
+echo "  cortex               # Start Cortex Code (interactive AI assistant)"
 echo "  snow --version       # Verify Snowflake CLI"
-echo "  cortex --version     # Verify Cortex Code CLI"
-if $install_claude; then
-  echo "  claude --version     # Verify Claude Code CLI"
-fi
-echo "  cortex               # Start Cortex Code"
 echo ""

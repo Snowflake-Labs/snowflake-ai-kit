@@ -1,173 +1,132 @@
 # Snowflake AI Kit
 
-Developer tools for building on Snowflake with AI coding agents. Includes a one-command installer for Snowflake CLI + Cortex Code CLI and a Claude Code plugin that automatically routes Snowflake prompts to Cortex Code.
+Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
 
-## Table of Contents
+## Quick Start
 
-- [Get Started](#get-started)
-- [Usage](#usage)
-- [Skills](#skills)
-- [Plugins](#plugins)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+### Claude Code
 
-## Get Started
+From inside Claude Code:
+```
+/plugin marketplace add anthropics/claude-plugins-official
+/plugin install snowflake-cortex-code
+```
 
-The installer sets up Snowflake CLI and Cortex Code CLI. The [Cortex Code plugin for Claude Code](#cortex-code-plugin-for-claude-code) is installed separately via the [Claude Code plugin marketplace](https://code.claude.com/docs/en/discover-plugins) -- it automatically detects Snowflake prompts and routes them to Cortex Code.
+Or from your terminal:
+```bash
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin install snowflake-cortex-code
+```
 
-### What's Included
+### OpenAI Codex
 
-This repo includes:
+From your terminal:
+```bash
+codex plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+codex plugin add snowflake-cortex-code@snowflake-ai-kit
+```
 
-| Component | What it does | Install location |
-|---|---|---|
-| [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) | Manage Snowflake objects, deploy apps, run SQL from the terminal | System PATH (via pipx/pip/brew) |
-| [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) | AI coding assistant for Snowflake — generate code, explore data, build apps | System PATH (via official installer) |
-| [Cortex Code plugin for Claude Code](plugins/cortex-code/) | Auto-route Snowflake prompts from Claude Code to Cortex Code | [Claude Code marketplace](#install-via-claude-code-marketplace) (separate install) |
+Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
 
-### Install
+### That's it
+
+Ask naturally — the plugin handles routing:
+
+- "Show me my Snowflake warehouses"
+- "What databases do I have access to?"
+- "Describe the columns in SALES_DATA table"
+- "Create a dynamic table that refreshes hourly"
+
+Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in your current agent.
+
+## How It Works
+
+```
+You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+```
+
+1. A lightweight keyword filter runs on every prompt (~50ms, no network)
+2. If Snowflake intent is detected, the plugin routes to Cortex Code CLI
+3. Cortex Code executes with 55+ specialized skills (SQL, governance, ML, streaming, etc.)
+4. Results flow back to your agent session
+
+To explicitly invoke Cortex Code (bypassing auto-detection):
+
+```
+$cortex-run show me my warehouses and their current state
+```
+
+> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation on security model, envelopes, and configuration.*
+
+## Prerequisites
+
+The plugin requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it with:
 
 ```bash
+# One-command installer (also installs Snowflake CLI)
 git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git
-cd snowflake-ai-kit
+cd snowflake-ai-kit && bash install.sh
 ```
 
-#### Installer Options
-
-| Flag | Description |
-|---|---|
-| `--check` / `-Check` | Check installation status without installing |
-| `--update` / `-Update` | Re-install (overwrite existing) |
-| `--help` / `-Help` | Show help |
-
-#### macOS / Linux
-
-```bash
-bash install.sh
-```
-
-#### Windows (PowerShell)
-
-```powershell
-.\install.ps1
-```
-
-#### npx (any platform)
-
-```bash
-npx @snowflake-labs/ai-kit
-```
+Or install Cortex Code CLI directly from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
 
 ### Snowflake Connection
 
-Snow CLI and Cortex Code CLI both share the same Snowflake connection config (`~/.snowflake/connections.toml`). Set one up with:
+Cortex Code CLI needs a Snowflake connection configured at `~/.snowflake/connections.toml`:
 
 ```bash
 snow connection add
 ```
 
-## Usage
+## Installer
 
-After installing, open a terminal and run:
+The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`):
 
-```bash
-cortex                         # Start Cortex Code (interactive AI assistant)
-snow connection list           # Verify your Snowflake connection
-cortex skill list              # Browse 40+ built-in skills
-```
+| Platform | Command |
+|---|---|
+| macOS / Linux | `bash install.sh` |
+| Windows | `.\install.ps1` |
+| npx (any) | `npx @snowflake-labs/ai-kit` |
 
-With the [plugin](#cortex-code-plugin-for-claude-code) installed, Claude Code automatically routes Snowflake prompts to Cortex Code:
-
-```bash
-claude                         # Start Claude Code — Snowflake queries auto-route to Cortex
-```
-
-Ask naturally ("show me my tables", "check data quality on SALES_DATA") and it routes to Cortex Code. Non-Snowflake prompts stay in Claude Code.
-
-To explicitly invoke Cortex Code (bypassing auto-routing):
-
-```
-$cortex-run analyze query performance for the last 7 days
-```
-
-See the [plugin docs](plugins/cortex-code/) for security model and configuration.
+| Flag | Description |
+|---|---|
+| `--check` / `-Check` | Check installation status without installing |
+| `--with-claude` / `-WithClaude` | Also install Claude Code CLI + plugin |
+| `--with-codex` / `-WithCodex` | Also install OpenAI Codex CLI + plugin |
+| `--help` / `-Help` | Show help |
 
 ## Skills
 
-### Bundled Skills (Cortex Code CLI)
-
-Cortex Code CLI ships with 40+ built-in skills that activate automatically based on your prompt. No setup required -- they're included in every install.
-
-View all available skills:
+Cortex Code CLI ships with 55+ built-in skills that activate automatically based on your prompt:
 
 ```bash
 cortex skill list
 ```
 
+Examples: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
+
 Skills are organized by source:
 
 | Category | Description |
 |---|---|
-| **BUNDLED** | Ship with the CLI binary. Updated automatically on `cortex update`. |
-| **GLOBAL** | User-installed skills in `~/.snowflake/cortex/skills/`. Shared across all projects. |
-| **EXTERNAL** | Added via `cortex skill add <path>`. Point to local directories or Git repos. |
-| **PROJECT** | Discovered from the current working directory (e.g. `.claude/skills/`). |
-
-Examples of bundled skills: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
-
-Add a custom skill from a local path or GitHub:
-
-```bash
-cortex skill add /path/to/my-skill
-cortex skill add owner/repo
-```
-
-## Plugins
-
-### Cortex Code Plugin for Claude Code
-
-Automatically route Snowflake work from Claude Code to Cortex Code. When you ask about your Snowflake data, the plugin detects the intent and delegates to Cortex Code -- no slash command needed. Just ask naturally:
-
-- "Show me the top 10 customers by revenue"
-- "Check data quality for the SALES_DATA table"
-- "Create a dynamic table that refreshes hourly"
-
-Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in Claude Code as usual.
-
-#### Install via Claude Code marketplace
-
-No clone required. Run these commands inside Claude Code:
-
-```
-# Add the official Anthropic marketplace (one-time setup)
-/plugin marketplace add anthropics/claude-plugins-official
-
-# Install the plugin
-/plugin install snowflake-cortex-code
-```
-
-To update the marketplace catalog: `/plugin marketplace update anthropics/claude-plugins-official`
-
-To update the plugin: `/plugin update snowflake-cortex-code`
-
-> *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation, security model, and configuration.*
+| **BUNDLED** | Ship with the CLI binary. Updated on `cortex update`. |
+| **GLOBAL** | User-installed in `~/.snowflake/cortex/skills/`. Shared across projects. |
+| **EXTERNAL** | Added via `cortex skill add <path>` or `cortex skill add owner/repo`. |
+| **PROJECT** | Discovered from the current working directory. |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `snow: command not found` | Make sure `~/.local/bin` (pipx) or your Python scripts dir is in `$PATH`. Try opening a new terminal. |
-| `cortex: command not found` | Re-run the installer. If it still fails, install manually from the [Cortex Code CLI docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli). |
-| `pip`/`pipx` not found | Install Python 3.10+ first: [python.org](https://www.python.org/downloads/) |
-| Connection errors | Run `snow connection add` to create `~/.snowflake/connections.toml`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
-| Installer hangs on Windows | Run PowerShell as Administrator, or download and run the script manually. |
-| Plugin not routing | Make sure the plugin is enabled: check `~/.claude/settings.json` has `"enabledPlugins": { "snowflake-cortex-code@snowflake-ai-kit": true }` |
+| `cortex: command not found` | Re-run `bash install.sh` or install from [Cortex Code CLI docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli). |
+| `snow: command not found` | Ensure `~/.local/bin` is in `$PATH`. Open a new terminal. |
+| Connection errors | Run `snow connection add`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
+| Plugin not routing | Verify plugin is enabled in your agent's settings. |
+| Installer hangs on Windows | Run PowerShell as Administrator. |
 
 ## Contributing
 
-All PRs run CI automatically on **macOS** and **Windows** via GitHub Actions ([`test.yml`](.github/workflows/test.yml)). The full test suite (209 tests) must pass on both platforms before merging.
-
-To run tests locally:
+All PRs run CI on **macOS** and **Windows** via GitHub Actions ([`test.yml`](.github/workflows/test.yml)). The full test suite (200 tests) must pass on both platforms.
 
 ```bash
 bash tests/run-tests.sh --verbose        # macOS / Linux
@@ -178,6 +137,4 @@ bash tests/run-tests.sh --verbose        # macOS / Linux
 
 Copyright (c) Snowflake Inc. All rights reserved.
 
-The skills in this project are licensed under the [Snowflake Skills License](LICENSE-SKILLS.md).
-
-All other content is licensed under the [Apache 2.0 license](LICENSE).
+Skills are licensed under the [Snowflake Skills License](LICENSE-SKILLS.md). All other content is [Apache 2.0](LICENSE).
