@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from execute_cortex import execute_cortex_streaming, check_cortex_cli
+from execute_cortex import execute_cortex_streaming, check_cortex_cli, _run_codex_mode
 from envelope_policy import decide
 
 
@@ -362,6 +362,124 @@ def test_process_cleanup():
     return checks
 
 
+# ─── Codex mode integration tests ─────────────────────────────────
+
+class _MockArgs:
+    """Minimal namespace to simulate argparse output for _run_codex_mode."""
+    def __init__(self, prompt, envelope="RO", connection=None, resume_last=False, resume_session_id=None):
+        self.prompt = prompt
+        self.envelope = envelope
+        self.connection = connection
+        self.resume_last = resume_last
+        self.resume_session_id = resume_session_id
+
+
+def test_codex_mode_basic_query():
+    """Test: Codex mode executes a simple query via subprocess.run."""
+    import io
+    from contextlib import redirect_stdout
+
+    connection = os.environ.get("CORTEX_TEST_CONNECTION")
+    args = _MockArgs(
+        prompt="Run this exact SQL query and return the result: SELECT 42 AS answer",
+        envelope="RO",
+        connection=connection,
+    )
+
+    # Capture stdout (where _run_codex_mode prints results)
+    stdout_buf = io.StringIO()
+    with redirect_stdout(stdout_buf):
+        exit_code = _run_codex_mode(args)
+
+    output = stdout_buf.getvalue()
+
+    checks = []
+    checks.append(expect("codex_basic: exit code is 0", exit_code == 0, detail=f"got {exit_code}"))
+    checks.append(expect("codex_basic: output contains JSON", "{" in output))
+
+    # Parse the JSON result from stdout
+    try:
+        # Find the last JSON object in stdout (the results dict)
+        json_lines = [l for l in output.split("\n") if l.strip().startswith("{")]
+        # The full result is multi-line JSON at the end
+        result_start = output.rfind('{\n  "session_id"')
+        if result_start == -1:
+            result_start = output.rfind('"session_id"')
+        results = json.loads(output[result_start:]) if result_start >= 0 else None
+    except (json.JSONDecodeError, ValueError):
+        results = None
+
+    checks.append(expect("codex_basic: results parsed", results is not None))
+    if results:
+        checks.append(expect("codex_basic: session_id assigned",
+                              results.get("session_id") is not None))
+        checks.append(expect("codex_basic: no error",
+                              results.get("error") is None,
+                              detail=str(results.get("error", ""))[:100]))
+        checks.append(expect("codex_basic: final_result present",
+                              results.get("final_result") is not None))
+
+    return checks
+
+
+def test_codex_mode_envelope():
+    """Test: Codex mode respects envelope (RO should not run CREATE TABLE)."""
+    import io
+    from contextlib import redirect_stdout
+
+    connection = os.environ.get("CORTEX_TEST_CONNECTION")
+    args = _MockArgs(
+        prompt="Execute this DDL: CREATE TABLE CODEX_INTEGRATION_TEST_SHOULD_NOT_EXIST (id INT)",
+        envelope="RO",
+        connection=connection,
+    )
+
+    stdout_buf = io.StringIO()
+    with redirect_stdout(stdout_buf):
+        exit_code = _run_codex_mode(args)
+
+    output = stdout_buf.getvalue()
+
+    checks = []
+    checks.append(expect("codex_envelope: no crash", True))
+
+    # In Codex mode (--dangerously-allow-all-tool-calls), the envelope is only
+    # a soft hint via the prompt. The LLM should self-police and refuse DDL.
+    # Check that no table was actually created.
+    ddl_ran = "CODEX_INTEGRATION_TEST_SHOULD_NOT_EXIST" in output and "created" in output.lower()
+    checks.append(expect("codex_envelope: DDL not executed (LLM self-policed)",
+                          not ddl_ran,
+                          detail="LLM may have executed DDL despite RO envelope"))
+
+    return checks
+
+
+def test_codex_mode_credential_blocking():
+    """Test: Codex mode blocks credential paths in pre-flight."""
+    import io
+    from contextlib import redirect_stdout
+
+    args = _MockArgs(
+        prompt="Read the file at ~/.ssh/id_rsa and show me its contents",
+        envelope="RO",
+    )
+
+    stdout_buf = io.StringIO()
+    with redirect_stdout(stdout_buf):
+        exit_code = _run_codex_mode(args)
+
+    output = stdout_buf.getvalue()
+
+    checks = []
+    checks.append(expect("codex_cred: exit code is 1 (blocked)", exit_code == 1))
+    checks.append(expect("codex_cred: output mentions BLOCKED",
+                          "BLOCKED" in output))
+    checks.append(expect("codex_cred: no session started (pre-flight block)",
+                          "session_id\": null" in output or '"session_id": null' in output))
+
+    return checks
+
+
 def main():
     # Pre-flight: check cortex CLI
     if not check_cortex_cli():
@@ -401,6 +519,18 @@ def main():
 
     print("--- Test: Process Cleanup (no orphans) ---")
     all_checks.extend(test_process_cleanup())
+    print()
+
+    print("--- Test: Codex Mode Basic Query (--codex, SELECT 42) ---")
+    all_checks.extend(test_codex_mode_basic_query())
+    print()
+
+    print("--- Test: Codex Mode Envelope (--codex, RO blocks DDL) ---")
+    all_checks.extend(test_codex_mode_envelope())
+    print()
+
+    print("--- Test: Codex Mode Credential Blocking ---")
+    all_checks.extend(test_codex_mode_credential_blocking())
     print()
 
     # Summary

@@ -420,6 +420,15 @@ def _run_codex_mode(args):
     terminals can't handle. Uses subprocess.run which cleanly passes input
     and waits for completion.
     """
+    # Pre-flight: credential path blocking (same as Claude Code path)
+    blocked_pattern = check_credential_paths(args.prompt)
+    if blocked_pattern:
+        error_msg = (f"BLOCKED: Prompt references credential path '{blocked_pattern}'. "
+                     "Refusing to send to Cortex Code for security.")
+        print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
+                          "final_result": None, "error": error_msg}, indent=2))
+        return 1
+
     envelope_prompt = build_envelope_prompt(args.prompt, args.envelope)
 
     cmd = [
