@@ -122,7 +122,90 @@ fi
 check "test_envelope_policy.py exists" test -f "$ROUTER_DIR/test_envelope_policy.py"
 check "test_plugin_units.py exists"    test -f "$ROUTER_DIR/test_plugin_units.py"
 
-# === 3. Content sanity checks ======================================
+# === 3. Codex plugin & marketplace manifests =======================
+
+section "Codex plugin & marketplace"
+
+# .codex-plugin/plugin.json exists
+CODEX_MANIFEST="$PLUGIN_DIR/.codex-plugin/plugin.json"
+check ".codex-plugin/plugin.json exists" test -f "$CODEX_MANIFEST"
+
+# .codex-plugin/plugin.json is valid JSON
+if python3 -c "import json; json.load(open('$CODEX_MANIFEST'))" 2>/dev/null; then
+    pass ".codex-plugin/plugin.json is valid JSON"
+else
+    fail ".codex-plugin/plugin.json is valid JSON"
+fi
+
+# marketplace.json exists
+MARKETPLACE_JSON="$REPO_ROOT/.agents/plugins/marketplace.json"
+check "marketplace.json exists" test -f "$MARKETPLACE_JSON"
+
+# marketplace.json is valid JSON
+if python3 -c "import json; json.load(open('$MARKETPLACE_JSON'))" 2>/dev/null; then
+    pass "marketplace.json is valid JSON"
+else
+    fail "marketplace.json is valid JSON"
+fi
+
+# Marketplace source path resolves to actual plugin directory
+if python3 -c "
+import json, os, sys
+mkt = json.load(open('$MARKETPLACE_JSON'))
+for p in mkt.get('plugins', []):
+    src_path = p.get('source', {}).get('path', '')
+    resolved = os.path.normpath(os.path.join('$REPO_ROOT', src_path))
+    if not os.path.isdir(resolved):
+        sys.exit(1)
+" 2>/dev/null; then
+    pass "marketplace source path resolves to plugin directory"
+else
+    fail "marketplace source path resolves to plugin directory"
+fi
+
+# Both manifests share the same name and version
+if python3 -c "
+import json, sys
+claude = json.load(open('$PLUGIN_DIR/.claude-plugin/plugin.json'))
+codex  = json.load(open('$CODEX_MANIFEST'))
+if claude['name'] != codex['name']:
+    sys.exit(1)
+if claude['version'] != codex['version']:
+    sys.exit(1)
+" 2>/dev/null; then
+    pass "Claude and Codex manifests have matching name+version"
+else
+    fail "Claude and Codex manifests have matching name+version"
+fi
+
+# Codex manifest has required interface block
+if python3 -c "
+import json, sys
+codex = json.load(open('$CODEX_MANIFEST'))
+iface = codex.get('interface', {})
+required = ['displayName', 'shortDescription', 'category']
+for key in required:
+    if key not in iface:
+        sys.exit(1)
+" 2>/dev/null; then
+    pass "Codex manifest has required interface fields"
+else
+    fail "Codex manifest has required interface fields"
+fi
+
+# Codex manifest declares hooks
+if python3 -c "
+import json, sys
+codex = json.load(open('$CODEX_MANIFEST'))
+if 'hooks' not in codex:
+    sys.exit(1)
+" 2>/dev/null; then
+    pass "Codex manifest declares hooks"
+else
+    fail "Codex manifest declares hooks"
+fi
+
+# === 4. Content sanity checks ======================================
 
 section "Content checks"
 
@@ -170,7 +253,7 @@ else
     fail "config.yaml.example is non-empty"
 fi
 
-# === 4. Unit tests =================================================
+# === 5. Unit tests =================================================
 
 section "Unit tests"
 
@@ -212,7 +295,7 @@ else
     fi
 fi
 
-# === 5. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
+# === 6. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
 
 section "Integration tests"
 
@@ -243,7 +326,7 @@ else
     fi
 fi
 
-# === 6. Snowflake connection =======================================
+# === 7. Snowflake connection =======================================
 
 section "Snowflake connection"
 

@@ -114,7 +114,78 @@ if ($allRouter) {
 Write-Result "test_envelope_policy.py exists" $(if (Test-Path (Join-Path $RouterDir "test_envelope_policy.py")) { "PASS" } else { "FAIL" })
 Write-Result "test_plugin_units.py exists" $(if (Test-Path (Join-Path $RouterDir "test_plugin_units.py")) { "PASS" } else { "FAIL" })
 
-# === 3. Content checks ========================================
+# === 3. Codex plugin & marketplace manifests ==================
+
+Write-Host ""
+Write-Host "Codex plugin & marketplace" -ForegroundColor Cyan
+
+# .codex-plugin/plugin.json exists
+$codexManifest = Join-Path $PluginDir ".codex-plugin\plugin.json"
+Write-Result ".codex-plugin/plugin.json exists" $(if (Test-Path $codexManifest) { "PASS" } else { "FAIL" })
+
+# .codex-plugin/plugin.json is valid JSON
+if (Test-Path $codexManifest) {
+    try {
+        Get-Content $codexManifest -Raw | ConvertFrom-Json | Out-Null
+        Write-Result ".codex-plugin/plugin.json is valid JSON" "PASS"
+    }
+    catch {
+        Write-Result ".codex-plugin/plugin.json is valid JSON" "FAIL"
+    }
+}
+
+# marketplace.json exists
+$marketplaceJson = Join-Path $RepoRoot ".agents\plugins\marketplace.json"
+Write-Result "marketplace.json exists" $(if (Test-Path $marketplaceJson) { "PASS" } else { "FAIL" })
+
+# marketplace.json is valid JSON
+if (Test-Path $marketplaceJson) {
+    try {
+        $mktData = Get-Content $marketplaceJson -Raw | ConvertFrom-Json
+        Write-Result "marketplace.json is valid JSON" "PASS"
+    }
+    catch {
+        Write-Result "marketplace.json is valid JSON" "FAIL"
+        $mktData = $null
+    }
+}
+
+# Marketplace source path resolves to actual plugin directory
+if ($mktData) {
+    $allResolved = $true
+    foreach ($plugin in $mktData.plugins) {
+        $srcPath = $plugin.source.path
+        $resolved = Join-Path $RepoRoot $srcPath
+        if (-not (Test-Path $resolved)) {
+            $allResolved = $false
+        }
+    }
+    Write-Result "marketplace source path resolves to plugin directory" $(if ($allResolved) { "PASS" } else { "FAIL" })
+}
+
+# Both manifests share the same name and version
+if ((Test-Path $pluginJson) -and (Test-Path $codexManifest)) {
+    $claude = Get-Content $pluginJson -Raw | ConvertFrom-Json
+    $codex = Get-Content $codexManifest -Raw | ConvertFrom-Json
+    $nameMatch = ($claude.name -eq $codex.name)
+    $verMatch = ($claude.version -eq $codex.version)
+    Write-Result "Claude and Codex manifests have matching name+version" $(if ($nameMatch -and $verMatch) { "PASS" } else { "FAIL" })
+}
+
+# Codex manifest has required interface block
+if (Test-Path $codexManifest) {
+    $codex = Get-Content $codexManifest -Raw | ConvertFrom-Json
+    $hasInterface = $codex.interface -and $codex.interface.displayName -and $codex.interface.shortDescription -and $codex.interface.category
+    Write-Result "Codex manifest has required interface fields" $(if ($hasInterface) { "PASS" } else { "FAIL" })
+}
+
+# Codex manifest declares hooks
+if (Test-Path $codexManifest) {
+    $codex = Get-Content $codexManifest -Raw | ConvertFrom-Json
+    Write-Result "Codex manifest declares hooks" $(if ($codex.hooks) { "PASS" } else { "FAIL" })
+}
+
+# === 4. Content checks ========================================
 
 Write-Host ""
 Write-Host "Content checks" -ForegroundColor Cyan
@@ -160,7 +231,7 @@ if (Test-Path $cfgPath) {
     Write-Result "config.yaml.example is non-empty" $(if ((Get-Item $cfgPath).Length -gt 10) { "PASS" } else { "FAIL" })
 }
 
-# === 4. Unit tests =============================================
+# === 5. Unit tests =============================================
 
 Write-Host ""
 Write-Host "Unit tests" -ForegroundColor Cyan
@@ -197,7 +268,7 @@ else {
     }
 }
 
-# === 5. Snowflake connection ===================================
+# === 6. Snowflake connection ===================================
 
 Write-Host ""
 Write-Host "Snowflake connection" -ForegroundColor Cyan
