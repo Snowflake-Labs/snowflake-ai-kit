@@ -4,7 +4,12 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Optional, Dict
-import yaml
+
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 
 class ConfigValidationError(Exception):
@@ -147,6 +152,16 @@ class ConfigManager:
         """Load configuration with 3-layer precedence."""
         config = copy.deepcopy(self.DEFAULT_CONFIG)
         has_org_policy = False
+
+        if not HAS_YAML:
+            # PyYAML not installed — use secure defaults only.
+            # Config files are ignored (cannot parse YAML without the library).
+            if config_path and config_path.exists():
+                print("Warning: PyYAML not installed — cannot load config file. Using defaults.",
+                      file=sys.stderr)
+            config = self._enforce_security_floor(config, has_org_policy)
+            self._validate_config(config)
+            return self._expand_paths(config)
 
         # Load user config if exists
         if config_path and config_path.exists():
