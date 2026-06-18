@@ -1,6 +1,6 @@
 {
   "name": "snowflake-cortex-code",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Automatically route Snowflake prompts from Codex to Cortex Code for execution.",
   "author": {
     "name": "Snowflake",

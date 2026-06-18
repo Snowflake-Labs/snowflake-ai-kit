@@ -97,11 +97,12 @@ If found (Windows — look for install.ps1 in the same directory):
 powershell -ExecutionPolicy Bypass -File /path/to/snowflake-ai-kit/install.ps1
 ```
 
-If NOT found, ask the user to clone the repo first:
+If NOT found, install Cortex Code CLI directly:
 ```bash
-git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git
-bash snowflake-ai-kit/install.sh
+curl -fsSL https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli | bash
 ```
+
+Or follow the official install guide: https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli
 
 The installer handles Snowflake CLI, Cortex Code CLI, and connection verification.
 

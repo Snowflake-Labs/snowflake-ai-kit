@@ -15,7 +15,7 @@
 **Confidence:** 98% — "Cortex Search" is a specific Cortex AI feature.
 
 ### 3. Data Quality (Cortex Skill)
-**User:** "Check data quality for the SALES_DATA table"
+**User:** "Check data quality for my orders table"
 **Confidence:** 85% — Matches Cortex's data-quality skill.
 
 ### 4. ML Function

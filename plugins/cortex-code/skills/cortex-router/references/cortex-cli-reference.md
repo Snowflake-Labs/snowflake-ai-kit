@@ -153,7 +153,7 @@ cortex -p "Show top 10 customers" \
 
 ### Data Quality Check
 ```bash
-cortex -p "Check data quality for SALES_DATA table" \
+cortex -p "Check data quality for my orders table" \
   --output-format stream-json \
   --allowed-tools "snowflake_sql_execute" "bash" "read" "write"
 ```

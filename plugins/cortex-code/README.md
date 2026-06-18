@@ -13,7 +13,7 @@ A lightweight keyword filter (`prompt_filter.py`) runs on every prompt. When it 
 Examples that auto-route:
 - "Show me my Snowflake warehouses"
 - "What databases do I have access to?"
-- "Describe the columns in SALES_DATA table"
+- "List all tables in my current schema"
 
 Examples that stay in your agent:
 - "Read the config.json file"
@@ -38,51 +38,22 @@ $cortex-run analyze query performance for the last 7 days
 
 ## Install
 
-### Via the official Claude Code marketplace (recommended)
+### Claude Code
 
-Run these commands inside Claude Code:
-
-```
-# Add the official Anthropic marketplace (one-time setup)
-/plugin marketplace add anthropics/claude-plugins-official
-
-# Install the plugin
-/plugin install snowflake-cortex-code
+```bash
+claude plugin install snowflake-cortex-code@claude-plugins-official
 ```
 
-To update the marketplace catalog: `/plugin marketplace update anthropics/claude-plugins-official`
+To update: `claude plugin update snowflake-cortex-code`
 
-To update the plugin: `/plugin update snowflake-cortex-code`
-
-### Manual setup (local clone)
-
-Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code).
-
-If you cloned the repo, add the marketplace from the local path:
-
-```
-/plugin marketplace add /path/to/snowflake-ai-kit
-/plugin install snowflake-cortex-code@snowflake-ai-kit
-```
-
-### Via OpenAI Codex (local marketplace)
-
-Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), [Codex CLI](https://developers.openai.com/codex).
-
-Add the marketplace from GitHub:
+### OpenAI Codex
 
 ```bash
 codex plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+codex plugin add snowflake-cortex-code@snowflake-ai-kit
 ```
 
-Then install from the Codex plugin directory or CLI:
-
-```
-codex
-/plugins
-```
-
-Select "Snowflake AI Kit" marketplace, then "Snowflake Cortex Code", then Install.
+Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
 
 ## Security Model
 
