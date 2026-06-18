@@ -1,6 +1,8 @@
-# Cortex Code plugin for Claude Code and OpenAI Codex
+# Cortex Code plugin for Claude Code, OpenAI Codex, and VS Code + GitHub Copilot
 
-Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+Route Snowflake work from Claude Code, OpenAI Codex, or VS Code + GitHub Copilot to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+
+It's a single plugin: VS Code, the GitHub Copilot CLI, and Claude Code all share the same [plugin format](https://code.visualstudio.com/docs/agent-customization/agent-plugins), so the same `.claude-plugin/plugin.json`, hooks, and skills work across all three.
 
 ## How It Works
 
@@ -83,6 +85,35 @@ codex
 ```
 
 Select "Snowflake AI Kit" marketplace, then "Snowflake Cortex Code", then Install.
+
+### Via VS Code + GitHub Copilot
+
+Prerequisites: [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli), VS Code with GitHub Copilot (agent mode). VS Code reads the same `.claude-plugin/plugin.json` and runs the plugin's hooks and skills natively ([agent plugins docs](https://code.visualstudio.com/docs/agent-customization/agent-plugins)).
+
+**Option 1 — GitHub Copilot CLI** (VS Code auto-discovers plugins installed this way, from `~/.copilot/installed-plugins/`):
+
+```bash
+copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+copilot plugin install snowflake-cortex-code@snowflake-ai-kit
+```
+
+**Option 2 — VS Code settings.** Add the marketplace, then install from the Extensions view (`@agentPlugins` → snowflake-cortex-code):
+
+```jsonc
+// settings.json
+"chat.plugins.marketplaces": ["Snowflake-Labs/snowflake-ai-kit"]
+```
+
+**Option 3 — Install from source.** Run **Chat: Install Plugin From Source** and paste `https://github.com/Snowflake-Labs/snowflake-ai-kit`.
+
+**Option 4 — Local clone.** Register the plugin directory with the `chat.pluginLocations` setting:
+
+```jsonc
+// settings.json
+"chat.pluginLocations": { "/path/to/snowflake-ai-kit/plugins/cortex-code": true }
+```
+
+Restart VS Code after installing so Copilot loads the plugin's hooks and skills.
 
 ## Security Model
 

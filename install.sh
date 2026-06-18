@@ -115,11 +115,29 @@ install_codex_cli() {
   return 1
 }
 
+# ─── Copilot plugin (VS Code + GitHub Copilot CLI) ──────────
+
+install_copilot_cli() {
+  if check_cmd copilot; then
+    ok "GitHub Copilot CLI (copilot) already installed"
+    return 0
+  fi
+
+  msg "Installing GitHub Copilot CLI..."
+  if check_cmd npm; then
+    npm install -g @github/copilot 2>/dev/null && ok "GitHub Copilot CLI installed via npm" && return 0
+  fi
+  warn "Could not install GitHub Copilot CLI (requires Node.js + npm)."
+  msg "  Install manually: npm install -g @github/copilot"
+  return 1
+}
+
 # ─── Parse arguments ────────────────────────────────────────
 
 CHECK_ONLY=false
 WITH_CLAUDE=false
 WITH_CODEX=false
+WITH_COPILOT=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -135,18 +153,23 @@ while [ $# -gt 0 ]; do
       WITH_CODEX=true
       shift
       ;;
+    --with-copilot)
+      WITH_COPILOT=true
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
       echo "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex)."
-      echo "Optionally installs Claude Code CLI and/or OpenAI Codex CLI."
+      echo "Optionally installs the Claude Code, OpenAI Codex, or GitHub Copilot CLI + plugin."
       echo ""
       echo "Usage: install.sh [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  --check, -c      Check installation status without installing"
-      echo "  --with-claude    Also install Claude Code CLI"
-      echo "  --with-codex     Also install OpenAI Codex CLI"
+      echo "  --with-claude    Also install Claude Code CLI + plugin"
+      echo "  --with-codex     Also install OpenAI Codex CLI + plugin"
+      echo "  --with-copilot   Also install GitHub Copilot CLI + plugin (works in VS Code)"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -169,6 +192,7 @@ if $CHECK_ONLY; then
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed"    || warn "Cortex Code CLI (cortex) not found"
   check_cmd claude && ok "Claude Code CLI (claude) installed"    || warn "Claude Code CLI (claude) not found"
   check_cmd codex  && ok "OpenAI Codex CLI (codex) installed"    || warn "OpenAI Codex CLI (codex) not found"
+  check_cmd copilot && ok "GitHub Copilot CLI (copilot) installed" || warn "GitHub Copilot CLI (copilot) not found"
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -188,6 +212,12 @@ fi
 if $WITH_CODEX || check_cmd codex; then
   step "Installing OpenAI Codex CLI..."
   install_codex_cli || true
+fi
+
+# Optional: VS Code + GitHub Copilot (plugin via GitHub Copilot CLI)
+if $WITH_COPILOT || check_cmd copilot; then
+  step "Installing GitHub Copilot CLI..."
+  install_copilot_cli || true
 fi
 
 # Plugin setup: add marketplace sources if the agent CLIs are present
@@ -227,8 +257,26 @@ if check_cmd claude; then
   fi
 fi
 
-if ! check_cmd codex && ! check_cmd claude; then
-  msg "  No agent CLI found. Install one with --with-claude or --with-codex"
+if check_cmd copilot; then
+  # VS Code auto-discovers plugins installed via the GitHub Copilot CLI (~/.copilot/installed-plugins/)
+  if copilot plugin marketplace list 2>/dev/null | grep -q "snowflake-ai-kit"; then
+    ok "Copilot marketplace already configured"
+  else
+    copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit 2>/dev/null \
+      && ok "Copilot marketplace added (Snowflake-Labs/snowflake-ai-kit)" \
+      || warn "Could not add Copilot marketplace. Run: copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit"
+  fi
+  if copilot plugin list 2>/dev/null | grep -q "snowflake-cortex-code"; then
+    ok "Copilot plugin already installed"
+  else
+    copilot plugin install snowflake-cortex-code@snowflake-ai-kit 2>/dev/null \
+      && ok "Copilot plugin installed (snowflake-cortex-code) — restart VS Code to load it" \
+      || warn "Could not install Copilot plugin. Run: copilot plugin install snowflake-cortex-code@snowflake-ai-kit"
+  fi
+fi
+
+if ! check_cmd codex && ! check_cmd claude && ! check_cmd copilot; then
+  msg "  No agent integration set up. Add one with --with-claude, --with-codex, or --with-copilot (VS Code + GitHub Copilot)"
 fi
 
 step "Checking Snowflake connection..."

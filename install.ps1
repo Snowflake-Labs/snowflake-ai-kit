@@ -15,6 +15,7 @@ param(
     [switch]$Check,
     [switch]$WithClaude,
     [switch]$WithCodex,
+    [switch]$WithCopilot,
     [switch]$Help
 )
 
@@ -132,20 +133,37 @@ function Install-CodexCLI {
     return $false
 }
 
+function Install-CopilotCLI {
+    if (Test-Command "copilot") {
+        Write-Ok "GitHub Copilot CLI (copilot) already installed"
+        return $true
+    }
+
+    Write-Msg "Installing GitHub Copilot CLI..."
+    if (Test-Command "npm") {
+        & npm install -g @github/copilot 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "GitHub Copilot CLI installed via npm"; return $true }
+    }
+    Write-Warn "Could not install GitHub Copilot CLI (requires Node.js + npm)."
+    Write-Msg "  Install manually: npm install -g @github/copilot"
+    return $false
+}
+
 # === Help ======================================================
 
 if ($Help) {
     Write-Host "Snowflake AI Kit -- Installer (Windows)"
     Write-Host ""
     Write-Host "Installs Snowflake CLI (snow) and Cortex Code CLI (cortex)."
-    Write-Host "Optionally installs Claude Code CLI and/or OpenAI Codex CLI."
+    Write-Host "Optionally installs the Claude Code, OpenAI Codex, or GitHub Copilot CLI + plugin."
     Write-Host ""
     Write-Host "Usage: .\install.ps1 [OPTIONS]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Check       Check installation status without installing"
-    Write-Host "  -WithClaude  Also install Claude Code CLI"
-    Write-Host "  -WithCodex   Also install OpenAI Codex CLI"
+    Write-Host "  -WithClaude  Also install Claude Code CLI + plugin"
+    Write-Host "  -WithCodex   Also install OpenAI Codex CLI + plugin"
+    Write-Host "  -WithCopilot Also install GitHub Copilot CLI + plugin (works in VS Code)"
     Write-Host "  -Help        Show this help"
     return
 }
@@ -163,6 +181,7 @@ if ($Check) {
     if (Test-Command "cortex") { Write-Ok "Cortex Code CLI (cortex) installed" } else { Write-Warn "Cortex Code CLI (cortex) not found" }
     if (Test-Command "claude") { Write-Ok "Claude Code CLI (claude) installed" } else { Write-Warn "Claude Code CLI (claude) not found" }
     if (Test-Command "codex")  { Write-Ok "OpenAI Codex CLI (codex) installed" } else { Write-Warn "OpenAI Codex CLI (codex) not found" }
+    if (Test-Command "copilot") { Write-Ok "GitHub Copilot CLI (copilot) installed" } else { Write-Warn "GitHub Copilot CLI (copilot) not found" }
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
@@ -182,6 +201,12 @@ if ($WithClaude -or (Test-Command "claude")) {
 if ($WithCodex -or (Test-Command "codex")) {
     Write-Step "Installing OpenAI Codex CLI..."
     Install-CodexCLI | Out-Null
+}
+
+# Optional: VS Code + GitHub Copilot (plugin via GitHub Copilot CLI)
+if ($WithCopilot -or (Test-Command "copilot")) {
+    Write-Step "Installing GitHub Copilot CLI..."
+    Install-CopilotCLI | Out-Null
 }
 
 # Plugin setup
@@ -225,8 +250,28 @@ if (Test-Command "claude") {
     }
 }
 
-if (-not (Test-Command "codex") -and -not (Test-Command "claude")) {
-    Write-Msg "  No agent CLI found. Install one with -WithClaude or -WithCodex"
+if (Test-Command "copilot") {
+    # VS Code auto-discovers plugins installed via the GitHub Copilot CLI (~/.copilot/installed-plugins/)
+    $copilotList = & copilot plugin marketplace list 2>$null
+    if ($copilotList -match "snowflake-ai-kit") {
+        Write-Ok "Copilot marketplace already configured"
+    } else {
+        & copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Copilot marketplace added (Snowflake-Labs/snowflake-ai-kit)" }
+        else { Write-Warn "Could not add Copilot marketplace. Run: copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit" }
+    }
+    $copilotPlugins = & copilot plugin list 2>$null
+    if ($copilotPlugins -match "snowflake-cortex-code") {
+        Write-Ok "Copilot plugin already installed"
+    } else {
+        & copilot plugin install "snowflake-cortex-code@snowflake-ai-kit" 2>$null
+        if ($LASTEXITCODE -eq 0) { Write-Ok "Copilot plugin installed (snowflake-cortex-code) -- restart VS Code to load it" }
+        else { Write-Warn "Could not install Copilot plugin. Run: copilot plugin install snowflake-cortex-code@snowflake-ai-kit" }
+    }
+}
+
+if (-not (Test-Command "codex") -and -not (Test-Command "claude") -and -not (Test-Command "copilot")) {
+    Write-Msg "  No agent integration set up. Add one with -WithClaude, -WithCodex, or -WithCopilot (VS Code + GitHub Copilot)"
 }
 
 Write-Step "Checking Snowflake connection..."

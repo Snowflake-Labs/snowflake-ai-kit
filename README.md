@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
+Connect your AI coding agent to Snowflake. Plugins for **Claude Code**, **OpenAI Codex**, and **VS Code + GitHub Copilot** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
 
 ## Quick Start
 
@@ -28,6 +28,34 @@ codex plugin add snowflake-cortex-code@snowflake-ai-kit
 
 Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
 
+### VS Code + GitHub Copilot
+
+VS Code [agent plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins) use the **same plugin format** as Claude Code and Codex — so the Cortex Code plugin runs in VS Code unchanged. Two ways to install:
+
+**A. Via the GitHub Copilot CLI** (VS Code auto-discovers plugins installed this way):
+
+```bash
+copilot plugin marketplace add Snowflake-Labs/snowflake-ai-kit
+copilot plugin install snowflake-cortex-code@snowflake-ai-kit
+```
+
+Or let the kit installer do it for you:
+
+```bash
+npx @snowflake-labs/ai-kit --with-copilot
+```
+
+**B. From VS Code directly** — add the marketplace to your settings, then install from the Extensions view:
+
+```jsonc
+// settings.json
+"chat.plugins.marketplaces": ["Snowflake-Labs/snowflake-ai-kit"]
+```
+
+Open the Extensions view, search `@agentPlugins`, and install **snowflake-cortex-code**. (You can also run **Chat: Install Plugin From Source** and paste the repo URL.)
+
+Restart VS Code, open Copilot **agent mode**, and ask away. See [`plugins/cortex-code/`](plugins/cortex-code/) for details.
+
 ### That's it
 
 Ask naturally — the plugin handles routing:
@@ -42,7 +70,7 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in yo
 ## How It Works
 
 ```
-You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+You → Claude Code / Codex / Copilot → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
 ```
 
 1. A lightweight keyword filter runs on every prompt (~50ms, no network)
@@ -93,6 +121,7 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 | `--check` / `-Check` | Check installation status without installing |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI + plugin |
 | `--with-codex` / `-WithCodex` | Also install OpenAI Codex CLI + plugin |
+| `--with-copilot` / `-WithCopilot` | Also install GitHub Copilot CLI + plugin (works in VS Code) |
 | `--help` / `-Help` | Show help |
 
 ## Skills

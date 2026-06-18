@@ -2,7 +2,7 @@
 
 ## What This Repo Is
 
-Developer tools for building on Snowflake with AI coding agents. Includes a Claude Code plugin (auto-routes Snowflake prompts to Cortex Code) and installers (shell + PowerShell + npx).
+Developer tools for building on Snowflake with AI coding agents. A single Cortex Code plugin works across **Claude Code**, **OpenAI Codex**, and **VS Code + GitHub Copilot** (all share the same plugin format and auto-route Snowflake prompts to Cortex Code), plus installers (shell + PowerShell + npx).
 
 ## Architecture
 
@@ -70,8 +70,14 @@ Tests exit non-zero on any FAIL. Warnings (marked "warn") are informational only
 
 The three installers (`install.sh`, `install.ps1`, `bin/install.mjs`) share the same logic:
 - Install Snow CLI + Cortex Code CLI by default
-- `--with-claude` / `-WithClaude` adds Claude Code CLI + router skill
+- `--with-claude` / `-WithClaude` adds Claude Code CLI + plugin
+- `--with-codex` / `-WithCodex` adds OpenAI Codex CLI + plugin
+- `--with-copilot` / `-WithCopilot` adds the GitHub Copilot CLI + plugin. VS Code auto-discovers plugins installed via the Copilot CLI (`~/.copilot/installed-plugins/`), so the same plugin works in the VS Code IDE. VS Code-only users can instead add the marketplace to the `chat.plugins.marketplaces` setting. No separate skill or extension involved.
 - `--check` / `--update` / `--list` flags for status, re-install, and listing
 - Skip anything already installed; verify Snowflake connection at the end
 
 Do not convert these to `pip install` or `npm install` patterns — they are intentionally standalone.
+
+## VS Code + GitHub Copilot compatibility
+
+VS Code agent plugins use the same format as Claude Code / Copilot CLI. VS Code detects the plugin via `plugins/cortex-code/.claude-plugin/plugin.json` (one of its recognized manifest locations) and supports Claude-format hooks (`hooks/hooks.json`) and the `${CLAUDE_PLUGIN_ROOT}` token. So the existing auto-routing (UserPromptSubmit hook → `prompt_filter.py` → `cortex-router` skill) runs in VS Code with no extra files — do not add a separate Copilot-only skill.
