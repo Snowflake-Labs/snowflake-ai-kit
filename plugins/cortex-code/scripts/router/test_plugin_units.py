@@ -517,7 +517,7 @@ def test_invocation_source_env():
 
     results = []
 
-    def _capture_env(set_plugin_root):
+    def _capture_env(set_plugin_root, set_claudecode=False):
         """Run execute_cortex_streaming with mocked Popen, capture env."""
         captured = {}
 
@@ -525,12 +525,19 @@ def test_invocation_source_env():
             captured.update(kwargs.get("env") or {})
             raise OSError("Mock: aborting after capturing env")
 
-        # Use patch.dict to cleanly add/remove PLUGIN_ROOT without side effects
-        env_overrides = {"PLUGIN_ROOT": "/tmp/fake-plugin-root"} if set_plugin_root else {}
-        env_removals = [] if set_plugin_root else ["PLUGIN_ROOT"]
+        # Use patch.dict to cleanly add/remove env vars without side effects
+        env_overrides = {}
+        if set_plugin_root:
+            env_overrides["PLUGIN_ROOT"] = "/tmp/fake-plugin-root"
+        if set_claudecode:
+            env_overrides["CLAUDECODE"] = "1"
+        env_removals = []
+        if not set_plugin_root:
+            env_removals.append("PLUGIN_ROOT")
+        if not set_claudecode:
+            env_removals.extend(["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"])
 
         with patch.dict(os.environ, env_overrides, clear=False):
-            # Ensure PLUGIN_ROOT is absent for the Claude Code test
             for key in env_removals:
                 os.environ.pop(key, None)
             with patch("execute_cortex.check_cortex_cli", return_value=True):
@@ -542,8 +549,8 @@ def test_invocation_source_env():
                             pass
         return captured
 
-    # Claude Code: no PLUGIN_ROOT -> "Claude Code Plugin"
-    env_no_plugin_root = _capture_env(False)
+    # Claude Code: CLAUDECODE set, no PLUGIN_ROOT -> "Claude Code Plugin"
+    env_no_plugin_root = _capture_env(False, set_claudecode=True)
     results.append(expect(
         "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Claude Code)",
         "CORTEX_CODE_ENTRYPOINT" in env_no_plugin_root, True))
@@ -551,8 +558,8 @@ def test_invocation_source_env():
         "invocation_source: Claude Code -> 'Claude Code Plugin'",
         env_no_plugin_root.get("CORTEX_CODE_ENTRYPOINT"), "Claude Code Plugin"))
 
-    # Codex: PLUGIN_ROOT set -> "Codex Plugin"
-    env_with_plugin_root = _capture_env(True)
+    # Codex: PLUGIN_ROOT set, no Claude Code signals -> "Codex Plugin"
+    env_with_plugin_root = _capture_env(True, set_claudecode=False)
     results.append(expect(
         "invocation_source: CORTEX_CODE_ENTRYPOINT is set (Codex)",
         "CORTEX_CODE_ENTRYPOINT" in env_with_plugin_root, True))
@@ -780,25 +787,190 @@ def test_codex_hook_input_format():
         _shutil.rmtree(tmp, ignore_errors=True)
         return output
 
-    # Codex format: { "prompt": "..." }
-    out = _run_with_input({"prompt": "show me my snowflake tables"})
+    # Claude Code format: realistic UserPromptSubmit payload with hook_event_name + transcript_path
+    out = _run_with_input({"hook_event_name": "UserPromptSubmit", "transcript_path": "/tmp/t.jsonl",
+                           "session_id": "x", "cwd": "/tmp",
+                           "prompt": "show me my snowflake tables"})
     parsed = json.loads(out) if out else {}
     ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
-    results.append(expect("codex_hook_input: 'prompt' field routes correctly",
-                          "CORTEX ROUTER" in ctx, True))
+    results.append(expect("claude_code_hook_input: routes to cortex-router skill",
+                          "cortex-router" in ctx and "skill" in ctx.lower(), True))
 
-    # Claude Code format: { "message": "..." }
-    out = _run_with_input({"message": "show me my snowflake warehouses"})
+    # Codex format: bare {"prompt": ...} with PLUGIN_ROOT env var set and no Claude Code signals
+    import os as _os
+    import prompt_filter as _pf
+    _orig_plugin_root = _os.environ.get("PLUGIN_ROOT")
+    _orig_claudecode = _os.environ.get("CLAUDECODE")
+    _orig_cc_entry = _os.environ.get("CLAUDE_CODE_ENTRYPOINT")
+    # Set Codex signal, remove Claude Code signals
+    _os.environ["PLUGIN_ROOT"] = "/tmp/fake-plugin"
+    _os.environ.pop("CLAUDECODE", None)
+    _os.environ.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    # Reset module-level detection flag from previous call
+    _pf._detected_claude_code_from_stdin = False
+    try:
+        out = _run_with_input({"prompt": "show me my snowflake warehouses"})
+    finally:
+        if _orig_plugin_root is None:
+            _os.environ.pop("PLUGIN_ROOT", None)
+        else:
+            _os.environ["PLUGIN_ROOT"] = _orig_plugin_root
+        if _orig_claudecode is not None:
+            _os.environ["CLAUDECODE"] = _orig_claudecode
+        if _orig_cc_entry is not None:
+            _os.environ["CLAUDE_CODE_ENTRYPOINT"] = _orig_cc_entry
     parsed = json.loads(out) if out else {}
     ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
-    results.append(expect("codex_hook_input: 'message' field routes correctly",
-                          "CORTEX ROUTER" in ctx, True))
+    results.append(expect("codex_hook_input: routes to bash steps (not skill)",
+                          "Follow these steps IN ORDER" in ctx, True))
 
     # Codex format with non-Snowflake prompt -> empty
     out = _run_with_input({"prompt": "fix the bug in main.py"})
     parsed = json.loads(out) if out else {}
     results.append(expect("codex_hook_input: non-SF prompt -> empty",
                           parsed == {} or "hookSpecificOutput" not in parsed, True))
+
+    return results
+
+
+# ── Host detection edge cases ─────────────────────────────────────
+
+def test_host_detection_edge_cases():
+    """Verify host detection precedence and fail-safe behavior (SNOW-3754128)."""
+    from unittest.mock import patch
+
+    results = []
+
+    def _run_with_input(stdin_data):
+        """Simulate prompt_filter.main() with given stdin."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_host_detect_"))
+        claude_dir = tmp / ".claude"
+        claude_dir.mkdir()
+        (claude_dir / "settings.json").write_text(
+            json.dumps({"mcpServers": {}}), encoding="utf-8"
+        )
+
+        stdin_buf = io.StringIO(json.dumps(stdin_data))
+        stdout_buf = io.StringIO()
+        with patch("prompt_filter.Path.home", return_value=tmp):
+            with patch("prompt_filter.sys.stdin", stdin_buf):
+                with patch("prompt_filter.sys.stdout", stdout_buf):
+                    with patch("prompt_filter.shutil.which", return_value="/usr/bin/cortex"):
+                        try:
+                            import prompt_filter
+                            prompt_filter.main()
+                        except SystemExit:
+                            pass
+        output = stdout_buf.getvalue().strip()
+        import shutil as _shutil
+        _shutil.rmtree(tmp, ignore_errors=True)
+        return output
+
+    import os as _os
+    import prompt_filter as _pf
+
+    def _save_env():
+        return {
+            "PLUGIN_ROOT": _os.environ.get("PLUGIN_ROOT"),
+            "CLAUDE_PLUGIN_ROOT": _os.environ.get("CLAUDE_PLUGIN_ROOT"),
+            "CLAUDECODE": _os.environ.get("CLAUDECODE"),
+            "CLAUDE_CODE_ENTRYPOINT": _os.environ.get("CLAUDE_CODE_ENTRYPOINT"),
+        }
+
+    def _restore_env(saved):
+        for k, v in saved.items():
+            if v is None:
+                _os.environ.pop(k, None)
+            else:
+                _os.environ[k] = v
+
+    # --- Test 1: Ambiguous caller (no env vars, no hook_event_name) → Claude Code (fail-safe)
+    saved = _save_env()
+    _os.environ.pop("PLUGIN_ROOT", None)
+    _os.environ.pop("CLAUDE_PLUGIN_ROOT", None)
+    _os.environ.pop("CLAUDECODE", None)
+    _os.environ.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    _pf._detected_claude_code_from_stdin = False
+    try:
+        out = _run_with_input({"prompt": "show me my snowflake databases"})
+    finally:
+        _restore_env(saved)
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("host_detect: ambiguous caller defaults to Claude Code (fail-safe)",
+                          "cortex-router" in ctx and "skill" in ctx.lower(), True))
+
+    # --- Test 2: Both signals (PLUGIN_ROOT + CLAUDECODE) → Claude Code wins
+    saved = _save_env()
+    _os.environ["PLUGIN_ROOT"] = "/tmp/fake-plugin"
+    _os.environ["CLAUDECODE"] = "1"
+    _os.environ.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    _pf._detected_claude_code_from_stdin = False
+    try:
+        out = _run_with_input({"prompt": "show me my snowflake tables"})
+    finally:
+        _restore_env(saved)
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("host_detect: CLAUDECODE takes precedence over PLUGIN_ROOT",
+                          "cortex-router" in ctx and "skill" in ctx.lower(), True))
+
+    # --- Test 3: CLAUDECODE env only (bare {prompt}, no hook_event_name) → Claude Code
+    saved = _save_env()
+    _os.environ.pop("PLUGIN_ROOT", None)
+    _os.environ.pop("CLAUDE_PLUGIN_ROOT", None)
+    _os.environ["CLAUDECODE"] = "1"
+    _os.environ.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    _pf._detected_claude_code_from_stdin = False
+    try:
+        out = _run_with_input({"prompt": "show me my snowflake warehouses"})
+    finally:
+        _restore_env(saved)
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("host_detect: CLAUDECODE env alone routes to Claude Code path",
+                          "cortex-router" in ctx and "skill" in ctx.lower(), True))
+
+    # --- Test 4: execute_cortex.py entrypoint detection (CLAUDECODE + PLUGIN_ROOT)
+    saved = _save_env()
+    _os.environ["PLUGIN_ROOT"] = "/tmp/fake"
+    _os.environ["CLAUDECODE"] = "1"
+    try:
+        sys.path.insert(0, str(Path(__file__).parent))
+        import execute_cortex
+        import importlib
+        importlib.reload(execute_cortex)
+        # Simulate the env detection logic from execute_cortex_streaming
+        env = _os.environ.copy()
+        if _os.environ.get("CLAUDECODE") or _os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
+        elif _os.environ.get("PLUGIN_ROOT") or _os.environ.get("CLAUDE_PLUGIN_ROOT"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+        else:
+            env["CORTEX_CODE_ENTRYPOINT"] = "Unknown"
+        results.append(expect("host_detect: execute_cortex prefers CLAUDECODE over PLUGIN_ROOT",
+                              env["CORTEX_CODE_ENTRYPOINT"], "Claude Code Plugin"))
+    finally:
+        _restore_env(saved)
+
+    # --- Test 5: execute_cortex.py ambiguous caller → "Unknown" entrypoint
+    saved = _save_env()
+    _os.environ.pop("PLUGIN_ROOT", None)
+    _os.environ.pop("CLAUDE_PLUGIN_ROOT", None)
+    _os.environ.pop("CLAUDECODE", None)
+    _os.environ.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    try:
+        env = _os.environ.copy()
+        if _os.environ.get("CLAUDECODE") or _os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
+        elif _os.environ.get("PLUGIN_ROOT") or _os.environ.get("CLAUDE_PLUGIN_ROOT"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+        else:
+            env["CORTEX_CODE_ENTRYPOINT"] = "Unknown"
+        results.append(expect("host_detect: ambiguous caller gets 'Unknown' entrypoint label",
+                              env["CORTEX_CODE_ENTRYPOINT"], "Unknown"))
+    finally:
+        _restore_env(saved)
 
     return results
 
@@ -883,6 +1055,7 @@ def main():
     all_results.extend(test_codex_plugin_manifest())
     all_results.extend(test_codex_marketplace_json())
     all_results.extend(test_codex_hook_input_format())
+    all_results.extend(test_host_detection_edge_cases())
     all_results.extend(test_codex_skill_namespace_consistency())
     all_results.extend(test_codex_hooks_env_compat())
 

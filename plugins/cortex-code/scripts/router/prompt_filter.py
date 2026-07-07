@@ -92,17 +92,29 @@ def _get_plugin_root():
 
 
 # Module-level flag set by main() based on stdin format detection
-_detected_codex_from_stdin = False
+_detected_claude_code_from_stdin = False
 
 
-def _is_codex():
-    """Detect if running inside Codex (vs Claude Code).
+def _is_claude_code():
+    """Detect if running inside Claude Code (vs Codex). Fail-safe: ambiguous = Claude Code.
 
-    Detection:
-    1. PLUGIN_ROOT env var (Codex-specific, not set by Claude Code)
-    2. Stdin format detection: Codex sends {"prompt": ...}, Claude Code sends {"message": ...}
+    Claude Code signals (any one is sufficient):
+    1. Env: CLAUDECODE=1 or CLAUDE_CODE_ENTRYPOINT set
+    2. Stdin payload contains hook_event_name or transcript_path
+
+    Codex signals (must be present AND no Claude Code signal):
+    1. Env: PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT set
     """
-    return bool(os.environ.get("PLUGIN_ROOT")) or _detected_codex_from_stdin
+    # Positive Claude Code detection
+    if os.environ.get("CLAUDECODE") or os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+        return True
+    if _detected_claude_code_from_stdin:
+        return True
+    # Only Codex if PLUGIN_ROOT is explicitly set
+    if os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT"):
+        return False
+    # Ambiguous — default to Claude Code (permission-gated = safe)
+    return True
 
 
 def check_prompt(prompt: str) -> str | None:
@@ -119,11 +131,11 @@ def check_prompt(prompt: str) -> str | None:
     # Check for Snowflake keywords
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
-            plugin_root = _get_plugin_root()
-            if _is_codex() or _detected_codex_from_stdin:
-                return _codex_routing_instruction(plugin_root)
-            else:
+            if _is_claude_code():
                 return _claude_code_routing_instruction()
+            else:
+                plugin_root = _get_plugin_root()
+                return _codex_routing_instruction(plugin_root)
 
     return None
 
@@ -181,11 +193,11 @@ def main():
     # Extract the prompt text
     prompt = ""
     if isinstance(data, dict):
-        # Detect Codex vs Claude Code from stdin format:
-        # Codex sends {"prompt": "..."}, Claude Code sends {"message": "..."}
-        global _detected_codex_from_stdin
-        if "prompt" in data and "message" not in data:
-            _detected_codex_from_stdin = True
+        # Detect Claude Code positively from stdin payload structure:
+        # Claude Code UserPromptSubmit sends hook_event_name + transcript_path + prompt
+        global _detected_claude_code_from_stdin
+        if "hook_event_name" in data or "transcript_path" in data:
+            _detected_claude_code_from_stdin = True
 
         # The hook receives the full message object
         prompt = data.get("prompt", data.get("message", ""))
@@ -213,7 +225,7 @@ def main():
 
         # Snowflake prompt detected -- check if cortex CLI is available
         if not shutil.which("cortex"):
-            if _is_codex():
+            if not _is_claude_code():
                 install_msg = (
                     "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
                     "snow CLI, or any other workaround. "
