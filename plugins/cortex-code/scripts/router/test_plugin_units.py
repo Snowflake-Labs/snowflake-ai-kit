@@ -17,6 +17,11 @@ import tempfile
 import time
 from pathlib import Path
 
+# Ensure UTF-8 output on Windows (prevents UnicodeEncodeError with box-drawing chars)
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 sys.path.insert(0, str(Path(__file__).parent))
 import session_state
 from execute_cortex import (
@@ -1038,6 +1043,263 @@ def test_codex_hooks_env_compat():
     return results
 
 
+def test_sf_solutions_skill():
+    """Validate sf-solutions skill structure, frontmatter, and content."""
+    results = []
+    print("\n── sf-solutions skill ──────────────────────────────────────")
+
+    skill_dir = Path(__file__).parent.parent.parent / "skills" / "sf-solutions"
+    skill_file = skill_dir / "SKILL.md"
+
+    # ── Structure ──
+    results.append(expect("sf-solutions dir exists", skill_dir.is_dir(), True))
+    results.append(expect("sf-solutions SKILL.md exists", skill_file.is_file(), True))
+
+    if not skill_file.is_file():
+        print("       Skipping content checks — file not found")
+        return results
+
+    content = skill_file.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    # ── Frontmatter validation ──
+    results.append(expect(
+        "frontmatter starts with ---",
+        lines[0].strip() == "---",
+        True
+    ))
+    # Find closing ---
+    closing_idx = None
+    for i, line in enumerate(lines[1:], 1):
+        if line.strip() == "---":
+            closing_idx = i
+            break
+    results.append(expect(
+        "frontmatter has closing ---",
+        closing_idx is not None and closing_idx > 1,
+        True
+    ))
+
+    frontmatter = "\n".join(lines[1:closing_idx]) if closing_idx else ""
+
+    results.append(expect(
+        "has name: sf-solutions",
+        "name: sf-solutions" in frontmatter,
+        True
+    ))
+    results.append(expect(
+        "has user-invocable: true",
+        "user-invocable: true" in frontmatter,
+        True
+    ))
+    results.append(expect(
+        "has version in metadata",
+        "version:" in frontmatter,
+        True
+    ))
+    results.append(expect(
+        "has author in metadata",
+        "author:" in frontmatter,
+        True
+    ))
+    results.append(expect(
+        "has repository URL in metadata",
+        "https://github.com/Snowflake-Labs/sf-mleu-solutions" in frontmatter,
+        True
+    ))
+
+    # ── Description / trigger keywords ──
+    desc_section = frontmatter.split("description:")[1].split("\n")[0] if "description:" in frontmatter else ""
+    # May be multi-line (quoted), grab until next top-level key
+    if "description:" in frontmatter:
+        desc_start = frontmatter.index("description:")
+        desc_block = frontmatter[desc_start:]
+        # Take lines until we hit a non-indented key
+        desc_lines = []
+        for dl in desc_block.splitlines():
+            if dl.startswith("description:"):
+                desc_lines.append(dl)
+            elif dl.startswith(" ") or dl.startswith('"'):
+                desc_lines.append(dl)
+            else:
+                break
+        desc_section = " ".join(desc_lines)
+
+    required_triggers = ["predictive maintenance", "supply chain", "mleu", "manufacturing",
+                         "solutions", "energy", "utilities", "logistics"]
+    for keyword in required_triggers:
+        results.append(expect(
+            f"trigger keyword: {keyword}",
+            keyword.lower() in desc_section.lower(),
+            True
+        ))
+
+    # ── Core workflow sections ──
+    required_sections = [
+        ("argument parsing", "Parse Arguments"),
+        ("repo discovery", "Locate the sf-mleu-solutions Repository"),
+        ("list flow", "List Available Solutions"),
+        ("install flow", "Install a Solution"),
+        ("teardown flow", "Teardown a Solution"),
+    ]
+    for label, heading in required_sections:
+        results.append(expect(
+            f"has section: {label}",
+            heading in content,
+            True
+        ))
+
+    # ── Install workflow completeness ──
+    install_requirements = [
+        ("validates solution exists", "Validate the solution exists"),
+        ("reads manifest", "Read the manifest"),
+        ("queries account info", "CURRENT_ACCOUNT_NAME"),
+        ("shows install plan", "installation plan" in content.lower() or "install plan" in content.lower()),
+        ("requires confirmation before install", "Wait for user confirmation" in content or "Do NOT proceed without" in content),
+        ("executes setup.sql", "setup.sql"),
+        ("handles data.sql", "data.sql"),
+        ("confirms success", "Confirm success"),
+    ]
+    for label, check in install_requirements:
+        if isinstance(check, bool):
+            results.append(expect(f"install: {label}", check, True))
+        else:
+            results.append(expect(f"install: {label}", check in content, True))
+
+    # ── Teardown workflow completeness ──
+    teardown_requirements = [
+        ("shows what will be removed", "permanently remove" in content.lower() or "what will be removed" in content.lower()),
+        ("requires teardown confirmation", "cannot be undone" in content.lower() or "explicit confirmation" in content.lower()),
+        ("handles missing teardown.sql", "teardown.sql" in content),
+        ("has DROP fallback", "DROP DATABASE" in content),
+    ]
+    for label, check in teardown_requirements:
+        results.append(expect(f"teardown: {label}", check, True))
+
+    # ── Error handling ──
+    error_handling = [
+        ("handles clone failure", "clone fails" in content.lower() or "could not" in content.lower()),
+        ("handles repo not found", "not found" in content.lower()),
+        ("provides manual clone instructions", "git clone https://github.com/Snowflake-Labs/sf-mleu-solutions" in content),
+        ("stops on error (no silent failures)", "STOP" in content or "Do NOT proceed" in content),
+    ]
+    for label, check in error_handling:
+        results.append(expect(f"error: {label}", check, True))
+
+    # ── Security: no credential exposure ──
+    dangerous_patterns = [
+        "password",
+        "secret_key",
+        "api_key",
+        "private_key",
+        "SNOWFLAKE_PASSWORD",
+    ]
+    for pattern in dangerous_patterns:
+        results.append(expect(
+            f"no credential pattern: {pattern}",
+            pattern not in content,
+            True
+        ))
+
+    # ── Clone paths: checks multiple locations ──
+    clone_locations = [
+        "./sf-mleu-solutions",
+        "$HOME/sf-mleu-solutions",
+        "/tmp/sf-mleu-solutions",
+    ]
+    for loc in clone_locations:
+        results.append(expect(
+            f"checks location: {loc}",
+            loc in content,
+            True
+        ))
+
+    # ── Cross-platform: mentions Claude Code / Codex companion path ──
+    results.append(expect(
+        "mentions Claude Code companion plugin install",
+        "claude plugin install" in content,
+        True
+    ))
+    results.append(expect(
+        "references sf-mleu-solutions plugin path",
+        "Snowflake-Labs/sf-mleu-solutions/plugins/claude-code" in content,
+        True
+    ))
+
+    # ── Timeout handling for long SQL ──
+    results.append(expect(
+        "uses timeout for data loading",
+        "timeout_seconds: 600" in content or "timeout_seconds" in content,
+        True
+    ))
+
+    # ── No hardcoded Snowflake credentials or account identifiers ──
+    results.append(expect(
+        "no hardcoded account URL",
+        ".snowflakecomputing.com" not in content,
+        True
+    ))
+
+    return results
+
+
+def test_sf_solutions_cross_platform():
+    """Verify sf-solutions skill is accessible from all platform manifests."""
+    results = []
+    print("\n── sf-solutions cross-platform ─────────────────────────────")
+
+    plugin_root = Path(__file__).parent.parent.parent
+
+    # Both manifests should reference the skills directory
+    # Note: .codex-plugin serves both OpenAI Codex and Cortex Code
+    manifests = {
+        "claude": plugin_root / ".claude-plugin" / "plugin.json",
+        "codex/cortex": plugin_root / ".codex-plugin" / "plugin.json",
+    }
+
+    for platform, manifest_path in manifests.items():
+        results.append(expect(
+            f"{platform} manifest exists",
+            manifest_path.is_file(),
+            True
+        ))
+        if manifest_path.is_file():
+            manifest = json.loads(manifest_path.read_text())
+            # All manifests should point to ./skills
+            skills_ref = manifest.get("skills", "")
+            results.append(expect(
+                f"{platform} manifest references ./skills",
+                skills_ref == "./skills",
+                True
+            ))
+
+    # The skill should be in the shared skills directory
+    skill_file = plugin_root / "skills" / "sf-solutions" / "SKILL.md"
+    results.append(expect(
+        "SKILL.md in shared skills dir (accessible to all platforms)",
+        skill_file.is_file(),
+        True
+    ))
+
+    # Verify no platform-specific logic in the skill
+    if skill_file.is_file():
+        content = skill_file.read_text(encoding="utf-8")
+        # Should not contain platform-specific conditionals
+        platform_conditionals = [
+            "if platform == ",
+            "CLAUDE_PLUGIN_ROOT",
+            "CODEX_PLUGIN_ROOT",
+        ]
+        for conditional in platform_conditionals:
+            results.append(expect(
+                f"no platform-specific: {conditional}",
+                conditional not in content,
+                True
+            ))
+
+    return results
+
+
 def main():
     all_results = []
     all_results.extend(test_credential_paths())
@@ -1058,6 +1320,8 @@ def main():
     all_results.extend(test_host_detection_edge_cases())
     all_results.extend(test_codex_skill_namespace_consistency())
     all_results.extend(test_codex_hooks_env_compat())
+    all_results.extend(test_sf_solutions_skill())
+    all_results.extend(test_sf_solutions_cross_platform())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)

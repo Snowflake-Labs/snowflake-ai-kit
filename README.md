@@ -105,6 +105,35 @@ Skills are organized by source:
 | **EXTERNAL** | Added via `cortex skill add <path>` or `cortex skill add owner/repo`. |
 | **PROJECT** | Discovered from the current working directory. |
 
+## Industry Solutions
+
+Install pre-built Snowflake solution accelerators from [sf-mleu-solutions](https://github.com/Snowflake-Labs/sf-mleu-solutions) — Manufacturing, Logistics, Energy & Utilities use cases with one command.
+
+### Cortex Code
+
+```
+$sf-solutions                              # List available solutions
+$sf-solutions:predictive-maintenance       # Install a solution
+$sf-solutions:predictive-maintenance teardown   # Remove a solution
+```
+
+### Claude Code
+
+Install the companion plugin (one-time), then invoke:
+
+```bash
+claude plugin install Snowflake-Labs/sf-mleu-solutions/plugins/claude-code
+/sf-mleu-solutions:predictive-maintenance
+```
+
+### Available Solutions
+
+| Solution | Industry | Key Features |
+|----------|----------|--------------|
+| `predictive-maintenance` | Manufacturing | Snowflake Intelligence, Cortex Analyst, Semantic View, SPCS |
+| `supply-chain-intelligence` | Manufacturing | Cortex Search, Semantic Model, Streamlit |
+| `gnn-supply-chain-risk` | Manufacturing | Graph Neural Networks, PyTorch Geometric, SPCS GPU |
+
 ## Troubleshooting
 
 | Problem | Fix |

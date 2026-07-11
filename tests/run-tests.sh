@@ -93,6 +93,7 @@ check "plugin.json exists" test -f "$PLUGIN_DIR/.claude-plugin/plugin.json"
 check "skills/cortex-router exists"  test -d "$PLUGIN_DIR/skills/cortex-router"
 check "skills/cortex-run exists"     test -d "$PLUGIN_DIR/skills/cortex-run"
 check "skills/cortex-setup exists"   test -d "$PLUGIN_DIR/skills/cortex-setup"
+check "skills/sf-solutions exists"   test -d "$PLUGIN_DIR/skills/sf-solutions"
 
 # Core router scripts
 ROUTER_SCRIPTS=(
