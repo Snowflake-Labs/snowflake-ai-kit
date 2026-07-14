@@ -1104,7 +1104,7 @@ def test_sf_solutions_skill():
     ))
     results.append(expect(
         "has repository URL in metadata",
-        "https://github.com/Snowflake-Labs/sf-mleu-solutions" in frontmatter,
+        "https://github.com/Snowflake-Labs/snowflake-ai-kit" in frontmatter,
         True
     ))
 
@@ -1137,7 +1137,7 @@ def test_sf_solutions_skill():
     # ── Core workflow sections ──
     required_sections = [
         ("argument parsing", "Parse Arguments"),
-        ("repo discovery", "Locate the sf-mleu-solutions Repository"),
+        ("repo discovery", "Locate or Clone the Repository"),
         ("list flow", "List Available Solutions"),
         ("install flow", "Install a Solution"),
         ("teardown flow", "Teardown a Solution"),
@@ -1180,7 +1180,7 @@ def test_sf_solutions_skill():
     error_handling = [
         ("handles clone failure", "clone fails" in content.lower() or "could not" in content.lower()),
         ("handles repo not found", "not found" in content.lower()),
-        ("provides manual clone instructions", "git clone https://github.com/Snowflake-Labs/sf-mleu-solutions" in content),
+        ("provides manual clone instructions", "git clone" in content and "clone it manually" in content.lower()),
         ("stops on error (no silent failures)", "STOP" in content or "Do NOT proceed" in content),
     ]
     for label, check in error_handling:
@@ -1202,27 +1202,24 @@ def test_sf_solutions_skill():
         ))
 
     # ── Clone paths: checks multiple locations ──
-    clone_locations = [
-        "./sf-mleu-solutions",
-        "$HOME/sf-mleu-solutions",
-        "/tmp/sf-mleu-solutions",
+    # ── Registry-based repo resolution ──
+    registry_checks = [
+        ("has registry.json reference", "registry.json" in content),
+        ("resolves repo from registry", "REPO_URL" in content or "repo" in content.lower()),
+        ("checks multiple local paths", "$REPO_DIR_NAME" in content),
     ]
-    for loc in clone_locations:
-        results.append(expect(
-            f"checks location: {loc}",
-            loc in content,
-            True
-        ))
+    for label, check in registry_checks:
+        results.append(expect(label, check, True))
 
-    # ── Cross-platform: mentions Claude Code / Codex companion path ──
+    # ── Multi-industry support ──
     results.append(expect(
-        "mentions Claude Code companion plugin install",
-        "claude plugin install" in content,
+        "supports industry filter in arguments",
+        "industry" in content.lower() and "filter" in content.lower(),
         True
     ))
     results.append(expect(
-        "references sf-mleu-solutions plugin path",
-        "Snowflake-Labs/sf-mleu-solutions/plugins/claude-code" in content,
+        "references registry for solution lookup",
+        "registry.json" in content,
         True
     ))
 

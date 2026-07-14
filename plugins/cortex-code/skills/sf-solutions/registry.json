@@ -1,0 +1,29 @@
+[
+  {
+    "industry": "mleu",
+    "description": "Manufacturing, Logistics, Energy & Utilities",
+    "repo": "https://github.com/Snowflake-Labs/sf-mleu-solutions",
+    "solutions": [
+      {"name": "predictive-maintenance", "description": "CoWork, Cortex Analyst, SPCS"},
+      {"name": "supply-chain-intelligence", "description": "Cortex Search, Semantic Model"},
+      {"name": "gnn-supply-chain-risk", "description": "GNN, PyTorch, SPCS GPU"}
+    ]
+  },
+  {
+    "industry": "retail",
+    "description": "Retail & CPG",
+    "repo": "https://github.com/Snowflake-Labs/sf-retail-solutions",
+    "solutions": [
+      {"name": "ltv-prediction", "description": "Customer LTV, ML pipeline"},
+      {"name": "demand-forecasting", "description": "Time series, Cortex Forecast"}
+    ]
+  },
+  {
+    "industry": "healthcare",
+    "description": "Healthcare & Life Sciences",
+    "repo": "https://github.com/Snowflake-Labs/sf-healthcare-solutions",
+    "solutions": [
+      {"name": "clinical-quality-agent", "description": "Cortex Agent, Patient Safety"}
+    ]
+  }
+]

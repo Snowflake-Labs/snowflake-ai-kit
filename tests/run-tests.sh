@@ -94,6 +94,8 @@ check "skills/cortex-router exists"  test -d "$PLUGIN_DIR/skills/cortex-router"
 check "skills/cortex-run exists"     test -d "$PLUGIN_DIR/skills/cortex-run"
 check "skills/cortex-setup exists"   test -d "$PLUGIN_DIR/skills/cortex-setup"
 check "skills/sf-solutions exists"   test -d "$PLUGIN_DIR/skills/sf-solutions"
+check "sf-solutions/registry.json exists" test -f "$PLUGIN_DIR/skills/sf-solutions/registry.json"
+check "registry.json is valid JSON" python3 -c "import json; json.load(open('$PLUGIN_DIR/skills/sf-solutions/registry.json'))"
 
 # Core router scripts
 ROUTER_SCRIPTS=(
