@@ -10,9 +10,9 @@
     ]
   },
   {
-    "industry": "retail",
-    "description": "Retail & CPG",
-    "repo": "https://github.com/Snowflake-Labs/sf-retail-solutions",
+    "industry": "retail and consumer goods",
+    "description": "Retail & Consumer Goods",
+    "repo": "https://github.com/Snowflake-Labs/sf-rcg-solutions",
     "solutions": [
       {"name": "ltv-prediction", "description": "Customer LTV, ML pipeline"},
       {"name": "demand-forecasting", "description": "Time series, Cortex Forecast"}
@@ -21,7 +21,7 @@
   {
     "industry": "healthcare",
     "description": "Healthcare & Life Sciences",
-    "repo": "https://github.com/Snowflake-Labs/sf-healthcare-solutions",
+    "repo": "https://github.com/Snowflake-Labs/sf-hcls-solutions",
     "solutions": [
       {"name": "clinical-quality-agent", "description": "Cortex Agent, Patient Safety"}
     ]
