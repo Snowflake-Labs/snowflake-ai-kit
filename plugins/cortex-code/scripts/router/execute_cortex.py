@@ -7,13 +7,14 @@ Handles tool use events and final results.
 
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
 import sys
 import argparse
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
@@ -51,13 +52,28 @@ def check_credential_paths(prompt: str) -> Optional[str]:
     return None
 
 
+def _cortex_cmd(args: List[str]) -> List[str]:
+    """Build a subprocess-safe command list for the cortex CLI.
+
+    On Windows, cortex is installed as cortex.cmd (a batch script).
+    Python's subprocess cannot execute .cmd files directly without
+    shell=True. Instead we prepend 'cmd.exe /c' and use the fully
+    resolved path from shutil.which() to avoid PATH lookup issues
+    in subprocess environments.
+    """
+    cortex_bin = shutil.which("cortex") or "cortex"
+    if platform.system() == "Windows":
+        return ["cmd.exe", "/c", cortex_bin] + args
+    return [cortex_bin] + args
+
+
 def check_cortex_cli() -> bool:
     """Check if cortex CLI is available and functional."""
     if not shutil.which("cortex"):
         return False
     try:
         result = subprocess.run(
-            ["cortex", "--version"],
+            _cortex_cmd(["--version"]),
             capture_output=True, text=True, timeout=5
         )
         return result.returncode == 0
@@ -259,12 +275,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Prepend envelope instructions to the prompt
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
-    cmd = [
-        "cortex",
+    cmd = _cortex_cmd([
         "--output-format", "stream-json",
         "--input-format", "stream-json",
         "--permission-prompt-tool", "stdio",
-    ]
+    ])
 
     if resume_session_id:
         cmd.extend(["--resume", resume_session_id])
@@ -433,13 +448,12 @@ def _run_codex_mode(args):
 
     envelope_prompt = build_envelope_prompt(args.prompt, args.envelope)
 
-    cmd = [
-        "cortex",
+    cmd = _cortex_cmd([
         "--output-format", "stream-json",
         "--input-format", "stream-json",
         "--dangerously-allow-all-tool-calls",
         "--no-mcp",
-    ]
+    ])
 
     if args.connection:
         cmd.extend(["-c", args.connection])
