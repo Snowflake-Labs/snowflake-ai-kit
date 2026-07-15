@@ -20,11 +20,25 @@ from security.cache_manager import CacheManager
 from security.config_manager import ConfigManager
 
 
+def _cortex_cmd(args):
+    """Build a subprocess-safe command list for the cortex CLI.
+
+    On Windows, cortex is installed as cortex.cmd (a batch script).
+    Python's subprocess cannot execute .cmd files directly without
+    shell=True. Instead we prepend 'cmd.exe /c' and use the fully
+    resolved path to avoid PATH lookup issues in subprocess environments.
+    """
+    cortex_bin = shutil.which("cortex") or "cortex"
+    if platform.system() == "Windows":
+        return ["cmd.exe", "/c", cortex_bin] + args
+    return [cortex_bin] + args
+
+
 def run_command(cmd):
     """Run command and return output."""
     try:
         result = subprocess.run(
-            cmd.split(),
+            cmd if isinstance(cmd, list) else cmd.split(),
             shell=False,
             capture_output=True,
             text=True,
@@ -46,7 +60,7 @@ def discover_cortex_skills():
         # Verify cortex is functional (not a stub)
         try:
             check = subprocess.run(
-                ["cortex", "--version"],
+                _cortex_cmd(["--version"]),
                 capture_output=True, text=True, timeout=5
             )
             if check.returncode != 0:
@@ -61,7 +75,7 @@ def discover_cortex_skills():
     print("Discovering Cortex Code capabilities...", file=sys.stderr)
 
     # Run cortex skill list
-    stdout, stderr, code = run_command("cortex skill list")
+    stdout, stderr, code = run_command(_cortex_cmd(["skill", "list"]))
 
     if code != 0:
         print(f"Error running cortex skill list: {stderr}", file=sys.stderr)
