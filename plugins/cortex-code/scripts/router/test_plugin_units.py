@@ -716,6 +716,24 @@ def test_codex_plugin_manifest():
         results.append(expect("codex_manifest: name matches Claude plugin",
                               data["name"], claude_data["name"]))
 
+    # Version must match across all three locations
+    claude_manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    skill_md_path = plugin_root / "skills" / "cortex-router" / "SKILL.md"
+    versions = {}
+    if claude_manifest_path.exists():
+        versions["claude-plugin"] = json.loads(claude_manifest_path.read_text())["version"]
+    versions["codex-plugin"] = data["version"]
+    if skill_md_path.exists():
+        for line in skill_md_path.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version:"):
+                versions["SKILL.md"] = stripped.split(":", 1)[1].strip()
+                break
+    unique_versions = set(versions.values())
+    results.append(expect(
+        f"version_sync: all 3 locations match ({versions})",
+        len(unique_versions), 1))
+
     return results
 
 
