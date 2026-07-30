@@ -55,34 +55,87 @@ COMPILED_SF = [re.compile(p, re.IGNORECASE) for p in SNOWFLAKE_KEYWORDS]
 COMPILED_LOCAL = [re.compile(p, re.IGNORECASE) for p in LOCAL_KEYWORDS]
 
 
+def _check_mcp_servers_in_dict(servers, source_label):
+    """Scan an mcpServers dict for Snowflake-related entries."""
+    if not isinstance(servers, dict):
+        return None
+    for name, cfg in servers.items():
+        if not isinstance(cfg, dict):
+            continue
+        command = cfg.get("command", "")
+        args = " ".join(str(a) for a in cfg.get("args", []))
+        url = cfg.get("url", "")
+        search_str = f"{name} {command} {args} {url}".lower()
+        if "snowflake" in search_str:
+            return (
+                f"STOP. A Snowflake MCP server '{name}' is active in "
+                f"{source_label}. This CONFLICTS with Cortex Code CLI "
+                "(duplicate tools, auth issues). "
+                "Do NOT proceed with any Snowflake operations. "
+                "Tell the user: 'A Snowflake MCP server is active and conflicts "
+                "with Cortex Code. Please disable or remove it and try again.'"
+            )
+    return None
+
+
 def _check_mcp_conflict():
-    """Return a STOP message if a Snowflake MCP server is active, else None."""
-    settings_path = Path.home() / ".claude" / "settings.json"
+    """Return a STOP message if a Snowflake MCP server is active, else None.
+
+    Checks all Claude Code MCP scopes:
+    - Project: .mcp.json in cwd
+    - User: ~/.claude.json top-level mcpServers
+    - Local: ~/.claude.json projects.<cwd>.mcpServers
+    - Manual: ~/.claude/settings.json
+    """
+    # 1. Project scope: .mcp.json in cwd
     try:
-        if not settings_path.exists():
-            return None
-        data = _json.loads(settings_path.read_text(encoding="utf-8"))
-        servers = data.get("mcpServers", {})
-        if not isinstance(servers, dict):
-            return None
-        for name, cfg in servers.items():
-            if not isinstance(cfg, dict):
-                continue
-            command = cfg.get("command", "")
-            args = " ".join(str(a) for a in cfg.get("args", []))
-            search_str = f"{name} {command} {args}".lower()
-            if "snowflake" in search_str:
-                return (
-                    f"STOP. A Snowflake MCP server '{name}' is active in "
-                    "~/.claude/settings.json. This CONFLICTS with Cortex Code CLI "
-                    "(duplicate tools, auth issues). "
-                    "Do NOT proceed with any Snowflake operations. "
-                    "Tell the user: 'A Snowflake MCP server is active and conflicts "
-                    "with Cortex Code. Please disable or remove it from Claude Code "
-                    "settings (Settings > MCP Servers) and try again.'"
-                )
+        mcp_json = Path.cwd() / ".mcp.json"
+        if mcp_json.exists():
+            data = _json.loads(mcp_json.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, ".mcp.json (project scope)")
+            if conflict:
+                return conflict
     except (ValueError, PermissionError, OSError):
         pass
+
+    # 2. User + Local scope: ~/.claude.json
+    try:
+        claude_json = Path.home() / ".claude.json"
+        if claude_json.exists():
+            data = _json.loads(claude_json.read_text(encoding="utf-8"))
+            # User scope: top-level mcpServers
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, "~/.claude.json (user scope)")
+            if conflict:
+                return conflict
+            # Local scope: projects.<path>.mcpServers
+            projects = data.get("projects", {})
+            if isinstance(projects, dict):
+                for project_path, project_cfg in projects.items():
+                    if isinstance(project_cfg, dict):
+                        servers = project_cfg.get("mcpServers", {})
+                        conflict = _check_mcp_servers_in_dict(
+                            servers,
+                            f"~/.claude.json (local scope: {project_path})"
+                        )
+                        if conflict:
+                            return conflict
+    except (ValueError, PermissionError, OSError):
+        pass
+
+    # 3. Manual/legacy: ~/.claude/settings.json
+    try:
+        settings_path = Path.home() / ".claude" / "settings.json"
+        if settings_path.exists():
+            data = _json.loads(settings_path.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, "~/.claude/settings.json")
+            if conflict:
+                return conflict
+    except (ValueError, PermissionError, OSError):
+        pass
+
     return None
 
 

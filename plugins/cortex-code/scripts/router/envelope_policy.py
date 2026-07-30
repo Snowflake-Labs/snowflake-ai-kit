@@ -27,6 +27,7 @@ prepend to the prompt is a soft hint; this function is the hard gate.
 from __future__ import annotations
 
 import re
+import shlex
 from typing import Tuple
 
 
@@ -36,6 +37,7 @@ SAFE_BASH_PREFIXES = (
     "ls", "pwd", "cat", "head", "tail", "wc", "grep", "rg",
     "find", "file", "stat", "which", "type", "echo", "printf",
     "env", "date", "uname", "whoami", "id",
+    "snow sql", "snow connection", "snow stage list",
 )
 
 DESTRUCTIVE_BASH_PATTERNS = (
@@ -67,9 +69,11 @@ def _is_read_only_sql(resource: str) -> bool:
 # Shell fragments that turn an otherwise-safe command into a write or a
 # surface for arbitrary execution. Any presence disqualifies the command
 # from SAFE_BASH_PREFIXES in RO/RESEARCH mode.
-UNSAFE_SHELL_FRAGMENTS = (
-    re.compile(r"(?<!\d)>(?!=|>)"),          # redirection `>` (but not 2>&1, >=)
-    re.compile(r">>"),                       # append redirect
+#
+# NOTE: Redirect detection uses shlex tokenization (see _has_unsafe_fragments)
+# to avoid false-positives on Snowflake's `param => value` named-argument
+# syntax which appears inside quoted -q "..." arguments.
+UNSAFE_SHELL_FRAGMENT_PATTERNS = (
     re.compile(r"\$\("),                     # command substitution $( ... )
     re.compile(r"`"),                        # backtick substitution
     re.compile(r";\s*\S"),                   # command chaining `a; b`
@@ -80,9 +84,54 @@ UNSAFE_SHELL_FRAGMENTS = (
     re.compile(r"\bxargs\s+rm\b"),           # piped deletion
 )
 
+# Redirect operators that indicate writes. Checked only on unquoted shell
+# tokens (after shlex splitting) so that `=>` inside quoted SQL is safe.
+_REDIRECT_RE = re.compile(r"(?<!\d)>(?!=|>)")
+_APPEND_RE = re.compile(r">>")
+
+
+def _has_redirect_in_unquoted_tokens(command: str) -> bool:
+    """Check for shell redirects only in unquoted token positions.
+
+    Uses shlex.split to parse the command line, then inspects each token to
+    see if it IS a shell redirect (e.g., ">", ">>", "2>", ">file", ">>file").
+    Content inside quoted arguments (e.g., snow sql -q "... => 'val' ...") is
+    collapsed into a single token whose text happens to contain `>` — but
+    that's data, not a redirect operator.
+
+    A token is flagged as a redirect if:
+      - It matches a POSIX redirect pattern: optional fd digit(s) followed by
+        > or >> optionally followed by a filename (e.g., ">" "2>" ">out" ">>log")
+      - It is NOT the `=>` named-argument operator (which is purely data even
+        when unquoted in the original command line, since in shell `=>` is just
+        a word starting with `=` followed by a redirect).
+
+    To catch the real-world exploit `cat a.txt =>b.txt` (which IS a redirect
+    in POSIX shells because `=` just ends the preceding word and `>b.txt` is
+    a redirect), we flag tokens matching `=?>.*` ONLY when the `>` is NOT
+    preceded by `=` as part of a `=>` digraph that shlex would have kept
+    together from a quoted context.
+    """
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return True
+
+    # Pattern: optional fd digits, then > or >>, optionally followed by filename
+    redirect_re = re.compile(r"^\d*>{1,2}")
+    # Pattern: `=>file` — in POSIX shells, `=` is just a character that ends
+    # the preceding token, and `>file` is a redirect (e.g., `cat a.txt =>b.txt`)
+    eq_redirect_re = re.compile(r"^=>{1,2}")
+    for token in tokens:
+        if redirect_re.match(token) or eq_redirect_re.match(token):
+            return True
+    return False
+
 
 def _has_unsafe_fragments(command: str) -> bool:
-    return any(p.search(command) for p in UNSAFE_SHELL_FRAGMENTS)
+    if _has_redirect_in_unquoted_tokens(command):
+        return True
+    return any(p.search(command) for p in UNSAFE_SHELL_FRAGMENT_PATTERNS)
 
 
 def _is_safe_bash(command: str) -> bool:

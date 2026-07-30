@@ -20,6 +20,32 @@ sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
 from session_state import load_active_session, save_active_session
 
+# Audit logger — optional (degrades gracefully if security/ module is missing)
+_audit_logger = None
+
+def _get_audit_logger():
+    """Lazily initialize the audit logger from config. Returns None on failure."""
+    global _audit_logger
+    if _audit_logger is not None:
+        return _audit_logger
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from security.audit_logger import AuditLogger
+        from security.config_manager import ConfigManager
+        config = ConfigManager()
+        log_path = Path(config.get("security.audit_log_path",
+                                   str(Path.home() / ".claude" / "skills" / "cortex-code" / "audit.log")))
+        rotation = config.get("security.audit_log_rotation", "10MB")
+        retention = config.get("security.audit_log_retention", 30)
+        _audit_logger = AuditLogger(
+            log_path=log_path,
+            rotation_size=rotation,
+            retention_days=retention
+        )
+        return _audit_logger
+    except Exception:
+        return None
+
 
 CREDENTIAL_PATTERNS: list[Tuple[re.Pattern, str]] = [
     (re.compile(r'\.ssh/'), ".ssh/"),
@@ -81,36 +107,92 @@ def check_cortex_cli() -> bool:
         return False
 
 
+def _check_mcp_servers_in_dict(servers: dict, source_label: str) -> Optional[str]:
+    """Scan an mcpServers dict for Snowflake-related entries.
+
+    Returns a conflict message naming the server and source file, or None.
+    """
+    if not isinstance(servers, dict):
+        return None
+    for name, cfg in servers.items():
+        if not isinstance(cfg, dict):
+            continue
+        command = cfg.get("command", "")
+        args = " ".join(str(a) for a in cfg.get("args", []))
+        url = cfg.get("url", "")
+        search_str = f"{name} {command} {args} {url}".lower()
+        if "snowflake" in search_str:
+            return (
+                f"CONFLICT: Snowflake MCP server '{name}' is active in "
+                f"{source_label}. This conflicts with Cortex Code CLI "
+                "(duplicate tools, auth issues). "
+                "Please disable or remove it, then retry."
+            )
+    return None
+
+
 def check_mcp_conflict() -> Optional[str]:
-    """Check if a Snowflake MCP server is configured in Claude Code settings.
+    """Check if a Snowflake MCP server is configured in any Claude Code scope.
+
+    Claude Code registers MCP servers in three scopes:
+    - Project: .mcp.json in the current working directory
+    - User: ~/.claude.json top-level mcpServers
+    - Local: ~/.claude.json projects.<cwd>.mcpServers
+    - Manual: ~/.claude/settings.json mcpServers (legacy/manual)
 
     If found, Cortex Code and the MCP server will conflict (duplicate tool
     registrations, auth confusion). Returns conflict message or None.
     """
-    settings_path = Path.home() / ".claude" / "settings.json"
+    # 1. Project scope: .mcp.json in cwd
     try:
-        if not settings_path.exists():
-            return None
-        data = json.loads(settings_path.read_text(encoding="utf-8"))
-        servers = data.get("mcpServers", {})
-        if not isinstance(servers, dict):
-            return None
-        for name, cfg in servers.items():
-            if not isinstance(cfg, dict):
-                continue
-            command = cfg.get("command", "")
-            args = " ".join(str(a) for a in cfg.get("args", []))
-            search_str = f"{name} {command} {args}".lower()
-            if "snowflake" in search_str:
-                return (
-                    f"CONFLICT: Snowflake MCP server '{name}' is active in "
-                    "~/.claude/settings.json. This conflicts with Cortex Code CLI "
-                    "(duplicate tools, auth issues). "
-                    "Please disable or remove it from Claude Code settings "
-                    "(Settings > MCP Servers), then retry."
-                )
+        mcp_json = Path.cwd() / ".mcp.json"
+        if mcp_json.exists():
+            data = json.loads(mcp_json.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, ".mcp.json (project scope)")
+            if conflict:
+                return conflict
     except (json.JSONDecodeError, PermissionError, OSError):
-        return None
+        pass
+
+    # 2. User + Local scope: ~/.claude.json
+    try:
+        claude_json = Path.home() / ".claude.json"
+        if claude_json.exists():
+            data = json.loads(claude_json.read_text(encoding="utf-8"))
+            # User scope: top-level mcpServers
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, "~/.claude.json (user scope)")
+            if conflict:
+                return conflict
+            # Local scope: projects.<cwd_key>.mcpServers
+            projects = data.get("projects", {})
+            if isinstance(projects, dict):
+                cwd_str = str(Path.cwd())
+                for project_path, project_cfg in projects.items():
+                    if isinstance(project_cfg, dict):
+                        servers = project_cfg.get("mcpServers", {})
+                        conflict = _check_mcp_servers_in_dict(
+                            servers,
+                            f"~/.claude.json (local scope: {project_path})"
+                        )
+                        if conflict:
+                            return conflict
+    except (json.JSONDecodeError, PermissionError, OSError):
+        pass
+
+    # 3. Manual/legacy: ~/.claude/settings.json
+    try:
+        settings_path = Path.home() / ".claude" / "settings.json"
+        if settings_path.exists():
+            data = json.loads(settings_path.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            conflict = _check_mcp_servers_in_dict(servers, "~/.claude/settings.json")
+            if conflict:
+                return conflict
+    except (json.JSONDecodeError, PermissionError, OSError):
+        pass
+
     return None
 
 
@@ -125,7 +207,8 @@ ENVELOPE_INSTRUCTIONS = {
         "# Security Envelope: READ-ONLY\n"
         "You are operating in READ-ONLY mode.\n"
         "ALLOWED: SELECT, SHOW, DESCRIBE, EXPLAIN queries. "
-        "Reading files, searching, grepping.\n"
+        "Reading files, searching, grepping. "
+        "Safe read-only shell commands (grep, cat, ls, find, git log, snow sql -q 'SELECT ...').\n"
         "NOT ALLOWED: DDL (CREATE, ALTER, DROP), DML (INSERT, UPDATE, DELETE, MERGE), "
         "writing/editing/creating files, destructive bash (rm, sudo, chmod 777, git push --force).\n"
         "If the user's request requires write operations, explain what you would do "
@@ -144,7 +227,8 @@ ENVELOPE_INSTRUCTIONS = {
         "# Security Envelope: RESEARCH\n"
         "You are operating in RESEARCH mode.\n"
         "ALLOWED: SELECT, SHOW, DESCRIBE queries. Reading files, searching, "
-        "web_fetch, web_search.\n"
+        "web_fetch, web_search. "
+        "Safe read-only shell commands (grep, cat, ls, find, git log, snow sql -q 'SELECT ...').\n"
         "NOT ALLOWED: DDL, DML, writing/editing files, destructive bash.\n"
     ),
     "DEPLOY": (
@@ -275,6 +359,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Prepend envelope instructions to the prompt
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
+    # Initialize audit logger (best-effort, non-blocking)
+    audit = _get_audit_logger()
+
     cmd = _cortex_cmd([
         "--output-format", "stream-json",
         "--input-format", "stream-json",
@@ -368,6 +455,21 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                     "behavior": behavior,
                     "reason": reason,
                 })
+                # Audit log each permission decision
+                if audit:
+                    try:
+                        audit.log_execution(
+                            event_type="permission_decision",
+                            user=os.environ.get("USER", os.environ.get("USERNAME", "unknown")),
+                            routing={"envelope": envelope, "connection": connection or "default"},
+                            execution={"tool_name": tool_name, "action": action,
+                                       "resource": (resource or "")[:500]},
+                            result={"behavior": behavior, "reason": reason},
+                            session_id=None,
+                            cortex_session_id=results.get("session_id"),
+                        )
+                    except Exception:
+                        pass
                 _send_control_response(
                     process.stdin,
                     event.get("request_id", ""),
@@ -409,6 +511,23 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
             if stderr_output:
                 print(f"Stderr: {stderr_output}", file=sys.stderr)
+
+        # Audit log session summary
+        if audit:
+            try:
+                audit.log_execution(
+                    event_type="session_complete",
+                    user=os.environ.get("USER", os.environ.get("USERNAME", "unknown")),
+                    routing={"envelope": envelope, "connection": connection or "default"},
+                    execution={"total_decisions": len(results["permission_decisions"]),
+                               "allows": sum(1 for d in results["permission_decisions"] if d["behavior"] == "allow"),
+                               "denies": sum(1 for d in results["permission_decisions"] if d["behavior"] == "deny")},
+                    result={"status": "error" if results.get("error") else "success",
+                            "has_final_result": results.get("final_result") is not None},
+                    cortex_session_id=results.get("session_id"),
+                )
+            except Exception:
+                pass
 
         return results
 

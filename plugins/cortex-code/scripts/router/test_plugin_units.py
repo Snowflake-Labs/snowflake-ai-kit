@@ -327,6 +327,67 @@ def test_deploy_enforcement():
 
 # ── Audit logger hash chain (N-H3) ───────────────────────────────
 
+def test_audit_wiring():
+    """Verify execute_cortex._get_audit_logger() returns a working logger (#40)."""
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from security.audit_logger import AuditLogger
+
+    results = []
+    tmpdir = Path(tempfile.mkdtemp(prefix="test_audit_wire_"))
+
+    try:
+        # Test _get_audit_logger with explicit config override
+        from unittest.mock import patch, MagicMock
+        import execute_cortex
+
+        # Reset global cache
+        execute_cortex._audit_logger = None
+
+        mock_config = MagicMock()
+        mock_config.get.side_effect = lambda key, default=None: {
+            "security.audit_log_path": str(tmpdir / "audit.log"),
+            "security.audit_log_rotation": "10MB",
+            "security.audit_log_retention": 30,
+        }.get(key, default)
+
+        with patch("security.config_manager.ConfigManager", return_value=mock_config):
+            logger = execute_cortex._get_audit_logger()
+
+        results.append(expect("audit_wiring: _get_audit_logger returns AuditLogger",
+                              isinstance(logger, AuditLogger), True))
+
+        # Verify it can write entries
+        if logger:
+            logger.log_execution(
+                event_type="permission_decision",
+                user="test_user",
+                routing={"envelope": "RO", "connection": "test"},
+                execution={"tool_name": "Bash", "action": "execute_command", "resource": "ls"},
+                result={"behavior": "allow", "reason": "RO allows safe read-only bash"},
+            )
+            log_file = tmpdir / "audit.log"
+            results.append(expect("audit_wiring: audit.log file created",
+                                  log_file.exists(), True))
+            if log_file.exists():
+                lines = log_file.read_text().strip().split('\n')
+                results.append(expect("audit_wiring: entry written",
+                                      len(lines) >= 1, True))
+                entry = json.loads(lines[0])
+                results.append(expect("audit_wiring: event_type is permission_decision",
+                                      entry.get("event_type"), "permission_decision"))
+                results.append(expect("audit_wiring: has hash chain",
+                                      "entry_hash" in entry and "prev_hash" in entry, True))
+
+        # Reset global cache for other tests
+        execute_cortex._audit_logger = None
+
+    finally:
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return results
+
+
 def test_audit_hash_chain():
     """Verify audit log entries form a hash chain."""
     sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -410,102 +471,173 @@ def test_contextual_routing():
 # ── MCP conflict detection ─────────────────────────────────────────
 
 def test_mcp_conflict_detection():
-    """Verify MCP conflict detection covers all edge cases."""
+    """Verify MCP conflict detection covers all scopes and edge cases."""
     from unittest.mock import patch
 
     results = []
 
-    def _check(settings_content, label):
-        """Helper: write settings content to a tmp file and run check."""
-        tmp = Path(tempfile.mkdtemp(prefix="test_mcp_"))
-        settings_file = tmp / "settings.json"
-        if settings_content is not None:
-            settings_file.write_text(settings_content, encoding="utf-8")
-        with patch("execute_cortex.Path.home", return_value=tmp):
-            # check_mcp_conflict uses Path.home() / ".claude" / "settings.json"
-            # We need the .claude subdir
-            claude_dir = tmp / ".claude"
-            claude_dir.mkdir(exist_ok=True)
-            target = claude_dir / "settings.json"
-            if settings_content is not None:
-                target.write_text(settings_content, encoding="utf-8")
-            result = check_mcp_conflict()
-        import shutil as _shutil
-        _shutil.rmtree(tmp, ignore_errors=True)
+    def _check_with_home(home_dir):
+        """Run check_mcp_conflict with mocked home and cwd."""
+        with patch("execute_cortex.Path.home", return_value=home_dir):
+            with patch("execute_cortex.Path.cwd", return_value=home_dir / "project"):
+                result = check_mcp_conflict()
         return result
 
-    # 1. No settings file
-    r = _check(None, "no file")
-    results.append(expect("mcp: no settings file -> None", r, None))
+    def _setup_home(settings_content=None, claude_json_content=None, mcp_json_content=None):
+        """Create a temp dir with optional config files."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_mcp_"))
+        claude_dir = tmp / ".claude"
+        claude_dir.mkdir(exist_ok=True)
+        project_dir = tmp / "project"
+        project_dir.mkdir(exist_ok=True)
+        if settings_content is not None:
+            (claude_dir / "settings.json").write_text(settings_content, encoding="utf-8")
+        if claude_json_content is not None:
+            (tmp / ".claude.json").write_text(claude_json_content, encoding="utf-8")
+        if mcp_json_content is not None:
+            (project_dir / ".mcp.json").write_text(mcp_json_content, encoding="utf-8")
+        return tmp
 
-    # 2. Empty mcpServers
-    r = _check(json.dumps({"mcpServers": {}}), "empty servers")
+    # 1. No config files at all
+    tmp = _setup_home()
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: no config files -> None", r, None))
+    import shutil as _shutil
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 2. Empty mcpServers in settings.json
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {}}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: empty mcpServers -> None", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     # 3. Non-Snowflake server only
-    r = _check(json.dumps({"mcpServers": {
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "github": {"command": "gh-mcp", "args": ["--token", "abc"]}
-    }}), "non-SF")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: non-Snowflake server -> None", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
-    # 4. "snowflake" in server name
-    r = _check(json.dumps({"mcpServers": {
+    # 4. "snowflake" in server name (settings.json)
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "snowflake-mcp": {"command": "node", "args": ["server.js"]}
-    }}), "name match")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: 'snowflake' in name -> conflict",
                           r is not None and "CONFLICT" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     # 5. "snowflake" in command field
-    r = _check(json.dumps({"mcpServers": {
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "my-data-server": {"command": "snowflake-mcp-server", "args": []}
-    }}), "command match")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: 'snowflake' in command -> conflict",
                           r is not None and "CONFLICT" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     # 6. "snowflake" in args array
-    r = _check(json.dumps({"mcpServers": {
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "data-tool": {"command": "npx", "args": ["@snowflake/mcp-server"]}
-    }}), "args match")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: 'snowflake' in args -> conflict",
                           r is not None and "CONFLICT" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     # 7. Mixed case "Snowflake-MCP"
-    r = _check(json.dumps({"mcpServers": {
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "Snowflake-MCP": {"command": "node", "args": []}
-    }}), "mixed case")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: mixed case 'Snowflake' -> conflict",
                           r is not None and "CONFLICT" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     # 8. Multiple servers, one is SF
-    r = _check(json.dumps({"mcpServers": {
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "github": {"command": "gh-mcp", "args": []},
         "sf-tools": {"command": "snowflake-cli", "args": ["serve"]},
         "jira": {"command": "jira-mcp", "args": []}
-    }}), "multi with SF")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: multi servers, one SF -> conflict (names it)",
                           r is not None and "sf-tools" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
-    # 9. Partial match "snowflake-test"
-    r = _check(json.dumps({"mcpServers": {
-        "snowflake-test": {"command": "echo", "args": []}
-    }}), "partial")
-    results.append(expect("mcp: partial 'snowflake-test' -> conflict",
-                          r is not None and "CONFLICT" in r, True))
-
-    # 10. Malformed JSON
-    r = _check("{not valid json!!", "malformed")
+    # 9. Malformed JSON
+    tmp = _setup_home(settings_content="{not valid json!!")
+    r = _check_with_home(tmp)
     results.append(expect("mcp: malformed JSON -> None (graceful)", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
-    # 11. Permission error (simulate via read-only dir — skip on platforms where this is hard)
-    # We'll just verify the except clause handles it by passing a non-dict mcpServers
-    r = _check(json.dumps({"mcpServers": "not-a-dict"}), "non-dict servers")
+    # 10. mcpServers is string (non-dict)
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": "not-a-dict"}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: mcpServers is string -> None", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
-    # 12. mcpServers contains non-dict entry
-    r = _check(json.dumps({"mcpServers": {
+    # 11. mcpServers contains non-dict entry
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
         "snowflake": "just-a-string"
-    }}), "non-dict entry")
+    }}))
+    r = _check_with_home(tmp)
     results.append(expect("mcp: non-dict server entry skipped -> None", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 12. NEW: Project scope .mcp.json detection
+    tmp = _setup_home(mcp_json_content=json.dumps({"mcpServers": {
+        "snowflake-mcp": {"command": "npx", "args": ["-y", "some-snowflake-mcp-server"]}
+    }}))
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: project .mcp.json snowflake -> conflict",
+                          r is not None and "CONFLICT" in r and "project scope" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 13. NEW: User scope ~/.claude.json top-level mcpServers
+    tmp = _setup_home(claude_json_content=json.dumps({"mcpServers": {
+        "sf-data": {"command": "snowflake-mcp", "args": []}
+    }}))
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: ~/.claude.json user scope -> conflict",
+                          r is not None and "CONFLICT" in r and "user scope" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 14. NEW: Local scope ~/.claude.json projects.<path>.mcpServers
+    project_key = "/some/project/path"
+    tmp = _setup_home(claude_json_content=json.dumps({
+        "projects": {
+            project_key: {
+                "mcpServers": {
+                    "my-sf": {"command": "node", "args": ["snowflake-server.js"]}
+                }
+            }
+        }
+    }))
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: ~/.claude.json local scope -> conflict",
+                          r is not None and "CONFLICT" in r and "local scope" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 15. NEW: HTTP/SSE server with "snowflake" in URL field
+    tmp = _setup_home(settings_content=json.dumps({"mcpServers": {
+        "remote-data": {"url": "https://snowflake-mcp.example.com/sse"}
+    }}))
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: 'snowflake' in url -> conflict",
+                          r is not None and "CONFLICT" in r, True))
+    _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 16. NEW: No conflict in any scope -> None
+    tmp = _setup_home(
+        settings_content=json.dumps({"mcpServers": {"github": {"command": "gh", "args": []}}}),
+        claude_json_content=json.dumps({"mcpServers": {"jira": {"command": "jira-mcp", "args": []}}}),
+        mcp_json_content=json.dumps({"mcpServers": {"linear": {"command": "linear-mcp", "args": []}}})
+    )
+    r = _check_with_home(tmp)
+    results.append(expect("mcp: no snowflake in any scope -> None", r, None))
+    _shutil.rmtree(tmp, ignore_errors=True)
 
     return results
 
@@ -1180,6 +1312,7 @@ def main():
     all_results.extend(test_config_security_floor())
     all_results.extend(test_deploy_enforcement())
     all_results.extend(test_audit_hash_chain())
+    all_results.extend(test_audit_wiring())
     all_results.extend(test_contextual_routing())
     all_results.extend(test_mcp_conflict_detection())
     all_results.extend(test_prompt_filter_mcp_hook())

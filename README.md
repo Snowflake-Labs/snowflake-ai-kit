@@ -6,7 +6,7 @@ Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **Ope
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/Snowflake-Labs/snowflake-ai-kit/test.yml?label=CI)](https://github.com/Snowflake-Labs/snowflake-ai-kit/actions)
-[![Plugin](https://img.shields.io/badge/Plugin-v3.2.2-green)](plugins/cortex-code)
+[![Plugin](https://img.shields.io/badge/Plugin-v3.3.0-green)](plugins/cortex-code)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-yellow)](https://python.org)
 
 ## Quick Start
