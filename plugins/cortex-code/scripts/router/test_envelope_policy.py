@@ -58,6 +58,23 @@ cases = [
     ("RESEARCH", "SQL",       "execute_command", "CREATE TABLE t(x)",  "deny"),
     ("RESEARCH", "Write",     "file_write", "/tmp/x",                  "deny"),
     ("RESEARCH", "Bash",      "execute_command", "echo > /tmp/x",      "deny"),
+    # RO/RESEARCH: Snowflake => named-argument syntax (issue #38)
+    ("RO", "Bash", "execute_command",
+     "snow sql -q \"select * from table(svc!SEARCH(query => 'test', columns => ['title'], limit => 5))\"",
+     "allow"),
+    ("RO", "Bash", "execute_command",
+     "grep -rn 'query =>' models/",
+     "allow"),
+    ("RESEARCH", "Bash", "execute_command",
+     "snow sql -q \"SELECT * FROM t WHERE param => 'value'\"",
+     "allow"),
+    # Real redirects still denied under RO
+    ("RO", "Bash", "execute_command", "cat a.txt >b.txt",             "deny"),
+    ("RO", "Bash", "execute_command", "cat a.txt >>b.txt",            "deny"),
+    ("RO", "Bash", "execute_command", "cat a.txt =>b.txt",            "deny"),
+    # snow sql read-only allowed under RO/RESEARCH
+    ("RO", "Bash", "execute_command", "snow sql -q \"SHOW TABLES\"",  "allow"),
+    ("RESEARCH", "Bash", "execute_command", "snow sql -q \"SELECT 1\"", "allow"),
     # DEPLOY: allow all except nuke
     ("DEPLOY", "SQL",  "execute_command", "DROP DATABASE prod",        "allow"),
     ("DEPLOY", "Bash", "execute_command", "rm -rf /",                  "deny"),
