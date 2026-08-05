@@ -1,0 +1,17 @@
+{
+  "name": "@snowflake-ai-kit/cloud-agents-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone MCP server that exposes Snowflake CoCo Cloud Agents as non-blocking subagent-like tools.",
+  "bin": {
+    "cloud-agents-mcp": "./src/server.mjs"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

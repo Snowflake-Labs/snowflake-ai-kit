@@ -55,11 +55,68 @@ COMPILED_SF = [re.compile(p, re.IGNORECASE) for p in SNOWFLAKE_KEYWORDS]
 COMPILED_LOCAL = [re.compile(p, re.IGNORECASE) for p in LOCAL_KEYWORDS]
 
 
+# Name of our Cloud Agents MCP server (not a conflict)
+CLOUD_AGENTS_MCP_NAME = "cloud-agents"
+
+
+def _iter_mcp_server_dicts():
+    """Yield each mcpServers dict found across all Claude Code MCP scopes."""
+    # 1. Project scope: .mcp.json in cwd
+    try:
+        mcp_json = Path.cwd() / ".mcp.json"
+        if mcp_json.exists():
+            data = _json.loads(mcp_json.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            if isinstance(servers, dict):
+                yield servers
+    except (ValueError, PermissionError, OSError):
+        pass
+
+    # 2. User + Local scope: ~/.claude.json
+    try:
+        claude_json = Path.home() / ".claude.json"
+        if claude_json.exists():
+            data = _json.loads(claude_json.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            if isinstance(servers, dict):
+                yield servers
+            projects = data.get("projects", {})
+            if isinstance(projects, dict):
+                for project_cfg in projects.values():
+                    if isinstance(project_cfg, dict):
+                        servers = project_cfg.get("mcpServers", {})
+                        if isinstance(servers, dict):
+                            yield servers
+    except (ValueError, PermissionError, OSError):
+        pass
+
+    # 3. Manual/legacy: ~/.claude/settings.json
+    try:
+        settings_path = Path.home() / ".claude" / "settings.json"
+        if settings_path.exists():
+            data = _json.loads(settings_path.read_text(encoding="utf-8"))
+            servers = data.get("mcpServers", {})
+            if isinstance(servers, dict):
+                yield servers
+    except (ValueError, PermissionError, OSError):
+        pass
+
+
+def _check_cloud_agents_mcp():
+    """Return True if the cloud-agents MCP server is installed in any scope."""
+    for servers in _iter_mcp_server_dicts():
+        if CLOUD_AGENTS_MCP_NAME in servers:
+            return True
+    return False
+
+
 def _check_mcp_servers_in_dict(servers, source_label):
     """Scan an mcpServers dict for Snowflake-related entries."""
     if not isinstance(servers, dict):
         return None
     for name, cfg in servers.items():
+        if name == CLOUD_AGENTS_MCP_NAME:
+            continue  # Our own server, not a conflict
         if not isinstance(cfg, dict):
             continue
         command = cfg.get("command", "")
@@ -216,6 +273,21 @@ def _codex_routing_instruction(plugin_root: str) -> str:
     )
 
 
+def _cloud_agents_routing_instruction() -> str:
+    """Routing instruction when Cloud Agents MCP is installed — routes to remote agent."""
+    return (
+        "[CLOUD AGENT ROUTER] This prompt needs Snowflake. "
+        "A Cloud Agents MCP server is active. Route this request through it:\n"
+        "1. Use cloud_agent_spawn with the user's FULL original prompt as the 'prompt' argument "
+        "and workspace mode 'none'.\n"
+        "2. Immediately use cloud_agent_wait with the returned agent_id, "
+        "condition 'terminal', timeout_ms 120000.\n"
+        "3. Present the agent's output text to the user.\n"
+        "Do NOT use the local Cortex CLI, SnowSQL, or snow CLI. "
+        "Do NOT paraphrase or shorten the user's prompt — pass it verbatim."
+    )
+
+
 def _claude_code_routing_instruction() -> str:
     """Routing instruction for Claude Code — uses Skill tool."""
     return (
@@ -264,7 +336,18 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
-        # Check for MCP conflict FIRST — blocks everything if Snowflake MCP server is active
+        # Priority 1: If Cloud Agents MCP is installed, route ALL Snowflake prompts there
+        if _is_claude_code() and _check_cloud_agents_mcp():
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": _cloud_agents_routing_instruction(),
+                }
+            }
+            print(json.dumps(output))
+            sys.exit(0)
+
+        # Priority 2: Block if other Snowflake MCP servers conflict
         mcp_conflict = _check_mcp_conflict()
         if mcp_conflict:
             output = {
