@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "python3 /Users/ddesai/Apps/snowflake-ai-kit/plugins/cortex-code/scripts/router/prompt_filter.py"
+      }
+    ]
+  }
+}

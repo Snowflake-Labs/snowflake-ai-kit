@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cloud-agents": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["<PATH_TO_REPO>/mcp-servers/cloud-agents/src/server.mjs"],
+      "env": {
+        "CLOUD_AGENTS_CONNECTION": "your_coco_connection_name",
+        "CLOUD_AGENTS_HOST": "https://your-account.snowflakecomputing.com",
+        "CLOUD_AGENTS_MCP_STATE_DIR": "~/.snowflake/cloud-agents-mcp"
+      }
+    }
+  }
+}
