@@ -808,6 +808,103 @@ def test_prompt_filter_mcp_hook():
     return results
 
 
+# ── Cloud Agents MCP routing ──────────────────────────────────────
+
+def test_cloud_agents_mcp_routing():
+    """Verify cloud-agents MCP detection and routing priority."""
+    import io
+    from unittest.mock import patch
+
+    results = []
+
+    def _run_hook_claude_json(stdin_data, claude_json_content=None, settings_content=None):
+        """Run prompt_filter.main() with ~/.claude.json and optional settings."""
+        tmp = Path(tempfile.mkdtemp(prefix="test_ca_"))
+        if claude_json_content is not None:
+            (tmp / ".claude.json").write_text(claude_json_content, encoding="utf-8")
+        claude_dir = tmp / ".claude"
+        claude_dir.mkdir()
+        if settings_content is not None:
+            (claude_dir / "settings.json").write_text(settings_content, encoding="utf-8")
+
+        stdin_buf = io.StringIO(json.dumps(stdin_data))
+        stdout_buf = io.StringIO()
+
+        with patch("prompt_filter.Path.home", return_value=tmp):
+            with patch("prompt_filter.Path.cwd", return_value=tmp):
+                with patch("prompt_filter.sys.stdin", stdin_buf):
+                    with patch("prompt_filter.sys.stdout", stdout_buf):
+                        with patch("prompt_filter.shutil.which", return_value="/usr/bin/cortex"):
+                            try:
+                                import prompt_filter
+                                prompt_filter.main()
+                            except SystemExit:
+                                pass
+
+        output = stdout_buf.getvalue().strip()
+        import shutil as _shutil
+        _shutil.rmtree(tmp, ignore_errors=True)
+        return output
+
+    # 1. cloud-agents MCP installed + Snowflake prompt -> routes to cloud agent
+    out = _run_hook_claude_json(
+        {"hook_event_name": "UserPromptSubmit", "prompt": "show me my snowflake warehouses"},
+        claude_json_content=json.dumps({"mcpServers": {"cloud-agents": {"type": "stdio", "command": "node", "args": ["server.mjs"]}}})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("cloud_agents: installed -> CLOUD AGENT ROUTER",
+                          "CLOUD AGENT ROUTER" in ctx, True))
+    results.append(expect("cloud_agents: mentions cloud_agent_spawn",
+                          "cloud_agent_spawn" in ctx, True))
+    results.append(expect("cloud_agents: mentions cloud_agent_wait",
+                          "cloud_agent_wait" in ctx, True))
+
+    # 2. cloud-agents NOT installed + Snowflake prompt -> normal Cortex routing
+    out = _run_hook_claude_json(
+        {"hook_event_name": "UserPromptSubmit", "prompt": "show me my snowflake warehouses"},
+        claude_json_content=json.dumps({"mcpServers": {}})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("cloud_agents: not installed -> CORTEX ROUTER",
+                          "CORTEX ROUTER" in ctx, True))
+
+    # 3. cloud-agents installed + non-Snowflake prompt -> no routing
+    out = _run_hook_claude_json(
+        {"hook_event_name": "UserPromptSubmit", "prompt": "fix the bug in auth.py"},
+        claude_json_content=json.dumps({"mcpServers": {"cloud-agents": {"type": "stdio", "command": "node", "args": []}}})
+    )
+    parsed = json.loads(out) if out else {}
+    results.append(expect("cloud_agents: non-SF prompt -> empty",
+                          parsed == {} or "additionalContext" not in str(parsed), True))
+
+    # 4. cloud-agents does NOT trigger MCP conflict
+    out = _run_hook_claude_json(
+        {"hook_event_name": "UserPromptSubmit", "prompt": "create a snowflake table"},
+        claude_json_content=json.dumps({"mcpServers": {"cloud-agents": {"type": "stdio", "command": "node", "args": ["server.mjs"]}}})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("cloud_agents: does NOT trigger STOP/conflict",
+                          "STOP" not in ctx and "CONFLICTS" not in ctx, True))
+
+    # 5. cloud-agents installed + OTHER Snowflake MCP -> cloud-agents takes priority
+    out = _run_hook_claude_json(
+        {"hook_event_name": "UserPromptSubmit", "prompt": "show databases"},
+        claude_json_content=json.dumps({"mcpServers": {
+            "cloud-agents": {"type": "stdio", "command": "node", "args": []},
+            "snowflake-mcp": {"command": "node", "args": ["snowflake-server.js"]}
+        }})
+    )
+    parsed = json.loads(out) if out else {}
+    ctx = parsed.get("hookSpecificOutput", {}).get("additionalContext", "")
+    results.append(expect("cloud_agents: takes priority over other SF MCP",
+                          "CLOUD AGENT ROUTER" in ctx, True))
+
+    return results
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 # ── Codex plugin: manifest validation ─────────────────────────────
@@ -1316,6 +1413,7 @@ def main():
     all_results.extend(test_contextual_routing())
     all_results.extend(test_mcp_conflict_detection())
     all_results.extend(test_prompt_filter_mcp_hook())
+    all_results.extend(test_cloud_agents_mcp_routing())
     all_results.extend(test_invocation_source_env())
     all_results.extend(test_codex_plugin_manifest())
     all_results.extend(test_codex_marketplace_json())

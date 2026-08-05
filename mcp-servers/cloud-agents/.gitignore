@@ -1,0 +1,3 @@
+node_modules/
+.cloud-agents-mcp-state/
+*.log
