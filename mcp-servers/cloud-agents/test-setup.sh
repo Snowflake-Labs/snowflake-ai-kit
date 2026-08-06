@@ -106,6 +106,14 @@ echo "Starting Snowhouse token provider..."
 if [ -f "$TOKEN_FILE" ] && pgrep -f "token_provider.py" >/dev/null 2>&1; then
   info "Token provider already running"
 else
+  # Get username for Snowhouse auth
+  if [ -z "$CLOUD_AGENTS_USER" ]; then
+    printf "  Snowhouse username: "
+    read -r CLOUD_AGENTS_USER
+    [ -n "$CLOUD_AGENTS_USER" ] || fail "Username is required."
+  fi
+  export CLOUD_AGENTS_USER
+
   pkill -f "token_provider.py" 2>/dev/null || true
   rm -f "$TOKEN_FILE"
   python3 "$SCRIPT_DIR/token_provider.py" &
