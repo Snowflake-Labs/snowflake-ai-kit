@@ -57,6 +57,10 @@ $cortex-run show me my warehouses and their current state
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation on security model, envelopes, and configuration.*
 
+## Cursor
+
+Works natively — enable "Third-party skills" in Cursor Settings. No separate plugin needed.
+
 ## Prerequisites
 
 The plugin requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
