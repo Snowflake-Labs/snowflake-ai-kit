@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
+Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to a **CoCo Cloud Agent** — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Marketplace-8A2BE2)](https://claude.com/plugins/snowflake-cortex-code)
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
@@ -41,13 +41,15 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in yo
 ## How It Works
 
 ```
-You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cloud Agent → Snowflake
 ```
 
 1. A lightweight keyword filter runs on every prompt (~50ms, no network)
-2. If Snowflake intent is detected, the plugin routes to Cortex Code CLI
-3. Cortex Code executes with 55+ specialized skills (SQL, governance, ML, streaming, etc.)
+2. If Snowflake intent is detected, the plugin spawns a CoCo Cloud Agent
+3. The Cloud Agent executes in a remote sandbox with 55+ specialized skills (SQL, governance, ML, streaming, etc.)
 4. Results flow back to your agent session
+
+No local CLI required — the Cloud Agent runs remotely with full Snowflake access.
 
 To explicitly invoke Cortex Code (bypassing auto-detection):
 
@@ -61,21 +63,25 @@ $cortex-run show me my warehouses and their current state
 
 Works natively — enable "Third-party skills" in Cursor Settings. No separate plugin needed.
 
-## Prerequisites
+## Authentication
 
-The plugin requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
+The plugin authenticates to Snowflake via browser SSO on first use. No credentials to manage manually.
 
 ### Snowflake Connection
 
-Cortex Code CLI needs a Snowflake connection configured at `~/.snowflake/connections.toml`:
+For local CLI fallback, configure a connection at `~/.snowflake/connections.toml`:
 
 ```bash
 snow connection add
 ```
 
+## Cloud Agents MCP Server
+
+The [`mcp-servers/cloud-agents/`](mcp-servers/cloud-agents/) directory contains a standalone MCP server that any MCP-compatible client can use to spawn CoCo Cloud Agents. See [TESTING.md](mcp-servers/cloud-agents/TESTING.md) for setup instructions.
+
 ## Installer
 
-The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`):
+The bundled installer sets up Snowflake CLI (`snow`) and optionally Cortex Code CLI (`cortex`) for local fallback:
 
 | Platform | Command |
 |---|---|
@@ -92,32 +98,19 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 
 ## Skills
 
-Cortex Code CLI ships with 55+ built-in skills that activate automatically based on your prompt:
-
-```bash
-cortex skill list
-```
+The Cloud Agent has 55+ built-in skills that activate automatically based on your prompt:
 
 Examples: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
-
-Skills are organized by source:
-
-| Category | Description |
-|---|---|
-| **BUNDLED** | Ship with the CLI binary. Updated on `cortex update`. |
-| **GLOBAL** | User-installed in `~/.snowflake/cortex/skills/`. Shared across projects. |
-| **EXTERNAL** | Added via `cortex skill add <path>` or `cortex skill add owner/repo`. |
-| **PROJECT** | Discovered from the current working directory. |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `cortex: command not found` | Re-run `bash install.sh` or install from [Cortex Code CLI docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli). |
-| `snow: command not found` | Ensure `~/.local/bin` is in `$PATH`. Open a new terminal. |
+| Auth expired mid-session | Restart session — browser SSO will re-authenticate |
+| Plugin not routing | Verify plugin is enabled in your agent's settings |
+| Slow first response | Expected: ~10-20s (cloud agent sandbox boot + execution) |
 | Connection errors | Run `snow connection add`. Docs: [Specify credentials](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/specify-credentials) |
-| Plugin not routing | Verify plugin is enabled in your agent's settings. |
-| Installer hangs on Windows | Run PowerShell as Administrator. |
+| Installer hangs on Windows | Run PowerShell as Administrator |
 
 ## Contributing
 
