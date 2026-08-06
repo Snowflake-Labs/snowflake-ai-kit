@@ -13,18 +13,22 @@ import os
 import sys
 
 ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
-USER = os.environ.get("CLOUD_AGENTS_USER")  # None = auto-detect from SSO
+USER = os.environ.get("CLOUD_AGENTS_USER")
 
 def get_token():
-    connect_args = {
-        "account": ACCOUNT,
-        "authenticator": "externalbrowser",
-        "client_session_keep_alive": True,
-    }
-    if USER:
-        connect_args["user"] = USER
+    user = USER
+    if not user:
+        user = input("Snowhouse username: ").strip()
+        if not user:
+            print("ERROR: Username is required.", file=sys.stderr)
+            sys.exit(1)
 
-    conn = snowflake.connector.connect(**connect_args)
+    conn = snowflake.connector.connect(
+        account=ACCOUNT,
+        user=user,
+        authenticator="externalbrowser",
+        client_session_keep_alive=True,
+    )
     token = conn.rest.token
     # Don't close — keep-alive means the token stays valid
     # Print to stdout for shell capture
