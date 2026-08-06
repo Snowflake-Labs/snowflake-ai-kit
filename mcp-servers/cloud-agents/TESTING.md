@@ -19,7 +19,15 @@ cd snowflake-ai-kit/mcp-servers/cloud-agents
 ./test-setup.sh
 ```
 
-Browser opens once for Snowhouse SSO — approve it. Then open a **new terminal** from the repo directory:
+If you already cloned, pull latest changes first:
+```bash
+cd snowflake-ai-kit
+git pull
+cd mcp-servers/cloud-agents
+./test-setup.sh
+```
+
+The script will ask for your Snowhouse username, then open your browser for SSO. Approve it. Then open a **new terminal** from the repo directory:
 
 ```bash
 cd snowflake-ai-kit

@@ -20,18 +20,22 @@ TOKEN_FILE = os.environ.get("CLOUD_AGENTS_TOKEN_FILE", "/tmp/cloud-agents-token.
 REFRESH_INTERVAL = 60  # seconds between heartbeats
 
 ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
-USER = os.environ.get("CLOUD_AGENTS_USER")  # None = auto-detect from SSO
+USER = os.environ.get("CLOUD_AGENTS_USER")
 
 def main():
-    connect_args = {
-        "account": ACCOUNT,
-        "authenticator": "externalbrowser",
-        "client_session_keep_alive": True,
-    }
-    if USER:
-        connect_args["user"] = USER
+    user = USER
+    if not user:
+        user = input("Snowhouse username: ").strip()
+        if not user:
+            print("ERROR: Username is required.", file=sys.stderr)
+            sys.exit(1)
 
-    conn = snowflake.connector.connect(**connect_args)
+    conn = snowflake.connector.connect(
+        account=ACCOUNT,
+        user=user,
+        authenticator="externalbrowser",
+        client_session_keep_alive=True,
+    )
 
     token = conn.rest.token
     with open(TOKEN_FILE, "w") as f:
