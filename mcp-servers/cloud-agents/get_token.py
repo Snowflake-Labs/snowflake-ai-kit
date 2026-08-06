@@ -9,15 +9,22 @@ Usage:
     node src/server.mjs
 """
 import snowflake.connector
+import os
 import sys
 
+ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
+USER = os.environ.get("CLOUD_AGENTS_USER")  # None = auto-detect from SSO
+
 def get_token():
-    conn = snowflake.connector.connect(
-        account="snowhouse",
-        user="ddesai",
-        authenticator="externalbrowser",
-        client_session_keep_alive=True,
-    )
+    connect_args = {
+        "account": ACCOUNT,
+        "authenticator": "externalbrowser",
+        "client_session_keep_alive": True,
+    }
+    if USER:
+        connect_args["user"] = USER
+
+    conn = snowflake.connector.connect(**connect_args)
     token = conn.rest.token
     # Don't close — keep-alive means the token stays valid
     # Print to stdout for shell capture

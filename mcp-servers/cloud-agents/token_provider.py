@@ -19,13 +19,19 @@ import signal
 TOKEN_FILE = os.environ.get("CLOUD_AGENTS_TOKEN_FILE", "/tmp/cloud-agents-token.txt")
 REFRESH_INTERVAL = 60  # seconds between heartbeats
 
+ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
+USER = os.environ.get("CLOUD_AGENTS_USER")  # None = auto-detect from SSO
+
 def main():
-    conn = snowflake.connector.connect(
-        account="snowhouse",
-        user="ddesai",
-        authenticator="externalbrowser",
-        client_session_keep_alive=True,
-    )
+    connect_args = {
+        "account": ACCOUNT,
+        "authenticator": "externalbrowser",
+        "client_session_keep_alive": True,
+    }
+    if USER:
+        connect_args["user"] = USER
+
+    conn = snowflake.connector.connect(**connect_args)
 
     token = conn.rest.token
     with open(TOKEN_FILE, "w") as f:
