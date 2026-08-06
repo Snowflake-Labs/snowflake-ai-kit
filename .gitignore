@@ -42,3 +42,4 @@ Thumbs.db
 
 # Standalone skill backup (moved out of ~/.claude/skills/)
 standalone-skill-backup/
+mcp-servers/cloud-agents/CONNECTORS_DIRECTORY_GAP.md
