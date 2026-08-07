@@ -8,7 +8,7 @@ An MCP server that routes Snowflake prompts in Claude Code to a remote **CoCo Cl
 
 - **Node.js 20+** — `node --version`
 - **Python 3.10+** with `snowflake-connector-python` — `pip3 install snowflake-connector-python`
-- **Claude Code** — `sf ai claude --help` or `claude --version`
+- **Claude Code** — `claude --version`
 - **Snowflake account with Cloud Agents API access**
 
 ## Getting Started
@@ -31,9 +31,7 @@ The script will ask for your Snowflake account and username, then open your brow
 
 ```bash
 cd snowflake-ai-kit
-sf ai claude    # internal Snowflake users
-# or
-claude          # external users with Claude Code installed
+claude
 ```
 
 Ask any Snowflake question:
