@@ -102,13 +102,20 @@ node --test tests/*.test.mjs >/dev/null 2>&1 && info "23/23 unit tests pass" || 
 
 # Start token provider (if not already running)
 echo ""
-echo "Starting Snowhouse token provider..."
+echo "Starting token provider..."
 if [ -f "$TOKEN_FILE" ] && pgrep -f "token_provider.py" >/dev/null 2>&1; then
   info "Token provider already running"
 else
-  # Get username for Snowhouse auth
+  # Get account and username for Snowflake auth
+  if [ -z "$CLOUD_AGENTS_ACCOUNT" ]; then
+    printf "  Snowflake account (e.g. myorg-myaccount): "
+    read -r CLOUD_AGENTS_ACCOUNT
+    [ -n "$CLOUD_AGENTS_ACCOUNT" ] || fail "Account is required."
+  fi
+  export CLOUD_AGENTS_ACCOUNT
+
   if [ -z "$CLOUD_AGENTS_USER" ]; then
-    printf "  Snowhouse username: "
+    printf "  Snowflake username: "
     read -r CLOUD_AGENTS_USER
     [ -n "$CLOUD_AGENTS_USER" ] || fail "Username is required."
   fi
@@ -151,7 +158,7 @@ config['mcpServers']['cloud-agents'] = {
     'command': '$MCP_START',
     'args': [],
     'env': {
-        'CLOUD_AGENTS_HOST': 'https://snowhouse.snowflakecomputing.com',
+        'CLOUD_AGENTS_HOST': 'https://' + os.environ.get('CLOUD_AGENTS_ACCOUNT', '') + '.snowflakecomputing.com',
         'CLOUD_AGENTS_TOKEN_FILE': '$TOKEN_FILE',
         'CLOUD_AGENTS_MCP_STATE_DIR': os.path.expanduser('~/.snowflake/cloud-agents-mcp')
     }

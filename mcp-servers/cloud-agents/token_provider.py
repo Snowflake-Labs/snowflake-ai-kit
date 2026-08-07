@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Token provider that keeps a Snowhouse session alive and writes the token to a file.
+"""Token provider that keeps a Snowflake session alive and writes the token to a file.
 
 The MCP server reads the token from this file on each request.
 Run this in the background before starting the MCP server.
@@ -19,19 +19,25 @@ import signal
 TOKEN_FILE = os.environ.get("CLOUD_AGENTS_TOKEN_FILE", "/tmp/cloud-agents-token.txt")
 REFRESH_INTERVAL = 60  # seconds between heartbeats
 
-ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
+ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "")
 USER = os.environ.get("CLOUD_AGENTS_USER")
 
 def main():
     user = USER
+    account = ACCOUNT
+    if not account:
+        account = input("Snowflake account (e.g. myorg-myaccount): ").strip()
+        if not account:
+            print("ERROR: Account is required.", file=sys.stderr)
+            sys.exit(1)
     if not user:
-        user = input("Snowhouse username: ").strip()
+        user = input("Snowflake username: ").strip()
         if not user:
             print("ERROR: Username is required.", file=sys.stderr)
             sys.exit(1)
 
     conn = snowflake.connector.connect(
-        account=ACCOUNT,
+        account=account,
         user=user,
         authenticator="externalbrowser",
         client_session_keep_alive=True,

@@ -1,4 +1,4 @@
-export const DEFAULT_HOST = "https://snowhouse.snowflakecomputing.com";
+export const DEFAULT_HOST = "";
 export const DEFAULT_MODEL = "auto";
 export const DEFAULT_WORKSPACE_STAGE = "USER$.PUBLIC.DEFAULT$";
 
