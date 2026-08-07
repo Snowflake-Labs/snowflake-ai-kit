@@ -17,7 +17,7 @@ export class SnowflakeAgentClient {
       process.env.SNOWFLAKE_HOST ||
       DEFAULT_HOST,
     pat,
-    patEnv = process.env.CLOUD_AGENTS_PAT_ENV || "PAT_SNOWHOUSE",
+    patEnv = process.env.CLOUD_AGENTS_PAT_ENV || "SNOWFLAKE_PAT",
     fetchImpl = globalThis.fetch,
     sessionToken,
     authMode = process.env.CLOUD_AGENTS_AUTH_MODE || "auto",

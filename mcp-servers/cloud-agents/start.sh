@@ -3,7 +3,7 @@
 #
 # Auth (in priority order):
 #   1. CLOUD_AGENTS_SESSION_TOKEN env var (if set)
-#   2. PAT_SNOWHOUSE / CLOUD_AGENTS_PAT / SNOWFLAKE_PAT
+#   2. SNOWFLAKE_PAT / CLOUD_AGENTS_PAT
 #   3. Token file from token_provider.py (/tmp/cloud-agents-token.txt)
 #   4. Starts token_provider.py automatically (triggers browser SSO once)
 #
@@ -11,11 +11,11 @@
 #   ./start.sh   # auto-starts token provider if needed
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-export CLOUD_AGENTS_HOST="${CLOUD_AGENTS_HOST:-https://snowhouse.snowflakecomputing.com}"
+export CLOUD_AGENTS_HOST="${CLOUD_AGENTS_HOST:-}"
 TOKEN_FILE="${CLOUD_AGENTS_TOKEN_FILE:-/tmp/cloud-agents-token.txt}"
 
 # If no auth available, try token file or start provider
-if [ -z "$CLOUD_AGENTS_SESSION_TOKEN" ] && [ -z "$PAT_SNOWHOUSE" ] && [ -z "$CLOUD_AGENTS_PAT" ] && [ -z "$SNOWFLAKE_PAT" ]; then
+if [ -z "$CLOUD_AGENTS_SESSION_TOKEN" ] && [ -z "$SNOWFLAKE_PAT" ] && [ -z "$CLOUD_AGENTS_PAT" ]; then
   if [ -f "$TOKEN_FILE" ]; then
     export CLOUD_AGENTS_SESSION_TOKEN=$(cat "$TOKEN_FILE")
   else

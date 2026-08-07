@@ -27,7 +27,7 @@ cd mcp-servers/cloud-agents
 ./test-setup.sh
 ```
 
-The script will ask for your Snowhouse username, then open your browser for SSO. Approve it. Then open a **new terminal** from the repo directory:
+The script will ask for your Snowflake account and username, then open your browser for SSO. Approve it. Then open a **new terminal** from the repo directory:
 
 ```bash
 cd snowflake-ai-kit
@@ -85,11 +85,12 @@ The Cloud Agent runs in a sandboxed environment with access to bash, file tools,
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `CLOUD_AGENTS_HOST` | `https://snowhouse.snowflakecomputing.com` | Snowflake account URL |
+| `CLOUD_AGENTS_HOST` | — | Snowflake account URL |
+| `CLOUD_AGENTS_ACCOUNT` | — | Snowflake account identifier |
 | `CLOUD_AGENTS_CONNECTION` | (auto) | Cortex CLI connection name |
 | `CLOUD_AGENTS_AUTH_MODE` | `auto` | Auth mode: auto, coco, env, pat |
 | `CLOUD_AGENTS_SESSION_TOKEN` | — | Explicit session token |
-| `PAT_SNOWHOUSE` | — | Programmatic Access Token |
+| `SNOWFLAKE_PAT` | — | Programmatic Access Token |
 
 ## Troubleshooting
 

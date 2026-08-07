@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Get a fresh Snowhouse session token for the MCP server.
+"""Get a fresh Snowflake session token for the MCP server.
 
 Uses the Snowflake Python connector with externalbrowser auth.
 The connector handles token lifecycle internally.
@@ -12,19 +12,25 @@ import snowflake.connector
 import os
 import sys
 
-ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "snowhouse")
+ACCOUNT = os.environ.get("CLOUD_AGENTS_ACCOUNT", "")
 USER = os.environ.get("CLOUD_AGENTS_USER")
 
 def get_token():
     user = USER
+    account = ACCOUNT
+    if not account:
+        account = input("Snowflake account (e.g. myorg-myaccount): ").strip()
+        if not account:
+            print("ERROR: Account is required.", file=sys.stderr)
+            sys.exit(1)
     if not user:
-        user = input("Snowhouse username: ").strip()
+        user = input("Snowflake username: ").strip()
         if not user:
             print("ERROR: Username is required.", file=sys.stderr)
             sys.exit(1)
 
     conn = snowflake.connector.connect(
-        account=ACCOUNT,
+        account=account,
         user=user,
         authenticator="externalbrowser",
         client_session_keep_alive=True,

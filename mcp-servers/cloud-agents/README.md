@@ -55,13 +55,14 @@ Add to your IDE's MCP config (see `examples/` for full snippets):
 Priority order:
 1. `CLOUD_AGENTS_SESSION_TOKEN` / `SNOWFLAKE_TOKEN` env var
 2. CoCo CLI connection (set `CLOUD_AGENTS_CONNECTION` to pick one)
-3. PAT fallback (`PAT_SNOWHOUSE`, `CLOUD_AGENTS_PAT`, `SNOWFLAKE_PAT`)
+3. PAT fallback (`SNOWFLAKE_PAT`, `CLOUD_AGENTS_PAT`)
 
 ## Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `CLOUD_AGENTS_HOST` | `https://snowhouse.snowflakecomputing.com` | Target Snowflake account |
+| `CLOUD_AGENTS_HOST` | — | Target Snowflake account URL |
+| `CLOUD_AGENTS_ACCOUNT` | — | Snowflake account identifier |
 | `CLOUD_AGENTS_CONNECTION` | CoCo default | Snowflake connection name |
 | `CLOUD_AGENTS_AUTH_MODE` | `auto` | Auth mode: auto, coco, env, pat |
 | `CLOUD_AGENTS_MCP_STATE_DIR` | `~/.snowflake/cloud-agents-mcp` | Local state |

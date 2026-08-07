@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const DEFAULT_PAT_ENV = "PAT_SNOWHOUSE";
+const DEFAULT_PAT_ENV = "SNOWFLAKE_PAT";
 const SESSION_TOKEN_ENV_NAMES = ["CLOUD_AGENTS_SESSION_TOKEN", "SNOWFLAKE_TOKEN"];
-const PAT_ENV_NAMES = ["CLOUD_AGENTS_PAT", "PAT_SNOWHOUSE", "SNOWFLAKE_PAT"];
+const PAT_ENV_NAMES = ["CLOUD_AGENTS_PAT", "SNOWFLAKE_PAT"];
 const AUTH_MODES = new Set(["auto", "coco", "env", "pat"]);
 const INTERACTIVE_AUTHENTICATORS = new Set([
   "EXTERNALBROWSER",
@@ -300,7 +300,7 @@ function assertNoUnsafeInteractiveCache(conn, credentialManager) {
   if (INTERACTIVE_AUTHENTICATORS.has(authenticator)) {
     throw new Error(
       `CoCo connection '${conn.name}' uses ${authenticator}, but the CoCo keychain credential manager is unavailable. ` +
-        "Set CLOUD_AGENTS_COCO_REPO to a built CoCo checkout, set CLOUD_AGENTS_SESSION_TOKEN/SNOWFLAKE_TOKEN, or set PAT_SNOWHOUSE.",
+        "Set CLOUD_AGENTS_COCO_REPO to a built CoCo checkout, set CLOUD_AGENTS_SESSION_TOKEN/SNOWFLAKE_TOKEN, or set SNOWFLAKE_PAT.",
     );
   }
 }
@@ -332,7 +332,7 @@ function missingAuthError(options, failures) {
   const parts = [
     "No Snowflake auth available.",
     "Tried CLOUD_AGENTS_SESSION_TOKEN/SNOWFLAKE_TOKEN, the CoCo CLI connection, and PAT env fallback.",
-    `Set CLOUD_AGENTS_CONNECTION to choose a CoCo connection, or set ${patEnv}, CLOUD_AGENTS_PAT, PAT_SNOWHOUSE, or SNOWFLAKE_PAT.`,
+    `Set CLOUD_AGENTS_CONNECTION to choose a CoCo connection, or set ${patEnv}, CLOUD_AGENTS_PAT, or SNOWFLAKE_PAT.`,
   ];
   if (failures.length) {
     parts.push(`Last auth detail: ${failures.at(-1)}`);
