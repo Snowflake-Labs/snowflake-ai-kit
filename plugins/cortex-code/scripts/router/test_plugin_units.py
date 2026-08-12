@@ -26,7 +26,7 @@ from execute_cortex import (
     check_credential_paths,
     check_mcp_conflict,
     check_cortex_cli,
-    _check_deploy_allowed,
+    _check_envelope_allowed,
     _cortex_cmd,
 )
 
@@ -311,16 +311,120 @@ def test_deploy_enforcement():
     """Verify DEPLOY is blocked when not in allowed_envelopes."""
     results = []
 
-    # _check_deploy_allowed returns None for non-DEPLOY envelopes
-    result = _check_deploy_allowed("RO")
-    results.append(expect("deploy: RO returns None", result, None))
-    result = _check_deploy_allowed("RW")
-    results.append(expect("deploy: RW returns None", result, None))
+    # _check_envelope_allowed: default config allows RO, RW, RESEARCH but not DEPLOY
+    result = _check_envelope_allowed("RO")
+    results.append(expect("envelope: RO allowed by default", result, None))
+    result = _check_envelope_allowed("RW")
+    results.append(expect("envelope: RW allowed by default", result, None))
+    result = _check_envelope_allowed("RESEARCH")
+    results.append(expect("envelope: RESEARCH allowed by default", result, None))
 
     # DEPLOY should return error string (default config excludes DEPLOY)
-    result = _check_deploy_allowed("DEPLOY")
-    results.append(expect("deploy: DEPLOY returns error when not allowed",
+    result = _check_envelope_allowed("DEPLOY")
+    results.append(expect("envelope: DEPLOY blocked by default",
                           result is not None and "not in allowed_envelopes" in result, True))
+
+    return results
+
+# ── Config auto-discovery and envelope restriction (#43, #44) ─────
+
+def test_config_auto_discovery():
+    """Verify ConfigManager auto-discovers config files and env var overrides."""
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from security.config_manager import ConfigManager
+
+    results = []
+    tmpdir = Path(tempfile.mkdtemp(prefix="test_config_disc_"))
+
+    try:
+        from unittest.mock import patch
+
+        # 1. Config file at default path is loaded
+        config_dir = tmpdir / ".claude" / "skills" / "cortex-code"
+        config_dir.mkdir(parents=True)
+        config_file = config_dir / "config.yaml"
+        config_file.write_text("security:\n  allowed_envelopes: [\"RO\"]\n", encoding="utf-8")
+
+        with patch("security.config_manager.Path.home", return_value=tmpdir):
+            # Reimport to pick up patched home
+            import importlib
+            import security.config_manager as cm_mod
+            importlib.reload(cm_mod)
+            cm = cm_mod.ConfigManager()
+            results.append(expect("autodiscovery: loads config from default path",
+                                  cm.get("security.allowed_envelopes"), ["RO"]))
+
+        # 2. CORTEX_SKILL_CONFIG env var overrides default path
+        alt_config = tmpdir / "alt_config.yaml"
+        alt_config.write_text("security:\n  allowed_envelopes: [\"RO\", \"RW\"]\n", encoding="utf-8")
+
+        with patch.dict(os.environ, {"CORTEX_SKILL_CONFIG": str(alt_config)}):
+            with patch("security.config_manager.Path.home", return_value=tmpdir):
+                importlib.reload(cm_mod)
+                cm = cm_mod.ConfigManager()
+                results.append(expect("autodiscovery: CORTEX_SKILL_CONFIG env var works",
+                                      cm.get("security.allowed_envelopes"), ["RO", "RW"]))
+
+        # 3. No config file exists -> uses defaults
+        empty_dir = tmpdir / "empty_home"
+        empty_dir.mkdir()
+        with patch("security.config_manager.Path.home", return_value=empty_dir):
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("CORTEX_SKILL_CONFIG", None)
+                os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
+                importlib.reload(cm_mod)
+                cm = cm_mod.ConfigManager()
+                results.append(expect("autodiscovery: missing file -> defaults",
+                                      sorted(cm.get("security.allowed_envelopes")),
+                                      ["RESEARCH", "RO", "RW"]))
+
+    finally:
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        # Clean up env
+        os.environ.pop("CORTEX_SKILL_CONFIG", None)
+        os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
+
+    return results
+
+
+def test_envelope_restriction():
+    """Verify _check_envelope_allowed blocks envelopes not in allowed list (#44)."""
+    from unittest.mock import patch, MagicMock
+
+    results = []
+
+    def _mock_config_ro_only(*args, **kwargs):
+        mock = MagicMock()
+        mock.get = lambda key, default=None: ["RO"] if key == "security.allowed_envelopes" else default
+        return mock
+
+    def _mock_config_ro_rw(*args, **kwargs):
+        mock = MagicMock()
+        mock.get = lambda key, default=None: ["RO", "RW"] if key == "security.allowed_envelopes" else default
+        return mock
+
+    # 1. With allowed_envelopes: ["RO"], RW should be blocked
+    with patch("security.config_manager.ConfigManager", _mock_config_ro_only):
+        result = _check_envelope_allowed("RW")
+        results.append(expect("restriction: RW blocked when only RO allowed",
+                              result is not None and "not in allowed_envelopes" in result, True))
+
+    # 2. With allowed_envelopes: ["RO"], RO should pass
+    with patch("security.config_manager.ConfigManager", _mock_config_ro_only):
+        result = _check_envelope_allowed("RO")
+        results.append(expect("restriction: RO allowed when in list", result, None))
+
+    # 3. With allowed_envelopes: ["RO", "RW"], RESEARCH blocked
+    with patch("security.config_manager.ConfigManager", _mock_config_ro_rw):
+        result = _check_envelope_allowed("RESEARCH")
+        results.append(expect("restriction: RESEARCH blocked when only RO+RW allowed",
+                              result is not None and "not in allowed_envelopes" in result, True))
+
+    # 4. With allowed_envelopes: ["RO", "RW"], RW passes
+    with patch("security.config_manager.ConfigManager", _mock_config_ro_rw):
+        result = _check_envelope_allowed("RW")
+        results.append(expect("restriction: RW allowed when in list", result, None))
 
     return results
 
@@ -1311,6 +1415,8 @@ def main():
     all_results.extend(test_prompt_sanitizer_unicode())
     all_results.extend(test_config_security_floor())
     all_results.extend(test_deploy_enforcement())
+    all_results.extend(test_config_auto_discovery())
+    all_results.extend(test_envelope_restriction())
     all_results.extend(test_audit_hash_chain())
     all_results.extend(test_audit_wiring())
     all_results.extend(test_contextual_routing())

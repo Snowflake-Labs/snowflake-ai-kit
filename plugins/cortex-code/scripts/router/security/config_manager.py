@@ -23,6 +23,10 @@ SECURITY_FLOOR = {
 }
 
 
+DEFAULT_CONFIG_PATH = Path.home() / ".claude" / "skills" / "cortex-code" / "config.yaml"
+DEFAULT_ORG_POLICY_PATH = Path.home() / ".snowflake" / "cortex" / "claude-skill-policy.yaml"
+
+
 class ConfigManager:
     """Manages security configuration with precedence: org policy > user config > defaults."""
 
@@ -60,7 +64,18 @@ class ConfigManager:
         config_path: Optional[Path] = None,
         org_policy_path: Optional[Path] = None
     ):
-        """Initialize config manager."""
+        """Initialize config manager.
+
+        Auto-discovers config files from documented default paths when not
+        explicitly provided. Env vars CORTEX_SKILL_CONFIG and
+        CORTEX_SKILL_ORG_POLICY override the defaults.
+        """
+        if config_path is None:
+            env_path = os.environ.get("CORTEX_SKILL_CONFIG")
+            config_path = Path(env_path) if env_path else DEFAULT_CONFIG_PATH
+        if org_policy_path is None:
+            env_path = os.environ.get("CORTEX_SKILL_ORG_POLICY")
+            org_policy_path = Path(env_path) if env_path else DEFAULT_ORG_POLICY_PATH
         self._config = self._load_config(config_path, org_policy_path)
 
     def _validate_config(self, config: Dict) -> None:

@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.3.0
+  version: 3.3.1
   compatibility: Requires Cortex Code CLI installed and configured
 ---
 

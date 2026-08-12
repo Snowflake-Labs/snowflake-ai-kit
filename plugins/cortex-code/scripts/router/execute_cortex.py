@@ -247,19 +247,17 @@ def build_envelope_prompt(prompt: str, envelope: str) -> str:
     return prompt
 
 
-def _check_deploy_allowed(envelope: str) -> Optional[str]:
-    """Check if DEPLOY envelope is allowed by config. Returns error message or None."""
-    if envelope != "DEPLOY":
-        return None
+def _check_envelope_allowed(envelope: str) -> Optional[str]:
+    """Check if the requested envelope is in allowed_envelopes. Returns error message or None."""
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from security.config_manager import ConfigManager
         config = ConfigManager()
         allowed = config.get("security.allowed_envelopes", [])
-        if "DEPLOY" not in allowed:
+        if allowed and envelope not in allowed:
             return (
-                "DEPLOY envelope is not in allowed_envelopes. "
-                "Enable it in your org policy or config.yaml to use DEPLOY mode."
+                f"Envelope '{envelope}' is not in allowed_envelopes {allowed}. "
+                f"Only these envelopes are permitted: {', '.join(allowed)}."
             )
     except Exception:
         pass
@@ -318,16 +316,16 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": msg
         }
 
-    # Pre-flight: check DEPLOY envelope is allowed
-    deploy_error = _check_deploy_allowed(envelope)
-    if deploy_error:
-        print(f"⛔ {deploy_error}", file=sys.stderr)
+    # Pre-flight: check envelope is allowed by config
+    envelope_error = _check_envelope_allowed(envelope)
+    if envelope_error:
+        print(f"⛔ {envelope_error}", file=sys.stderr)
         return {
             "session_id": None,
             "events": [],
             "permission_requests": [],
             "final_result": None,
-            "error": deploy_error
+            "error": envelope_error
         }
 
     # Pre-flight: check for conflicting Snowflake MCP server
