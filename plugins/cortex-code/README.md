@@ -1,6 +1,6 @@
-# Cortex Code plugin for Claude Code and OpenAI Codex
+# Cortex Code plugin for Claude Code, OpenAI Codex, and opencode
 
-Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+Route Snowflake work from Claude Code, OpenAI Codex, or opencode to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
 
 ## How It Works
 
@@ -54,6 +54,18 @@ codex plugin add snowflake-cortex-code@snowflake-ai-kit
 ```
 
 Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
+
+### opencode
+
+```bash
+bash install.sh --with-opencode
+```
+
+This copies the plugin to `~/.config/opencode/plugins/` and routing rules to `~/.config/opencode/rules/` — both are loaded globally for all opencode sessions.
+
+> **Note:** opencode has no pre-LLM hook equivalent to Claude Code's `UserPromptSubmit`, so routing is LLM-driven via the rules file plus a `tool.execute.before` hook that blocks direct `snow sql`/`snowsql` bash calls. In practice the LLM reliably calls `cortex_run` for Snowflake work given the rules file.
+
+To update, re-run `bash install.sh --with-opencode`.
 
 ## Security Model
 

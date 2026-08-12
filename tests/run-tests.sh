@@ -253,7 +253,60 @@ else
     fail "config.yaml.example is non-empty"
 fi
 
-# === 5. Unit tests =================================================
+# === 5. OpenCode plugin ============================================
+
+section "OpenCode plugin"
+
+OPENCODE_PLUGIN_DIR="$PLUGIN_DIR/.opencode"
+OPENCODE_TS="$OPENCODE_PLUGIN_DIR/plugins/snowflake-cortex.ts"
+OPENCODE_RULES="$OPENCODE_PLUGIN_DIR/rules/snowflake.md"
+
+check ".opencode/plugins/snowflake-cortex.ts exists" test -f "$OPENCODE_TS"
+check ".opencode/rules/snowflake.md exists"           test -f "$OPENCODE_RULES"
+
+# TS file must export a Plugin and define cortex_run
+if grep -q "cortex_run" "$OPENCODE_TS" 2>/dev/null; then
+    pass "snowflake-cortex.ts exports cortex_run tool"
+else
+    fail "snowflake-cortex.ts exports cortex_run tool"
+fi
+
+# TS file must set OPENCODE env var for entrypoint tracking
+if grep -q "OPENCODE" "$OPENCODE_TS" 2>/dev/null; then
+    pass "snowflake-cortex.ts sets OPENCODE env var"
+else
+    fail "snowflake-cortex.ts sets OPENCODE env var"
+fi
+
+# TS file must include the tool.execute.before hook
+if grep -q "tool.execute.before" "$OPENCODE_TS" 2>/dev/null; then
+    pass "snowflake-cortex.ts defines tool.execute.before hook"
+else
+    fail "snowflake-cortex.ts defines tool.execute.before hook"
+fi
+
+# Rules file must reference cortex_run
+if grep -q "cortex_run" "$OPENCODE_RULES" 2>/dev/null; then
+    pass "snowflake.md references cortex_run"
+else
+    fail "snowflake.md references cortex_run"
+fi
+
+# execute_cortex.py must handle OPENCODE entrypoint
+if grep -q "OPENCODE" "$ROUTER_DIR/execute_cortex.py" 2>/dev/null; then
+    pass "execute_cortex.py handles OPENCODE entrypoint"
+else
+    fail "execute_cortex.py handles OPENCODE entrypoint"
+fi
+
+# install.sh must include --with-opencode flag
+if grep -q "with-opencode" "$REPO_ROOT/install.sh" 2>/dev/null; then
+    pass "install.sh includes --with-opencode flag"
+else
+    fail "install.sh includes --with-opencode flag"
+fi
+
+# === 6. Unit tests =================================================
 
 section "Unit tests"
 
@@ -295,7 +348,7 @@ else
     fi
 fi
 
-# === 6. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
+# === 7. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
 
 section "Integration tests"
 
@@ -326,7 +379,7 @@ else
     fi
 fi
 
-# === 7. Snowflake connection =======================================
+# === 8. Snowflake connection =======================================
 
 section "Snowflake connection"
 

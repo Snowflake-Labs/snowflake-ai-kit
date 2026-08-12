@@ -385,6 +385,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
         elif os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT"):
             env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+        elif os.environ.get("OPENCODE"):
+            env["CORTEX_CODE_ENTRYPOINT"] = "OpenCode Plugin"
         else:
             env["CORTEX_CODE_ENTRYPOINT"] = "Unknown"
 
@@ -592,7 +594,10 @@ def _run_codex_mode(args):
     }) + "\n"
 
     env = os.environ.copy()
-    env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
+    if os.environ.get("OPENCODE"):
+        env["CORTEX_CODE_ENTRYPOINT"] = "OpenCode Plugin"
+    else:
+        env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
 
     perm_mode = "--dangerously-allow-all-tool-calls --no-mcp"
     debug_cmd = f"cortex --output-format stream-json --input-format stream-json {perm_mode} (envelope={args.envelope})"

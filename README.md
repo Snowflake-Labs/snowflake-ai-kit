@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
+Connect your AI coding agent to Snowflake. Plugins for **Claude Code**, **OpenAI Codex**, and **opencode** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Marketplace-8A2BE2)](https://claude.com/plugins/snowflake-cortex-code)
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
@@ -27,6 +27,14 @@ codex plugin add snowflake-cortex-code@snowflake-ai-kit
 
 Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
 
+### opencode
+
+```bash
+bash install.sh --with-opencode
+```
+
+Installs the `cortex_run` tool globally to `~/.config/opencode/plugins/` plus routing rules to `~/.config/opencode/rules/`.
+
 ### That's it
 
 Ask naturally — the plugin handles routing:
@@ -41,7 +49,7 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in yo
 ## How It Works
 
 ```
-You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+You → Claude Code / Codex / opencode → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
 ```
 
 1. A lightweight keyword filter runs on every prompt (~50ms, no network)
@@ -88,6 +96,7 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 | `--check` / `-Check` | Check installation status without installing |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI + plugin |
 | `--with-codex` / `-WithCodex` | Also install OpenAI Codex CLI + plugin |
+| `--with-opencode` / `-WithOpencode` | Also install opencode CLI + plugin |
 | `--help` / `-Help` | Show help |
 
 ## Skills

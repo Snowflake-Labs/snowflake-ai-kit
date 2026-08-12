@@ -9,7 +9,7 @@
 # Usage:
 #   bash install.sh
 #   bash install.sh --check
-#   bash install.sh --with-claude --with-codex
+#   bash install.sh --with-claude --with-codex --with-opencode
 #
 
 set -e
@@ -115,11 +115,55 @@ install_codex_cli() {
   return 1
 }
 
+install_opencode_cli() {
+  if check_cmd opencode; then
+    ok "opencode CLI already installed"
+    return 0
+  fi
+
+  msg "Installing opencode CLI..."
+  if check_cmd npm; then
+    npm install -g opencode-ai 2>/dev/null && ok "opencode CLI installed via npm" && return 0
+  fi
+  warn "Could not install opencode CLI (requires Node.js + npm)."
+  msg "  Install manually: npm install -g opencode-ai"
+  return 1
+}
+
+# Copy the Snowflake Cortex Code plugin to the global opencode config dir
+install_opencode_plugin() {
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local PLUGIN_SRC="$SCRIPT_DIR/plugins/cortex-code"
+
+  # Resolve opencode global config directory (respects XDG_CONFIG_HOME)
+  local OPENCODE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+
+  # --- plugin TS file ---
+  mkdir -p "$OPENCODE_CONFIG/plugins"
+  cp "$PLUGIN_SRC/.opencode/plugins/snowflake-cortex.ts" \
+     "$OPENCODE_CONFIG/plugins/snowflake-cortex.ts"
+  ok "opencode plugin installed ($OPENCODE_CONFIG/plugins/snowflake-cortex.ts)"
+
+  # --- router scripts (needed by the TS plugin via import.meta.dir) ---
+  local ROUTER_DEST="$OPENCODE_CONFIG/plugins/cortex-code-router/scripts/router"
+  mkdir -p "$ROUTER_DEST"
+  cp -r "$PLUGIN_SRC/scripts/router/." "$ROUTER_DEST/"
+  ok "opencode router scripts installed ($OPENCODE_CONFIG/plugins/cortex-code-router/scripts/router/)"
+
+  # --- rules file (global, applies to all opencode sessions) ---
+  mkdir -p "$OPENCODE_CONFIG/rules"
+  cp "$PLUGIN_SRC/.opencode/rules/snowflake.md" \
+     "$OPENCODE_CONFIG/rules/snowflake.md"
+  ok "opencode routing rules installed ($OPENCODE_CONFIG/rules/snowflake.md)"
+}
+
 # ─── Parse arguments ────────────────────────────────────────
 
 CHECK_ONLY=false
 WITH_CLAUDE=false
 WITH_CODEX=false
+WITH_OPENCODE=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -135,6 +179,10 @@ while [ $# -gt 0 ]; do
       WITH_CODEX=true
       shift
       ;;
+    --with-opencode)
+      WITH_OPENCODE=true
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
@@ -147,6 +195,7 @@ while [ $# -gt 0 ]; do
       echo "  --check, -c      Check installation status without installing"
       echo "  --with-claude    Also install Claude Code CLI"
       echo "  --with-codex     Also install OpenAI Codex CLI"
+      echo "  --with-opencode  Also install opencode CLI and Snowflake plugin"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -165,10 +214,11 @@ echo ""
 
 if $CHECK_ONLY; then
   step "Checking installation status..."
-  check_cmd snow   && ok "Snowflake CLI (snow) installed"        || warn "Snowflake CLI (snow) not found"
-  check_cmd cortex && ok "Cortex Code CLI (cortex) installed"    || warn "Cortex Code CLI (cortex) not found"
-  check_cmd claude && ok "Claude Code CLI (claude) installed"    || warn "Claude Code CLI (claude) not found"
-  check_cmd codex  && ok "OpenAI Codex CLI (codex) installed"    || warn "OpenAI Codex CLI (codex) not found"
+  check_cmd snow     && ok "Snowflake CLI (snow) installed"        || warn "Snowflake CLI (snow) not found"
+  check_cmd cortex   && ok "Cortex Code CLI (cortex) installed"    || warn "Cortex Code CLI (cortex) not found"
+  check_cmd claude   && ok "Claude Code CLI (claude) installed"    || warn "Claude Code CLI (claude) not found"
+  check_cmd codex    && ok "OpenAI Codex CLI (codex) installed"    || warn "OpenAI Codex CLI (codex) not found"
+  check_cmd opencode && ok "opencode CLI installed"               || warn "opencode CLI not found"
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -188,6 +238,13 @@ fi
 if $WITH_CODEX || check_cmd codex; then
   step "Installing OpenAI Codex CLI..."
   install_codex_cli || true
+fi
+
+# Optional: opencode CLI + plugin
+if $WITH_OPENCODE || check_cmd opencode; then
+  step "Installing opencode CLI and Snowflake plugin..."
+  install_opencode_cli || true
+  install_opencode_plugin || warn "Could not install opencode plugin (run: bash install.sh --with-opencode from the repo root)"
 fi
 
 # Plugin setup: add marketplace sources if the agent CLIs are present
@@ -227,8 +284,8 @@ if check_cmd claude; then
   fi
 fi
 
-if ! check_cmd codex && ! check_cmd claude; then
-  msg "  No agent CLI found. Install one with --with-claude or --with-codex"
+if ! check_cmd codex && ! check_cmd claude && ! check_cmd opencode; then
+  msg "  No agent CLI found. Install one with --with-claude, --with-codex, or --with-opencode"
 fi
 
 step "Checking Snowflake connection..."
