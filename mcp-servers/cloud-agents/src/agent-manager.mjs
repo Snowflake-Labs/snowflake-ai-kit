@@ -120,6 +120,7 @@ export class AgentManager {
     since_sequence: sinceSequence = 0,
     limit = 200,
     include_raw_events: includeRawEvents = false,
+    include_events: includeEvents = false,
   } = {}) {
     const record = this.#getAgent(agentId);
     const events = (this.eventBuffers.get(agentId) ?? [])
@@ -134,17 +135,21 @@ export class AgentManager {
       .filter((event) => event.type === "response" && event.text)
       .map((event) => event.text)
       .join("");
-    return {
+    const text = deltaText || finalText;
+    const result = {
       agent_id: agentId,
       status: record.status,
       thread_id: record.thread_id,
       parent_message_id: record.parent_message_id ?? 0,
       next_sequence:
         events.length > 0 ? events[events.length - 1].sequence : sinceSequence,
-      events,
-      text: deltaText || finalText,
+      text,
       non_blocking: true,
     };
+    if (includeEvents || includeRawEvents) {
+      result.events = events;
+    }
+    return result;
   }
 
   async status({ agent_ids: agentIds } = {}) {
@@ -185,14 +190,18 @@ export class AgentManager {
         return {
           completed: includeOutput
             ? await Promise.all(
-                matched.map(async (record) => ({
-                  ...this.#publicRecord(record),
-                  output: await this.output({
+                matched.map(async (record) => {
+                  const out = await this.output({
                     agent_id: record.agent_id,
                     since_sequence: sinceSequence,
                     limit: 1_000,
-                  }),
-                })),
+                  });
+                  return {
+                    ...this.#publicRecord(record),
+                    text: out.text,
+                    next_sequence: out.next_sequence,
+                  };
+                }),
               )
             : matched.map((record) => this.#publicRecord(record)),
           timed_out: [],

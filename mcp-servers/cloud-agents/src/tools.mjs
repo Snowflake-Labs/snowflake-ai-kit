@@ -30,7 +30,9 @@ export function toolDefinitions() {
     },
     {
       name: "cloud_agent_output",
-      description: "Read buffered Cloud Agent output without blocking.",
+      description:
+        "Read buffered Cloud Agent output without blocking. Returns assembled text by default. " +
+        "Set include_events to true to also get the individual event objects.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -39,6 +41,7 @@ export function toolDefinitions() {
           agent_id: { type: "string" },
           since_sequence: { type: "integer", minimum: 0, default: 0 },
           limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+          include_events: { type: "boolean", default: false },
           include_raw_events: { type: "boolean", default: false },
         },
       },

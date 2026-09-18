@@ -278,11 +278,14 @@ def _cloud_agents_routing_instruction() -> str:
     return (
         "[CLOUD AGENT ROUTER] This prompt needs Snowflake. "
         "A Cloud Agents MCP server is active. Route this request through it:\n"
-        "1. Use cloud_agent_spawn with the user's FULL original prompt as the 'prompt' argument "
+        "1. Tell the user: 'Routing to your Snowflake Cloud Agent — this may take a moment.'\n"
+        "2. Use cloud_agent_spawn with the user's FULL original prompt as the 'prompt' argument "
         "and workspace mode 'none'.\n"
-        "2. Immediately use cloud_agent_wait with the returned agent_id, "
-        "condition 'terminal', timeout_ms 120000.\n"
-        "3. Present the agent's output text to the user.\n"
+        "3. Use cloud_agent_wait with the returned agent_id, condition 'terminal', "
+        "timeout_ms 120000.\n"
+        "4. Present ONLY the final 'text' to the user in a clear, readable format. "
+        "Do NOT display raw event data, sequence numbers, metadata, agent_id, "
+        "thread_id, or internal tool calls.\n"
         "Do NOT use the local Cortex CLI, SnowSQL, or snow CLI. "
         "Do NOT paraphrase or shorten the user's prompt — pass it verbatim."
     )
