@@ -36,12 +36,35 @@ def main():
             print("ERROR: Username is required.", file=sys.stderr)
             sys.exit(1)
 
-    conn = snowflake.connector.connect(
-        account=account,
-        user=user,
-        authenticator="externalbrowser",
-        client_session_keep_alive=True,
-    )
+    # Determine auth method
+    password = os.environ.get("CLOUD_AGENTS_PASSWORD") or os.environ.get("SNOWFLAKE_PASSWORD")
+    authenticator = os.environ.get("CLOUD_AGENTS_AUTHENTICATOR", "")
+
+    connect_args = {
+        "account": account,
+        "user": user,
+        "client_session_keep_alive": True,
+    }
+
+    conn = None
+    if password:
+        connect_args["password"] = password
+        conn = snowflake.connector.connect(**connect_args)
+    elif authenticator:
+        connect_args["authenticator"] = authenticator
+        conn = snowflake.connector.connect(**connect_args)
+    else:
+        # Auto-detect: try externalbrowser, fall back to password prompt
+        try:
+            conn = snowflake.connector.connect(authenticator="externalbrowser", **connect_args)
+        except snowflake.connector.errors.DatabaseError as e:
+            if "390190" in str(e) or "SAML" in str(e):
+                import getpass
+                pw = getpass.getpass("Snowflake password: ")
+                connect_args["password"] = pw
+                conn = snowflake.connector.connect(**connect_args)
+            else:
+                raise
 
     token = conn.rest.token
     with open(TOKEN_FILE, "w") as f:
