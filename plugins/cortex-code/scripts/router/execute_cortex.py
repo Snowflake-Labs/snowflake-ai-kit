@@ -21,6 +21,7 @@ from envelope_policy import decide as envelope_decide
 import hosts
 from session_state import load_active_session, save_active_session
 from security import config_manager
+from backend import local_execution_error
 
 # Audit output is best-effort; configuration validation is mandatory.
 _audit_logger = None
@@ -249,6 +250,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
+    backend_error = local_execution_error()
+    if backend_error:
+        return {"session_id": None, "events": [], "permission_requests": [],
+                "final_result": None, "error": backend_error}
+
     # Pre-flight: check for credential file paths in prompt
     blocked_pattern = check_credential_paths(prompt)
     if blocked_pattern:
@@ -503,6 +509,12 @@ def _run_codex_mode(args):
     terminals can't handle. Uses subprocess.run which cleanly passes input
     and waits for completion.
     """
+    backend_error = local_execution_error()
+    if backend_error:
+        print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
+                          "final_result": None, "error": backend_error}))
+        return 1
+
     # Pre-flight: credential path blocking (same as Claude Code path)
     blocked_pattern = check_credential_paths(args.prompt)
     if blocked_pattern:

@@ -611,7 +611,8 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
 
     def setUp(self):
         skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
-        prereq = skill.split("## Prerequisite", 1)[1]
+        # The local-mode prerequisite (remote mode skips it).
+        prereq = re.split(r"## (?:Local p|P)rerequisite", skill, maxsplit=1)[1]
         self.snippet = re.search(r"```bash\n(.*?)```", prereq, re.S).group(1)
 
     def run_check(self, home: Path, host: str):

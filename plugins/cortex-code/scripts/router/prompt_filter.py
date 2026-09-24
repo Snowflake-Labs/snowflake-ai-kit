@@ -15,6 +15,7 @@ from pathlib import Path
 
 import hosts
 import workloads
+from backend import BackendConfigError, resolve_backend, remote_routing_instruction
 
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
@@ -81,6 +82,38 @@ def _check_mcp_conflict(host=None):
 _detected_claude_code_from_stdin = False
 
 
+
+MIGRATION_NEEDS_LOCAL = (
+    "STOP. This is a database migration. Snowflake AIM runs only with the local Cortex Code CLI, "
+    "but CORTEX_PLUGIN_BACKEND=remote is selected. Tell the user that migrations need "
+    "CORTEX_PLUGIN_BACKEND=local and the Cortex Code CLI installed. Do not run the migration "
+    "through the remote MCP tool or any other tool."
+)
+
+
+def _remote_selected() -> bool:
+    try:
+        return resolve_backend().mode == "remote"
+    except BackendConfigError:
+        return True  # Surface the error without attempting a local fallback.
+
+
+def _backend_instruction(prompt: str, workload=None) -> str | None:
+    """Remote-backend context for a routed prompt, or None to use the host's local instruction."""
+    try:
+        backend = resolve_backend()
+    except BackendConfigError as error:
+        return f"STOP. {error}"
+    if backend.mode != "remote":
+        return None
+    if workload is not None and workload is not workloads.GENERAL:
+        return MIGRATION_NEEDS_LOCAL
+    from execute_cortex import check_credential_paths
+    if check_credential_paths(prompt):
+        return "STOP. Prompt references a credential path; remote delegation is blocked."
+    return remote_routing_instruction(backend)
+
+
 def check_prompt(prompt: str, host=None) -> str | None:
     """Return routing instruction if Snowflake keywords detected, else None."""
     # Skip empty or very short prompts
@@ -100,12 +133,12 @@ def check_prompt(prompt: str, host=None) -> str | None:
     if host.supports_workloads:
         workload = workloads.classify(prompt)
         if workload is not workloads.GENERAL:
-            return host.routing_instruction(root, workload)
+            return _backend_instruction(prompt, workload) or host.routing_instruction(root, workload)
 
     # Check for Snowflake keywords
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
-            return host.routing_instruction(root)
+            return _backend_instruction(prompt) or host.routing_instruction(root)
 
     return None
 
@@ -141,6 +174,17 @@ def main():
     else:
         result = check_prompt(str(prompt), host)
     if result:
+        remote = _remote_selected()
+        if remote:
+            # Remote mode never touches the local CLI, its policy file, or MCP conflict checks.
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": result,
+                }
+            }))
+            return
+
         from security.config_manager import ConfigManager, ConfigValidationError
         try:
             ConfigManager()

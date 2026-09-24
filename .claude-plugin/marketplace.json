@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "snowflake-cortex-code",
-      "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code, plus $cortex-run for explicit invocation.",
+      "description": "Route Snowflake work to Cortex Code through the local CLI or an opt-in managed MCP Coding Agent.",
       "version": "3.6.1",
       "source": "./plugins/cortex-code",
       "author": {
