@@ -332,62 +332,89 @@ describe("init recovery of last_sequence", () => {
 });
 
 describe("compactActivity", () => {
-  it("collapses consecutive text_deltas into one text entry", () => {
+  it("pairs tool_use + tool_result into one step with elapsed_ms", () => {
     const events = [
-      { type: "text_delta", text: "Hello " },
-      { type: "text_delta", text: "world" },
-      { type: "text_delta", text: "!" },
+      {
+        type: "tool_use",
+        name: "snowflake_sql_execute",
+        input: { description: "Heavy aggregation", sql: "SELECT COUNT(*) FROM t" },
+        timestamp: "2026-09-24T22:25:37.576Z",
+      },
+      {
+        type: "tool_result",
+        name: "snowflake_sql_execute",
+        status: "success",
+        timestamp: "2026-09-24T22:25:40.539Z",
+      },
     ];
     const activity = compactActivity(events);
     assert.equal(activity.length, 1);
-    assert.equal(activity[0].type, "text");
-    assert.equal(activity[0].text, "Hello world!");
+    assert.equal(activity[0].type, "step");
+    assert.equal(activity[0].name, "snowflake_sql_execute");
+    assert.equal(activity[0].description, "Heavy aggregation");
+    assert.equal(activity[0].status, "success");
+    assert.equal(activity[0].started_at, "2026-09-24T22:25:37.576Z");
+    assert.equal(activity[0].elapsed_ms, 2963);
   });
 
-  it("preserves tool_use and tool_result as action/result", () => {
+  it("uses SQL first line as description fallback (truncated to 80 chars)", () => {
+    const longSql = "SELECT very_long_column_name, another_long_column FROM some_table WHERE condition = true AND more_stuff";
     const events = [
-      { type: "tool_use", name: "sql_exec" },
-      { type: "tool_result", name: "sql_exec", status: "success" },
+      { type: "tool_use", name: "sql_exec", input: { sql: longSql }, timestamp: "2026-01-01T00:00:00Z" },
+      { type: "tool_result", name: "sql_exec", status: "success", timestamp: "2026-01-01T00:00:01Z" },
     ];
     const activity = compactActivity(events);
-    assert.equal(activity.length, 2);
-    assert.deepEqual(activity[0], { type: "action", name: "sql_exec" });
-    assert.deepEqual(activity[1], {
-      type: "result",
-      name: "sql_exec",
-      status: "success",
-    });
+    assert.equal(activity[0].type, "step");
+    assert.ok(activity[0].description.length <= 80);
+    assert.ok(activity[0].description.endsWith("..."));
+  });
+
+  it("drops text_deltas but keeps last progress line (capped at 120 chars)", () => {
+    const events = [
+      { type: "text_delta", text: "First sentence. " },
+      { type: "text_delta", text: "Second sentence. " },
+      { type: "text_delta", text: "Final progress update here." },
+    ];
+    const activity = compactActivity(events);
+    // No text entries — only a progress line
+    assert.equal(activity.length, 1);
+    assert.equal(activity[0].type, "progress");
+    assert.equal(activity[0].text, "Final progress update here.");
+  });
+
+  it("does NOT include response text in activity", () => {
+    const events = [
+      { type: "text_delta", text: "working..." },
+      { type: "response", text: "Here is a very long final summary table..." },
+    ];
+    const activity = compactActivity(events);
+    // response is dropped — only progress from text_delta
+    const types = activity.map((a) => a.type);
+    assert.ok(!types.includes("response"));
+    assert.ok(!types.includes("text"));
   });
 
   it("drops metadata and raw events", () => {
     const events = [
       { type: "metadata", role: "user", message_id: 1 },
-      { type: "text_delta", text: "hi" },
       { type: "raw", source_event: "unknown" },
     ];
     const activity = compactActivity(events);
-    assert.equal(activity.length, 1);
-    assert.equal(activity[0].text, "hi");
+    assert.equal(activity.length, 0);
   });
 
   it("returns empty array for empty events", () => {
     assert.deepEqual(compactActivity([]), []);
   });
 
-  it("interleaves text and tool events correctly", () => {
+  it("handles unpaired tool_use (in progress)", () => {
     const events = [
-      { type: "text_delta", text: "Let me " },
-      { type: "text_delta", text: "query." },
-      { type: "tool_use", name: "sql_exec" },
-      { type: "tool_result", name: "sql_exec", status: "success" },
-      { type: "text_delta", text: "Done." },
+      { type: "tool_use", name: "sql_exec", input: { sql: "SELECT 1" }, timestamp: "2026-01-01T00:00:00Z" },
     ];
     const activity = compactActivity(events);
-    assert.equal(activity.length, 4);
-    assert.equal(activity[0].text, "Let me query.");
-    assert.equal(activity[1].type, "action");
-    assert.equal(activity[2].type, "result");
-    assert.equal(activity[3].text, "Done.");
+    assert.equal(activity.length, 1);
+    assert.equal(activity[0].type, "step");
+    assert.equal(activity[0].status, "in_progress");
   });
 
   it("includes status and error events", () => {
@@ -399,11 +426,30 @@ describe("compactActivity", () => {
     const activity = compactActivity(events);
     assert.equal(activity.length, 3);
     assert.deepEqual(activity[0], { type: "status", text: "running" });
-    assert.deepEqual(activity[1], {
-      type: "error",
-      message: "something broke",
-    });
+    assert.deepEqual(activity[1], { type: "error", message: "something broke" });
     assert.deepEqual(activity[2], { type: "status", text: "done" });
+  });
+
+  it("interleaves steps and narration correctly", () => {
+    const events = [
+      { type: "text_delta", text: "Let me query. " },
+      { type: "tool_use", name: "sql_exec", input: { description: "count rows" }, timestamp: "2026-01-01T00:00:00Z" },
+      { type: "tool_result", name: "sql_exec", status: "success", timestamp: "2026-01-01T00:00:02Z" },
+      { type: "text_delta", text: "Got results. " },
+      { type: "tool_use", name: "sql_exec", input: { sql: "CREATE VIEW v AS SELECT 1" }, timestamp: "2026-01-01T00:00:03Z" },
+      { type: "tool_result", name: "sql_exec", status: "success", timestamp: "2026-01-01T00:00:04Z" },
+      { type: "text_delta", text: "All done." },
+    ];
+    const activity = compactActivity(events);
+    // 2 steps + 1 progress (last text_delta)
+    const steps = activity.filter((a) => a.type === "step");
+    const progress = activity.filter((a) => a.type === "progress");
+    assert.equal(steps.length, 2);
+    assert.equal(steps[0].description, "count rows");
+    assert.equal(steps[0].elapsed_ms, 2000);
+    assert.equal(steps[1].description, "CREATE VIEW v AS SELECT 1");
+    assert.equal(progress.length, 1);
+    assert.equal(progress[0].text, "All done.");
   });
 });
 
@@ -548,7 +594,7 @@ describe("existing behavior regression", () => {
     assert.ok(completed.next_sequence > 0);
   });
 
-  it("wait with include_activity returns compact activity", async () => {
+  it("wait with include_activity returns compact steps", async () => {
     const store = makeStore();
     const events = [
       sseMetadata(),
@@ -578,8 +624,9 @@ describe("existing behavior regression", () => {
     });
     const completed = result.completed[0];
     assert.ok(Array.isArray(completed.activity));
-    const types = completed.activity.map((a) => a.type);
-    assert.ok(types.includes("action"));
-    assert.ok(types.includes("result"));
+    const steps = completed.activity.filter((a) => a.type === "step");
+    assert.ok(steps.length > 0);
+    assert.equal(steps[0].name, "sql_exec");
+    assert.equal(steps[0].status, "success");
   });
 });
