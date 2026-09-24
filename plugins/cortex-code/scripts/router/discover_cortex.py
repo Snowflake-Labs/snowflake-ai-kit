@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 import re
 
+from backend import BackendConfigError, resolve_backend, remote_routing_instruction
+
 # Add parent directory to path for security imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from security.cache_manager import CacheManager
@@ -51,6 +53,8 @@ def run_command(cmd):
 
 def discover_cortex_skills():
     """Discover all available Cortex Code skills."""
+    if resolve_backend().mode == "remote":
+        return {}
     cortex_path = shutil.which("cortex")
     cortex_missing = False
 
@@ -213,6 +217,21 @@ def main():
         help="Cache directory for storing capabilities (default: from config or ~/.cache/cortex-skill)"
     )
     args = parser.parse_args()
+
+    try:
+        backend = resolve_backend()
+    except BackendConfigError as error:
+        context_msg = f"STOP. {error}"
+    else:
+        context_msg = remote_routing_instruction(backend) if backend.mode == "remote" else None
+    if context_msg:
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": context_msg,
+            }
+        }))
+        return 0
 
     # Determine cache directory
     if args.cache_dir:

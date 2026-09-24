@@ -10,8 +10,8 @@
   "plugins": [
     {
       "name": "snowflake-cortex-code",
-      "description": "Use Cortex Code from Claude Code — slash commands for reviews and task delegation, plus automatic routing of Snowflake operations to Cortex Code.",
-      "version": "2.0.0",
+      "description": "Route Snowflake work to Cortex Code through the local CLI or an opt-in managed MCP Coding Agent.",
+      "version": "3.4.0",
       "source": "./plugins/cortex-code",
       "author": {
         "name": "Snowflake"

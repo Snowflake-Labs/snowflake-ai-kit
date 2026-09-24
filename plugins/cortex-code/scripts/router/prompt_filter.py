@@ -14,6 +14,8 @@ import re
 import shutil
 from pathlib import Path
 
+from backend import BackendConfigError, resolve_backend, remote_routing_instruction
+
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
     r"\bsnowflake\b",
@@ -184,6 +186,15 @@ def check_prompt(prompt: str) -> str | None:
     # Check for Snowflake keywords
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
+            try:
+                backend = resolve_backend()
+            except BackendConfigError as error:
+                return f"STOP. {error}"
+            if backend.mode == "remote":
+                from execute_cortex import check_credential_paths
+                if check_credential_paths(prompt):
+                    return "STOP. Prompt references a credential path; remote delegation is blocked."
+                return remote_routing_instruction(backend)
             if _is_claude_code():
                 return _claude_code_routing_instruction()
             else:
@@ -264,6 +275,19 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
+        try:
+            is_remote = resolve_backend().mode == "remote"
+        except BackendConfigError:
+            is_remote = True  # Surface the error without attempting local fallback.
+        if is_remote:
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": result,
+                }
+            }))
+            return
+
         # Check for MCP conflict FIRST — blocks everything if Snowflake MCP server is active
         mcp_conflict = _check_mcp_conflict()
         if mcp_conflict:

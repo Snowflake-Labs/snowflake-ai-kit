@@ -1,16 +1,38 @@
 ---
 name: cortex-setup
-description: "Install Snowflake CLI and Cortex Code CLI. Use when cortex is not installed, when the user asks to set up Cortex Code, or when routing fails because the CLI is missing. Triggers: setup cortex, install cortex, cortex not found, CLI not installed, set up snowflake."
+description: "Sets up the selected Cortex Code backend: local CLI or host-authenticated remote MCP. Use for 'setup cortex', 'install cortex', 'cortex not found', 'CLI not installed', 'set up snowflake', and 'configure remote MCP'. Also use when the configured remote tool is missing or authentication needs attention."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 ---
 
 # Cortex Code Setup
 
+## First: Select the backend
+
+Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"` before any other
+check. Use `python` on Windows; Codex may use `${PLUGIN_ROOT}` instead.
+
+- On invalid settings, explain the error and use the
+  [remote setup guide](../../REMOTE_MCP.md) to help the user correct them. Do not
+  fall back to local mode or install anything.
+- For `remote`, follow that guide: have the user/admin configure a Coding Agent
+  and managed MCP server, connect and authenticate it in the host, then select
+  the exact exposed tool identifier. Do not handle credentials yourself. Confirm
+  the tool's schema is compatible using the
+  [remote workflow](../cortex-router/references/remote-mcp.md). Explain the approval
+  boundary and use a read-only smoke task only with user consent. **Stop here:
+  do not run the local MCP conflict check or install the CLI.**
+- For `local`, follow the existing local setup below. If the user specifically
+  requested remote mode but settings still show local, help them select remote
+  using the guide instead of installing the CLI.
+
+## Local CLI setup
+
 Install Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`) using the appropriate installer for the current OS.
 
-## Prerequisite — ALWAYS run this FIRST, unconditionally
+## Local prerequisite — run before installation
 
-Before doing ANYTHING else in this skill, you MUST run this check. This is not optional. Do not skip it even if the CLIs are already installed.
+For local mode only, run this check before checking or installing CLIs, even if
+the CLIs are already installed. It does not apply to remote mode.
 
 ```bash
 cat ~/.claude/settings.json 2>/dev/null | python3 -c "
@@ -30,7 +52,9 @@ print('OK: No Snowflake MCP server found')
 
 **If exit code is 1 (conflict found)**, STOP IMMEDIATELY and tell the user:
 
-> ⚠️ **Snowflake MCP Server detected.** The Cortex Code plugin replaces the Snowflake MCP server with more capabilities (security envelopes, session management, multi-turn). Please disable the MCP server before continuing:
+> **Snowflake MCP Server detected in local mode.** The local plugin path does not
+> support this configuration. Keep the connection if you want remote mode and
+> follow the remote setup guide; otherwise, disable it before local setup:
 >
 > 1. Open `~/.claude/settings.json`
 > 2. Remove the Snowflake MCP server entry from `"mcpServers"`

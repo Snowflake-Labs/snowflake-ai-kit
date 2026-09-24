@@ -42,6 +42,13 @@ tests/
 - `discover_cortex.py` — finds Cortex CLI binary and parses skill output. Has Windows/macOS/Linux path handling.
 - `execute_cortex.py` — spawns `cortex` CLI subprocess. Key behaviors: credential path blocking (`CREDENTIAL_PATTERNS`), break-on-result, `process.terminate()` cleanup. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input — do not remove it.
 - `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching at line 88 can produce false positives.
+- `backend.py` selects `local` (default) or `remote` from `CORTEX_PLUGIN_BACKEND`.
+  Remote mode requires the exact host-visible `CORTEX_PLUGIN_MCP_TOOL` identifier.
+  Hooks skip local discovery/conflict/install checks, and `execute_cortex.py`
+  rejects local execution in remote mode. The host invokes native MCP directly;
+  do not add credential storage or silently fall back between backends. Remote
+  consent/schema/thread handling is skill guidance, not a per-command policy gate.
+  See `plugins/cortex-code/REMOTE_MCP.md` for the contract and manual smoke tests.
 
 ## Testing
 
@@ -62,6 +69,7 @@ bash tests/run-tests.sh           # Mac/Linux
 | Plugin structure | 7 | plugin.json, 3 skill dirs, 9 router scripts, test files |
 | Content sanity | 8 | Valid JSON, `decide()` defined, `--permission-prompt-tool` usage, session_state functions |
 | Unit tests | 75 | `test_envelope_policy.py` (33): RO/RW/RESEARCH/DEPLOY envelope allow/deny decisions. `test_plugin_units.py` (42): session state CRUD, credential path blocking, envelope prompt building |
+| Remote backend | 34 | `test_remote_backend.py`: resolver, execution guards, isolated hook subprocesses without CLIs, skill frontmatter/links, matching manifests. No live MCP calls |
 | Snowflake connection | 1 | connections.toml or env vars exist (warn — only needed for live integration, not for unit tests) |
 
 Tests exit non-zero on any FAIL. Warnings (marked "warn") are informational only — they flag missing tools that aren't needed for the core test suite.

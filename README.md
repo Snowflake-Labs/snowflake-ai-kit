@@ -6,7 +6,7 @@ Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **Ope
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/Snowflake-Labs/snowflake-ai-kit/test.yml?label=CI)](https://github.com/Snowflake-Labs/snowflake-ai-kit/actions)
-[![Plugin](https://img.shields.io/badge/Plugin-v3.3.0-green)](plugins/cortex-code)
+[![Plugin](https://img.shields.io/badge/Plugin-v3.4.0-green)](plugins/cortex-code)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-yellow)](https://python.org)
 
 ## Quick Start
@@ -38,15 +38,23 @@ Ask naturally — the plugin handles routing:
 
 Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in your current agent.
 
+Want to avoid installing the Cortex Code CLI? The opt-in
+[remote MCP backend](plugins/cortex-code/REMOTE_MCP.md) delegates through your
+host's authenticated Snowflake-managed MCP connection. It requires account-side
+setup and has different approval, file-access and session behavior. Local CLI
+mode remains the default.
+
 ## How It Works
 
-```
-You → Claude Code / Codex → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+```text
+You -> Claude Code / Codex -> Plugin detects Snowflake intent
+  -> local (default): Cortex Code CLI -> Snowflake
+  -> remote (opt-in): host MCP tool -> Snowflake-hosted Coding Agent
 ```
 
 1. A lightweight keyword filter runs on every prompt (~50ms, no network)
-2. If Snowflake intent is detected, the plugin routes to Cortex Code CLI
-3. Cortex Code executes with 55+ specialized skills (SQL, governance, ML, streaming, etc.)
+2. If Snowflake intent is detected, the plugin follows the selected backend workflow
+3. Cortex Code executes with the skills available in that backend
 4. Results flow back to your agent session
 
 To explicitly invoke Cortex Code (bypassing auto-detection):
@@ -63,7 +71,10 @@ Works natively — enable "Third-party skills" in Cursor Settings. No separate p
 
 ## Prerequisites
 
-The plugin requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
+Both backends require Python for plugin hooks. **Local mode** requires
+[Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli)
+(`cortex`) on your PATH. **Remote mode** requires a configured native managed MCP
+connection instead; follow the [remote setup guide](plugins/cortex-code/REMOTE_MCP.md).
 
 ### Snowflake Connection
 

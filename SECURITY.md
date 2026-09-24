@@ -29,3 +29,12 @@ This repository contains markdown skills, shell scripts, and a Claude Code plugi
 - Use synthetic/example data in all templates and references
 - Review generated code patterns for OWASP Top 10 vulnerabilities
 - Use environment variables for any sensitive configuration in examples
+
+## Remote MCP delegation
+
+The optional remote backend delegates through the host's native MCP connection.
+It does not enforce the local CLI's per-command security envelopes or audit remote
+inner tool calls. Its consent and context-handling instructions are host-agent
+workflow guidance, not a programmatic authorization boundary. Enforce access in
+the host and Snowflake; organizations requiring local envelope controls should
+not enable remote mode. See the [remote approval and data boundaries](plugins/cortex-code/REMOTE_MCP.md#approval-and-data-boundaries).

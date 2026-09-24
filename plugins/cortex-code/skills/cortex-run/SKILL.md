@@ -5,14 +5,33 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
   author: Snowflake
-  version: 1.0.0
+  version: 3.4.0
 ---
 
 # Cortex Code (Explicit Invocation)
 
-Send a prompt directly to Cortex Code CLI, bypassing the auto-routing keyword filter. Use this when the user explicitly wants Cortex Code to handle their request.
+Send a prompt to the selected Cortex Code backend, bypassing the auto-routing
+keyword filter. Use this when the user explicitly wants Cortex Code to handle
+their request.
 
-## Prerequisites
+## First: Select the backend
+
+Before checking CLI prerequisites, run:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"
+```
+
+Use `python` on Windows; Codex may use `${PLUGIN_ROOT}` instead. Stop on an error.
+
+- `remote`: take the text after `$cortex-run` or `/cortex-run` as the task (ask
+  for a task if none was provided), then read and follow
+  [Remote MCP delegation](../cortex-router/references/remote-mcp.md). Use only the
+  exact returned native MCP tool. **Skip all local prerequisites and steps below**.
+  Remote mode does not provide local envelopes or automatic file access.
+- `local`: follow the existing CLI workflow below.
+
+## Local CLI prerequisites
 
 Cortex Code CLI must be installed and on PATH:
 
