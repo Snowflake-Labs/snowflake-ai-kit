@@ -134,15 +134,18 @@ export class AgentManager {
     include_activity: includeActivity = false,
   } = {}) {
     const record = this.#getAgent(agentId);
-    const events = (this.eventBuffers.get(agentId) ?? [])
-      .filter((event) => event.sequence > sinceSequence)
-      .slice(0, limit)
+    const allEvents = (this.eventBuffers.get(agentId) ?? [])
+      .filter((event) => event.sequence > sinceSequence);
+    // For text assembly and activity, use ALL events (no limit truncation).
+    // Limit only applies to raw event output to control payload size.
+    const events = allEvents
+      .slice(0, includeEvents || includeRawEvents ? limit : allEvents.length)
       .map((event) => (includeRawEvents ? event : stripRaw(event)));
-    const deltaText = events
+    const deltaText = allEvents
       .filter((event) => event.type === "text_delta")
       .map((event) => event.text)
       .join("");
-    const finalText = events
+    const finalText = allEvents
       .filter((event) => event.type === "response" && event.text)
       .map((event) => event.text)
       .join("");
@@ -153,7 +156,7 @@ export class AgentManager {
       thread_id: record.thread_id,
       parent_message_id: record.parent_message_id ?? 0,
       next_sequence:
-        events.length > 0 ? events[events.length - 1].sequence : sinceSequence,
+        allEvents.length > 0 ? allEvents[allEvents.length - 1].sequence : sinceSequence,
       text,
       non_blocking: true,
     };
@@ -161,7 +164,9 @@ export class AgentManager {
       result.events = events;
     }
     if (includeActivity) {
-      result.activity = compactActivity(events);
+      // Compact from ALL events, then apply limit to the compact result
+      const fullActivity = compactActivity(allEvents);
+      result.activity = fullActivity.slice(0, limit);
     }
     return result;
   }
@@ -692,38 +697,94 @@ export function normalizeSseEvent({ event, data }) {
 
 export function compactActivity(events) {
   const activity = [];
-  let pendingText = "";
+  // Track pending tool_use events for pairing with their result
+  const pendingTools = new Map(); // name -> { name, description, started_at }
+  let lastProgressText = "";
 
   for (const event of events) {
     if (event.type === "text_delta") {
-      pendingText += event.text ?? "";
+      // Accumulate only as latest progress line — don't keep full narration
+      const text = (event.text ?? "").trim();
+      if (text) {
+        lastProgressText = text;
+      }
       continue;
     }
-    // Flush accumulated text before non-text event
-    if (pendingText) {
-      activity.push({ type: "text", text: pendingText });
-      pendingText = "";
+    if (event.type === "response") {
+      // Final response text is already in the top-level `text` field.
+      // Don't duplicate it into activity.
+      continue;
     }
     if (event.type === "tool_use") {
-      activity.push({ type: "action", name: event.name ?? "?" });
-    } else if (event.type === "tool_result") {
-      activity.push({
-        type: "result",
+      const desc =
+        event.input?.description ??
+        truncateSql(event.input?.sql ?? event.input?.query) ??
+        "";
+      pendingTools.set(event.name ?? "?", {
         name: event.name ?? "?",
-        status: event.status ?? "?",
+        description: desc,
+        started_at: event.timestamp ?? null,
       });
-    } else if (event.type === "status" || event.type === "done") {
+      continue;
+    }
+    if (event.type === "tool_result") {
+      const toolName = event.name ?? "?";
+      const pending = pendingTools.get(toolName);
+      const step = {
+        type: "step",
+        name: toolName,
+        status: event.status ?? "?",
+      };
+      if (pending) {
+        if (pending.description) step.description = pending.description;
+        if (pending.started_at) step.started_at = pending.started_at;
+        if (pending.started_at && event.timestamp) {
+          step.elapsed_ms =
+            new Date(event.timestamp).getTime() -
+            new Date(pending.started_at).getTime();
+        }
+        pendingTools.delete(toolName);
+      }
+      activity.push(step);
+      continue;
+    }
+    if (event.type === "status" || event.type === "done") {
       activity.push({ type: "status", text: event.text ?? event.status ?? "" });
     } else if (event.type === "error") {
       activity.push({ type: "error", message: event.message ?? "" });
     }
     // metadata and raw events are intentionally dropped
   }
-  // Flush trailing text
-  if (pendingText) {
-    activity.push({ type: "text", text: pendingText });
+
+  // Flush any unpaired tool_use events (started but no result yet)
+  for (const pending of pendingTools.values()) {
+    activity.push({
+      type: "step",
+      name: pending.name,
+      description: pending.description || undefined,
+      started_at: pending.started_at || undefined,
+      status: "in_progress",
+    });
   }
+
+  // Add last progress line if non-empty (capped at 120 chars)
+  if (lastProgressText) {
+    activity.push({
+      type: "progress",
+      text:
+        lastProgressText.length <= 120
+          ? lastProgressText
+          : `${lastProgressText.slice(0, 117)}...`,
+    });
+  }
+
   return activity;
+}
+
+function truncateSql(sql) {
+  if (!sql || typeof sql !== "string") return null;
+  const firstLine = sql.split("\n")[0].trim();
+  return firstLine.length <= 80 ? firstLine : `${firstLine.slice(0, 77)}...`;
 }
 
 function extractToolResultText(payload) {
