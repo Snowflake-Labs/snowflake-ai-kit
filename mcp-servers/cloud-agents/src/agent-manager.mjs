@@ -32,10 +32,15 @@ export class AgentManager {
         await this.store.upsertRecord(restored);
       }
       this.agents.set(restored.agent_id, restored);
-      this.eventBuffers.set(
-        restored.agent_id,
-        await this.store.loadEvents(restored.agent_id),
-      );
+      const events = await this.store.loadEvents(restored.agent_id);
+      this.eventBuffers.set(restored.agent_id, events);
+      // Recover last_sequence from event log so restarts don't lose the cursor
+      if (events.length > 0) {
+        restored.last_sequence = Math.max(
+          restored.last_sequence ?? 0,
+          events[events.length - 1].sequence ?? 0,
+        );
+      }
     }
   }
 
@@ -52,7 +57,12 @@ export class AgentManager {
       created_at: timestamp,
       updated_at: timestamp,
       model: input.model || "auto",
-      workspace: normalizeWorkspace(input.workspace),
+      workspace: normalizeWorkspace(
+        input.workspace ||
+          (process.env.CLOUD_AGENTS_DEFAULT_WORKSPACE_MODE
+            ? { mode: process.env.CLOUD_AGENTS_DEFAULT_WORKSPACE_MODE }
+            : undefined),
+      ),
       mcp_servers: normalizeMcpServers(input.mcp_servers),
       system_prompt: input.system_prompt || "",
       metadata: input.metadata ?? {},
@@ -121,6 +131,7 @@ export class AgentManager {
     limit = 200,
     include_raw_events: includeRawEvents = false,
     include_events: includeEvents = false,
+    include_activity: includeActivity = false,
   } = {}) {
     const record = this.#getAgent(agentId);
     const events = (this.eventBuffers.get(agentId) ?? [])
@@ -149,6 +160,9 @@ export class AgentManager {
     if (includeEvents || includeRawEvents) {
       result.events = events;
     }
+    if (includeActivity) {
+      result.activity = compactActivity(events);
+    }
     return result;
   }
 
@@ -174,17 +188,21 @@ export class AgentManager {
     condition = "terminal",
     timeout_ms: timeoutMs = 30_000,
     include_output: includeOutput = true,
+    include_activity: includeActivity = false,
     mode = "any",
     since_sequence: sinceSequence = 0,
   } = {}) {
     if (!Array.isArray(agentIds) || agentIds.length === 0) {
       throw new Error("agent_ids must be a non-empty array");
     }
-    const deadline = Date.now() + timeoutMs;
+    const MAX_WAIT_MS = 90_000;
+    const clamped = Math.min(timeoutMs, MAX_WAIT_MS);
+    const wasClamped = timeoutMs > MAX_WAIT_MS;
+    const deadline = Date.now() + clamped;
     while (true) {
       const matched = agentIds
         .map((id) => this.#getAgent(id))
-        .filter((record) => conditionMet(record, condition));
+        .filter((record) => conditionMet(record, condition, sinceSequence));
       const satisfied = mode === "all" ? matched.length === agentIds.length : matched.length > 0;
       if (satisfied) {
         return {
@@ -195,12 +213,17 @@ export class AgentManager {
                     agent_id: record.agent_id,
                     since_sequence: sinceSequence,
                     limit: 1_000,
+                    include_events: includeActivity,
                   });
-                  return {
+                  const entry = {
                     ...this.#publicRecord(record),
                     text: out.text,
                     next_sequence: out.next_sequence,
                   };
+                  if (includeActivity && out.events) {
+                    entry.activity = compactActivity(out.events);
+                  }
+                  return entry;
                 }),
               )
             : matched.map((record) => this.#publicRecord(record)),
@@ -215,6 +238,7 @@ export class AgentManager {
           completed: [],
           timed_out: agentIds.map((id) => this.#publicRecord(this.#getAgent(id))),
           blocked: true,
+          ...(wasClamped ? { wait_clamped: true } : {}),
         };
       }
       await this.#waitForChange(Math.min(remaining, 1_000));
@@ -488,7 +512,9 @@ export class AgentManager {
     }
     this.eventBuffers.set(record.agent_id, events);
     await this.store.appendEvent(record.agent_id, event);
-    await this.store.upsertRecord(record);
+    // Note: record is NOT persisted here — only events are. The record is
+    // persisted at status transitions (spawn, running, completed, failed, etc.)
+    // to avoid rewriting records.json on every streamed SSE token.
     this.#emitChange();
     return event;
   }
@@ -664,6 +690,42 @@ export function normalizeSseEvent({ event, data }) {
   };
 }
 
+export function compactActivity(events) {
+  const activity = [];
+  let pendingText = "";
+
+  for (const event of events) {
+    if (event.type === "text_delta") {
+      pendingText += event.text ?? "";
+      continue;
+    }
+    // Flush accumulated text before non-text event
+    if (pendingText) {
+      activity.push({ type: "text", text: pendingText });
+      pendingText = "";
+    }
+    if (event.type === "tool_use") {
+      activity.push({ type: "action", name: event.name ?? "?" });
+    } else if (event.type === "tool_result") {
+      activity.push({
+        type: "result",
+        name: event.name ?? "?",
+        status: event.status ?? "?",
+      });
+    } else if (event.type === "status" || event.type === "done") {
+      activity.push({ type: "status", text: event.text ?? event.status ?? "" });
+    } else if (event.type === "error") {
+      activity.push({ type: "error", message: event.message ?? "" });
+    }
+    // metadata and raw events are intentionally dropped
+  }
+  // Flush trailing text
+  if (pendingText) {
+    activity.push({ type: "text", text: pendingText });
+  }
+  return activity;
+}
+
 function extractToolResultText(payload) {
   const first = Array.isArray(payload.content) ? payload.content[0] : undefined;
   return first?.json?.text ?? first?.text ?? "";
@@ -679,7 +741,7 @@ function extractResponseText(payload) {
     .join("");
 }
 
-function conditionMet(record, condition) {
+export function conditionMet(record, condition, sinceSequence = 0) {
   if (condition === "terminal") {
     return TERMINAL_STATUSES.has(record.status);
   }
@@ -690,7 +752,7 @@ function conditionMet(record, condition) {
     return TERMINAL_STATUSES.has(record.status) && (record.queued_inputs?.length ?? 0) === 0;
   }
   if (condition === "next_event") {
-    return (record.last_sequence ?? 0) > 0;
+    return (record.last_sequence ?? 0) > (sinceSequence ?? 0);
   }
   throw new Error(`unknown wait condition: ${condition}`);
 }

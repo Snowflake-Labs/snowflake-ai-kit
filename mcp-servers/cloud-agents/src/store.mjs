@@ -62,7 +62,6 @@ export class FileStore extends MemoryStore {
 
   async appendEvent(agentId, event) {
     await super.appendEvent(agentId, event);
-    await fs.mkdir(this.eventsDir, { recursive: true });
     const line = `${JSON.stringify(event)}\n`;
     await fs.appendFile(this.#eventsPath(agentId), line);
   }
