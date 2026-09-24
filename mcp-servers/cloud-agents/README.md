@@ -67,6 +67,7 @@ Priority order:
 | `CLOUD_AGENTS_AUTH_MODE` | `auto` | Auth mode: auto, coco, env, pat |
 | `CLOUD_AGENTS_MCP_STATE_DIR` | `~/.snowflake/cloud-agents-mcp` | Local state |
 | `CLOUD_AGENTS_COCO_REPO` | auto-discovered | Path to CoCo checkout |
+| `CLOUD_AGENTS_DEFAULT_WORKSPACE_MODE` | `default` | Default workspace mode for spawn (`none` for SQL-only work) |
 
 ## Smoke Test
 

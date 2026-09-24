@@ -7,7 +7,8 @@
       "env": {
         "CLOUD_AGENTS_CONNECTION": "your_coco_connection_name",
         "CLOUD_AGENTS_HOST": "https://your-account.snowflakecomputing.com",
-        "CLOUD_AGENTS_MCP_STATE_DIR": "~/.snowflake/cloud-agents-mcp"
+        "CLOUD_AGENTS_MCP_STATE_DIR": "~/.snowflake/cloud-agents-mcp",
+        "CLOUD_AGENTS_DEFAULT_WORKSPACE_MODE": "none"
       }
     }
   }

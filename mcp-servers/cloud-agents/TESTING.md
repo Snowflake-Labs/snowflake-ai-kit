@@ -65,7 +65,7 @@ The Cloud Agent runs in a sandboxed environment with access to bash, file tools,
 ## What `test-setup.sh` Does
 
 - Checks prerequisites (Node 20+, Python, Claude Code, snowflake-connector)
-- Runs 23 unit tests (offline, no network)
+- Runs 47 unit tests (offline, no network)
 - Starts a background token provider (keeps the Snowflake session alive)
 - Adds `cloud-agents` MCP server to `~/.claude.json`
 - Installs a user-level hook in `~/.claude/hooks.json` (auto-routes Snowflake prompts)
@@ -89,6 +89,7 @@ The Cloud Agent runs in a sandboxed environment with access to bash, file tools,
 | `CLOUD_AGENTS_AUTH_MODE` | `auto` | Auth mode: auto, coco, env, pat |
 | `CLOUD_AGENTS_SESSION_TOKEN` | — | Explicit session token |
 | `SNOWFLAKE_PAT` | — | Programmatic Access Token |
+| `CLOUD_AGENTS_DEFAULT_WORKSPACE_MODE` | `default` | Default workspace mode (`none` for SQL-only) |
 
 ## Troubleshooting
 
