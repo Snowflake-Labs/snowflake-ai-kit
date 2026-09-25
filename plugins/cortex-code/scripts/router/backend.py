@@ -75,11 +75,53 @@ def local_execution_error() -> Optional[str]:
     return None
 
 
+def check_remote_tool(backend: Backend, tool: object) -> dict:
+    """Check an advertised host tool contract, not its server-side agent identity."""
+    if backend.mode != "remote":
+        raise ValueError("Tool schema checks require the remote backend.")
+    if not isinstance(tool, dict) or tool.get("name") != backend.tool:
+        raise ValueError("Tool name does not match CORTEX_PLUGIN_MCP_TOOL exactly.")
+    schema = tool.get("inputSchema")
+    if not isinstance(schema, dict) or schema.get("type") != "object":
+        raise ValueError("Expected an object inputSchema from the configured MCP tool.")
+    # We only implement the simple managed-agent contract, not general JSON Schema.
+    if any(key in schema for key in ("$ref", "allOf", "anyOf", "oneOf", "not", "if",
+                                     "dependentRequired", "dependentSchemas", "dependencies")):
+        raise ValueError("Unsupported inputSchema constraints; do not guess tool arguments.")
+    properties = schema.get("properties")
+    required = schema.get("required")
+    if (not isinstance(properties, dict) or not isinstance(required, list)
+            or not all(isinstance(field, str) for field in required)
+            or "text" not in required):
+        raise ValueError("The managed agent tool must require a string 'text' argument.")
+    text_schema = properties.get("text")
+    if not isinstance(text_schema, dict) or text_schema.get("type") != "string":
+        raise ValueError("The managed agent tool must require a string 'text' argument.")
+    if set(required) != {"text"}:
+        raise ValueError("Additional required tool arguments are not supported by this workflow.")
+    thread_schema = properties.get("thread_id")
+    supports_thread = isinstance(thread_schema, dict) and thread_schema.get("type") == "integer"
+    return {
+        "tool_check": "passed",
+        "supports_thread_id": supports_thread,
+        "agent_identity_verified": False,
+        "note": (
+            "This checks the input contract only. An administrator must verify the "
+            "MCP CORTEX_AGENT_RUN identifier points to an agent with code_toolset_all."
+        ),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    checks = parser.add_mutually_exclusive_group()
+    checks.add_argument(
         "--check-prompt", action="store_true",
         help='Also check a JSON object {"prompt": "..."} from stdin for credential paths',
+    )
+    checks.add_argument(
+        "--check-tool", action="store_true",
+        help="Check a host tool descriptor {name, inputSchema} from stdin (not agent identity)",
     )
     args = parser.parse_args()
     try:
@@ -99,6 +141,8 @@ def main() -> int:
             result.update(tool=backend.tool, instructions=remote_routing_instruction(backend))
         if args.check_prompt:
             result["prompt_check"] = "passed"
+        if args.check_tool:
+            result.update(check_remote_tool(backend, json.load(sys.stdin)))
         print(json.dumps(result))
         return 0
     except (BackendConfigError, ValueError, OSError) as error:

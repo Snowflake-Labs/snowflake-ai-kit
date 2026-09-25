@@ -20,6 +20,17 @@ Inspect its advertised input schema. It must accept a required string `text`
 for the delegated task. If it needs other required inputs this workflow cannot
 supply, stop and report the mismatch. Never invent argument names.
 
+Run `backend.py --check-tool` with the descriptor on stdin:
+`{"name": "<exact host-visible identifier>", "inputSchema": <advertised schema>}`.
+Use the helper path and Python command above. Preserve the schema exactly; use
+the host-qualified name for `name`, not an unqualified wire name from a different
+connection. Stop on failure. `supports_thread_id: false` is compatible: it means
+send only `text`, never thread fields. The check validates the input contract,
+**not** the server identity or the backing agent's toolset. Before first use,
+require administrator verification of the server's `CORTEX_AGENT_RUN` identifier
+and the named agent's `code_toolset_all` configuration as described in the
+[setup guide](../../../REMOTE_MCP.md#verify-the-object-chain).
+
 Keep local file edits, git operations and local builds in Claude Code/Codex.
 For a mixed task, split out only the Snowflake-side work. If the requested result
 requires the remote agent to access local files, explain the boundary and ask
@@ -51,6 +62,10 @@ an MCP `readOnlyHint` alone is not a guarantee. If the user needs enforceable
 per-command approvals, use the local Claude Code path or a separately implemented
 REST approval client after an explicit user choice.
 
+`always_ask` can still auto-execute operations classified as safe (for example,
+constant-only SQL). Do not assume that the absence of a prompt means approval was
+bypassed, or that a successful safe probe proves state-changing operations are safe.
+
 ## 3. Prepare and invoke the native tool
 
 Use only the user's task and minimal relevant context they have authorized for
@@ -70,6 +85,8 @@ HTTP request in remote mode. The host owns authentication and transport.
 ### Follow-ups and thread support
 
 - Inspect the actual tool schema rather than assuming thread support is deployed.
+- A server advertising only required string `text` is supported in stateless
+  mode. Send exactly `{"text": "..."}`; do not add `thread_id` or `parent_message_id`.
 - When the tool returns a positive integer `thread_id` in structured content,
   its JSON result, or a top-level `thread_id=<integer>` response footer, remember
   it in **this host conversation**, bound to this exact tool and account.
