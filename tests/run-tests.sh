@@ -96,6 +96,7 @@ check "skills/cortex-setup exists"   test -d "$PLUGIN_DIR/skills/cortex-setup"
 
 # Core router scripts
 ROUTER_SCRIPTS=(
+    "backend.py"
     "config.yaml.example"
     "discover_cortex.py"
     "envelope_policy.py"
@@ -121,6 +122,7 @@ fi
 # Test files exist alongside code
 check "test_envelope_policy.py exists" test -f "$ROUTER_DIR/test_envelope_policy.py"
 check "test_plugin_units.py exists"    test -f "$ROUTER_DIR/test_plugin_units.py"
+check "test_remote_backend.py exists"  test -f "$ROUTER_DIR/test_remote_backend.py"
 
 # === 3. Codex plugin & marketplace manifests =======================
 
@@ -260,6 +262,17 @@ section "Unit tests"
 if $SKIP_UNIT; then
     skip "Unit tests (--skip-unit)"
 else
+    # This suite runs the real hooks in isolated subprocesses without CLIs or credentials.
+    echo "  Running test_remote_backend.py..."
+    OUTPUT=$(python3 "$ROUTER_DIR/test_remote_backend.py" 2>&1)
+    if [ "$?" -eq 0 ]; then
+        pass "test_remote_backend.py"
+    else
+        fail "test_remote_backend.py"
+        echo "$OUTPUT"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
+
     # Run envelope policy tests
     echo "  Running test_envelope_policy.py..."
     OUTPUT=$(cd "$ROUTER_DIR" && python3 test_envelope_policy.py 2>&1)

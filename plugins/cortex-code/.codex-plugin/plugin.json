@@ -1,7 +1,7 @@
 {
   "name": "snowflake-cortex-code",
-  "version": "3.3.1",
-  "description": "Automatically route Snowflake prompts from Codex to Cortex Code for execution.",
+  "version": "3.4.0",
+  "description": "Route Snowflake prompts from Codex to the local Cortex Code CLI or an opt-in managed MCP Coding Agent.",
   "author": {
     "name": "Snowflake",
     "url": "https://www.snowflake.com"
@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Snowflake Cortex Code",
     "shortDescription": "Auto-route Snowflake prompts to Cortex Code",
-    "longDescription": "Automatically detect Snowflake-related prompts and route them to Cortex Code CLI for execution. Includes 40+ bundled Snowflake skills for SQL, data governance, dynamic tables, and more.",
+    "longDescription": "Automatically route Snowflake prompts to the local Cortex Code CLI or a host-authenticated managed MCP Coding Agent. Remote mode needs no local Cortex CLI; local files and per-command approval behavior differ by backend.",
     "developerName": "Snowflake",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],

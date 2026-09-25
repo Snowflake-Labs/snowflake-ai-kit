@@ -1,18 +1,39 @@
 ---
 name: cortex-router
-description: "Auto-routing skill loaded by the prompt filter hook. Routes Snowflake-related operations to Cortex Code CLI. Not for direct invocation — use $cortex-run instead."
+description: "Routes Snowflake operations to the selected local CLI or remote MCP backend. Loaded by the prompt filter for requests such as 'show Snowflake warehouses', 'list Snowflake tables', 'check data quality', 'inspect governance', and 'analyze Snowflake queries'. Not for direct invocation or local file work; use $cortex-run for explicit delegation."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.3.1
-  compatibility: Requires Cortex Code CLI installed and configured
+  version: 3.4.0
+  compatibility: Requires Python and either Cortex Code CLI or a host-authenticated managed MCP tool
 ---
 
 # Cortex Code Router
 
-Route Snowflake operations to Cortex Code CLI, which has specialized bundled skills
-(data-quality, semantic-view, cost-intelligence, ML, governance, etc.).
+Route Snowflake operations to the selected Cortex Code backend.
+
+## First: Select the backend
+
+Before any CLI check or routing script, run:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"
+```
+
+Use `python` on Windows; Codex may use `${PLUGIN_ROOT}` instead of
+`${CLAUDE_PLUGIN_ROOT}`. Stop on an error; do not guess a backend.
+
+- `remote`: read and follow [Remote MCP delegation](references/remote-mcp.md),
+  using only the exact tool returned by the helper. **Do not run the local steps
+  below**, install Cortex, or disable the managed MCP connection. The remote
+  workflow handles approval consent, schema checks, context and continuation.
+- `local`: follow the existing CLI workflow below.
+
+## Local CLI workflow
+
+The local CLI has specialized bundled skills (data-quality, semantic-view,
+cost-intelligence, ML, governance, etc.).
 
 **CRITICAL: Follow steps 1 → 2 → 3 in order. Do NOT skip to Step 3.**
 

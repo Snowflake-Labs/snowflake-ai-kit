@@ -89,6 +89,7 @@ foreach ($d in $skillDirs) {
 
 # Router scripts (current architecture)
 $routerScripts = @(
+    "backend.py",
     "config.yaml.example",
     "discover_cortex.py",
     "envelope_policy.py",
@@ -113,6 +114,7 @@ if ($allRouter) {
 # Test files
 Write-Result "test_envelope_policy.py exists" $(if (Test-Path (Join-Path $RouterDir "test_envelope_policy.py")) { "PASS" } else { "FAIL" })
 Write-Result "test_plugin_units.py exists" $(if (Test-Path (Join-Path $RouterDir "test_plugin_units.py")) { "PASS" } else { "FAIL" })
+Write-Result "test_remote_backend.py exists" $(if (Test-Path (Join-Path $RouterDir "test_remote_backend.py")) { "PASS" } else { "FAIL" })
 
 # === 3. Codex plugin & marketplace manifests ==================
 
@@ -243,6 +245,14 @@ elseif (-not $hasPython) {
     Write-Result "Unit tests (Python not available)" "SKIP"
 }
 else {
+    # Exercise real hook processes without CLIs or credentials.
+    Write-Host "  Running test_remote_backend.py..."
+    $testFile = Join-Path $RouterDir "test_remote_backend.py"
+    $output = & python $testFile 2>&1 | Out-String
+    $testExit = $LASTEXITCODE
+    Write-Result "test_remote_backend.py" $(if ($testExit -eq 0) { "PASS" } else { "FAIL" }) $output
+    if ($testExit -ne 0) { Write-Host $output }
+
     # Run envelope policy tests
     Write-Host "  Running test_envelope_policy.py..."
     $testFile = Join-Path $RouterDir "test_envelope_policy.py"

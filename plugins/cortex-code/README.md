@@ -1,6 +1,9 @@
 # Cortex Code plugin for Claude Code and OpenAI Codex
 
-Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically.
+The default backend is the local CLI. An opt-in remote backend delegates to a
+host-authenticated Snowflake-managed MCP Coding Agent without a local Cortex CLI.
+Non-Snowflake prompts stay in your current agent.
 
 ## How It Works
 
@@ -34,7 +37,25 @@ $cortex-run analyze query performance for the last 7 days
 
 ## Requirements
 
-- **Cortex Code CLI** (`cortex`) installed and on your PATH
+- **Python** for the plugin hooks and helpers.
+- **Local mode (default):** Cortex Code CLI (`cortex`) installed and configured.
+- **Remote mode:** an authenticated native MCP connection in your host, exposing
+  a Coding Agent with `code_toolset_all`. See [Remote MCP setup](REMOTE_MCP.md).
+
+## Choose a backend
+
+Leave settings unset for the existing local flow. For remote mode, set these
+before launching Claude Code or Codex:
+
+```bash
+export CORTEX_PLUGIN_BACKEND=remote
+export CORTEX_PLUGIN_MCP_TOOL=mcp__snowflake__cortex_code_agent
+```
+
+Replace the example with the **exact host-visible tool identifier**. The host
+owns authentication; the plugin neither stores credentials nor connects by URL.
+Missing/invalid configuration or an unavailable tool blocks delegation, with
+no automatic fallback. [Setup, limitations and smoke tests](REMOTE_MCP.md).
 
 ## Install
 
@@ -55,7 +76,7 @@ codex plugin add snowflake-cortex-code@snowflake-ai-kit
 
 Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
 
-## Security Model
+## Local Security Model
 
 The router wraps Cortex execution with a security layer. Three approval modes:
 
@@ -73,6 +94,12 @@ The router wraps Cortex execution with a security layer. Three approval modes:
 
 Built-in protections: PII sanitization, credential path blocking, SHA256-validated cache, structured audit logging.
 
+**Remote mode does not inherit local envelope enforcement or audit logging.**
+The host approves the outer MCP call; the remote agent policy controls inner
+commands. The workflow obtains consent to this difference before delegation.
+Organizations requiring per-command local policy must not use remote mode.
+See [approval and data boundaries](REMOTE_MCP.md#approval-and-data-boundaries).
+
 ## Configuration
 
 The router config file lives at `scripts/router/config.yaml.example`. To customize:
@@ -83,7 +110,10 @@ cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/corte
 
 Edit the config to change approval mode, allowed envelopes, audit settings, and sanitization options.
 
-Skill discovery runs automatically on session start. To force a re-discovery, start a new session.
+Local skill discovery runs automatically on session start. Remote mode skips it
+and lets the hosted agent discover its own skills. Restart the host after changing
+backend settings. Remote continuation uses returned `thread_id` only when the
+server advertises support; local `--resume-last` is unchanged.
 
 ## Testing
 
