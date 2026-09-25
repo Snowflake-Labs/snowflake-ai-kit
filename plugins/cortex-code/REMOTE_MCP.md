@@ -91,6 +91,11 @@ Use the account-specific server URL supplied by your administrator:
 https://<account-host>/api/v2/databases/<database>/schemas/<schema>/mcp-servers/<server>
 ```
 
+> **Important:** Use hyphens (`-`) instead of underscores (`_`) in the account
+> hostname. For example, use `my-org-my-account.snowflakecomputing.com`, not
+> `my_org-my_account.snowflakecomputing.com`. MCP servers have known connection
+> issues with underscored hostnames.
+
 Confirm the host lists the agent tool and inspect its input schema: it should
 accept `text` as a required string. Copy its **full host-visible tool identifier**,
 including the server namespace. Do not copy just the server name or its URL.
@@ -111,6 +116,86 @@ where required); the plugin does not create one. A successful test using a
 Snowflake connector session token does not establish host OAuth compatibility.
 After connecting, copy the actual tool identifier from the host; do not assume
 it is the same as the unqualified `cortex_code_agent` wire name.
+
+### Configure access role and grants
+
+Create a dedicated least-privilege role for MCP access. Do not use ACCOUNTADMIN
+or SECURITYADMIN — these are blocked by default in custom OAuth integrations.
+
+```sql
+CREATE ROLE <mcp_access_role>;
+
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_AGENT_USER TO ROLE <mcp_access_role>;
+GRANT USAGE ON WAREHOUSE <warehouse> TO ROLE <mcp_access_role>;
+GRANT USAGE ON DATABASE <database> TO ROLE <mcp_access_role>;
+GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE <mcp_access_role>;
+GRANT USAGE ON MCP SERVER <database>.<schema>.<server> TO ROLE <mcp_access_role>;
+GRANT USAGE ON AGENT <database>.<schema>.<agent> TO ROLE <mcp_access_role>;
+
+GRANT ROLE <mcp_access_role> TO USER <username>;
+```
+
+Grant additional data access as needed (SELECT on tables, USAGE on schemas).
+
+### Claude Code OAuth setup
+
+Claude Code uses a loopback OAuth flow with these constraints:
+
+- The redirect URI is hardcoded to `http://localhost:<PORT>/callback` — only the
+  port is configurable (via `--callback-port`). The path `/callback` cannot be
+  changed.
+- Claude Code requests `scope=session:role:all`, which resolves to the connecting
+  user's `DEFAULT_ROLE`. It does **not** mean "all roles."
+- The default `BLOCKED_ROLES_LIST` (ACCOUNTADMIN, SECURITYADMIN) cannot be removed
+  from custom OAuth integrations.
+
+Create the security integration:
+
+```sql
+CREATE SECURITY INTEGRATION <integration_name>
+  TYPE = OAUTH
+  OAUTH_CLIENT = CUSTOM
+  ENABLED = TRUE
+  OAUTH_CLIENT_TYPE = 'CONFIDENTIAL'
+  OAUTH_REDIRECT_URI = 'http://localhost:10106/callback'
+  OAUTH_ALLOW_NON_TLS_REDIRECT_URI = TRUE
+  OAUTH_USE_SECONDARY_ROLES = NONE
+  OAUTH_ISSUE_REFRESH_TOKENS = TRUE
+  ALLOWED_ROLES_LIST = ('<mcp_access_role>');
+```
+
+Set each user's default role and warehouse. This is **required** — if
+`DEFAULT_ROLE` is ACCOUNTADMIN, the OAuth consent fails with "The role ALL
+requested has been explicitly blocked":
+
+```sql
+ALTER USER <username> SET DEFAULT_ROLE = '<mcp_access_role>'
+                          DEFAULT_WAREHOUSE = '<warehouse>';
+```
+
+Retrieve the client credentials:
+
+```sql
+SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('<INTEGRATION_NAME>');
+```
+
+Register the MCP server in Claude Code with the OAuth credentials:
+
+```bash
+export MCP_CLIENT_SECRET='<OAUTH_CLIENT_SECRET>'
+claude mcp add --transport http \
+  --client-id '<OAUTH_CLIENT_ID>' \
+  --client-secret \
+  --callback-port 10106 \
+  snowflake-cloud \
+  "https://<account-host>/api/v2/databases/<database>/schemas/<schema>/mcp-servers/<server>"
+```
+
+Then authenticate with `/mcp` in Claude Code or by starting a new session.
+
+> **Caution:** `CREATE OR REPLACE SECURITY INTEGRATION` regenerates the client ID
+> and secret. You must re-register the MCP server in Claude Code after each
+> recreation.
 
 ## 2. Select remote mode before launching the host
 
