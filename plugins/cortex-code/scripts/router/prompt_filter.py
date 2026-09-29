@@ -199,12 +199,13 @@ def _codex_routing_instruction(plugin_root: str) -> str:
         "[CORTEX ROUTER] This prompt needs Cortex Code CLI. "
         "Follow these steps IN ORDER:\n"
         "Step 1: Verify cortex CLI is installed by running: which cortex && cortex --version\n"
-        f"Step 2: Run the routing check: python3 \"{plugin_root}/scripts/router/route_request.py\" "
+        f"Step 2: Run the routing check: bash \"{plugin_root}/scripts/run_python.sh\" \"{plugin_root}/scripts/router/route_request.py\" "
         "--prompt \"<USER_PROMPT>\"\n"
         "  - Replace <USER_PROMPT> with the actual user prompt (shell-escaped).\n"
         "  - If output says route: claude -> STOP routing and handle the request yourself.\n"
         "  - If output says route: cortex -> proceed to Step 3.\n"
-        f"Step 3: Execute via Cortex Code: python3 -u \"{plugin_root}/scripts/router/execute_cortex.py\" "
+        "  - If the command fails, STOP and report the error. Never bypass configuration/policy errors.\n"
+        f"Step 3: Execute via Cortex Code: bash \"{plugin_root}/scripts/run_python.sh\" \"{plugin_root}/scripts/router/execute_cortex.py\" "
         "--prompt \"<USER_PROMPT>\" --envelope \"RW\" --codex\n"
         "  - Use --envelope RO for read-only queries (SELECT, SHOW, DESCRIBE).\n"
         "  - Use --envelope RW for modifications (CREATE, ALTER, INSERT).\n"
@@ -264,7 +265,14 @@ def main():
 
     result = check_prompt(str(prompt))
     if result:
-        # Check for MCP conflict FIRST — blocks everything if Snowflake MCP server is active
+        from security.config_manager import ConfigManager, ConfigValidationError
+        try:
+            ConfigManager()
+        except ConfigValidationError as error:
+            # UserPromptSubmit exit 2 blocks this turn rather than routing around policy.
+            print(str(error), file=sys.stderr)
+            sys.exit(2)
+        # Check MCP conflicts before CLI discovery.
         mcp_conflict = _check_mcp_conflict()
         if mcp_conflict:
             output = {

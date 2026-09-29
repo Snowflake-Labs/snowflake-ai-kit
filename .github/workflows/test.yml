@@ -9,23 +9,39 @@ on:
 jobs:
   test-mac:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        pyyaml: [present, absent]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pyyaml
+      - if: matrix.pyyaml == 'present'
+        run: python -m pip install pyyaml
+      - if: matrix.pyyaml == 'absent'
+        run: python -m pip uninstall -y pyyaml
+      - name: Verify dependency matrix
+        run: python -c "import importlib.util; assert (importlib.util.find_spec('yaml') is not None) == ('${{ matrix.pyyaml }}' == 'present')"
       - name: Run tests
         run: bash tests/run-tests.sh --verbose
 
   test-windows:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        pyyaml: [present, absent]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pyyaml
+      - if: matrix.pyyaml == 'present'
+        run: python -m pip install pyyaml
+      - if: matrix.pyyaml == 'absent'
+        run: python -m pip uninstall -y pyyaml
+      - name: Verify dependency matrix
+        run: python -c "import importlib.util; assert (importlib.util.find_spec('yaml') is not None) == ('${{ matrix.pyyaml }}' == 'present')"
       - name: Run tests
         shell: pwsh
         run: .\tests\run-tests.ps1 -Verbose

@@ -42,6 +42,8 @@ tests/
 - `discover_cortex.py` — finds Cortex CLI binary and parses skill output. Has Windows/macOS/Linux path handling.
 - `execute_cortex.py` — spawns `cortex` CLI subprocess. Key behaviors: credential path blocking (`CREDENTIAL_PATTERNS`), break-on-result, `process.terminate()` cleanup. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input — do not remove it.
 - `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching at line 88 can produce false positives.
+- `scripts/run_python.sh` selects Python 3 before running hooks/skill commands exactly once; never fall back to another interpreter after a script error.
+- Configuration files are mandatory when explicitly selected. Invalid/unreadable files or missing PyYAML with an existing file must stop execution, never silently use defaults.
 
 ## Testing
 
@@ -65,6 +67,11 @@ bash tests/run-tests.sh           # Mac/Linux
 | Snowflake connection | 1 | connections.toml or env vars exist (warn — only needed for live integration, not for unit tests) |
 
 Tests exit non-zero on any FAIL. Warnings (marked "warn") are informational only — they flag missing tools that aren't needed for the core test suite.
+
+Both runners also execute `test_launcher_config.py` for launcher selection and
+fail-closed policy loading. CI has PyYAML-present and PyYAML-absent jobs on both
+macOS and Windows; parsing-only tests skip without PyYAML, while missing-dependency
+tests still run. Tests isolate home/config paths and do not call live Cortex.
 
 ## Installers
 

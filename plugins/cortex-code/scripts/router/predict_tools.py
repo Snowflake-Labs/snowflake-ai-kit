@@ -40,11 +40,11 @@ BASE_SNOWFLAKE_TOOLS = ["snowflake_sql_execute", "bash", "read"]
 
 def load_capabilities():
     """Load cached Cortex capabilities via CacheManager."""
+    from security.config_manager import ConfigManager
+    config_manager = ConfigManager()
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent))
-        from security.config_manager import ConfigManager
         from security.cache_manager import CacheManager
-        config_manager = ConfigManager()
         cache_dir = Path(config_manager.get("security.cache_dir")).expanduser()
         cache_manager = CacheManager(cache_dir)
         return cache_manager.read("cortex-capabilities") or {}
@@ -161,4 +161,10 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    from security.config_manager import ConfigValidationError
+    try:
+        sys.exit(main())
+    except ConfigValidationError as error:
+        print(json.dumps({"error": str(error)}))
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

@@ -113,6 +113,8 @@ if ($allRouter) {
 # Test files
 Write-Result "test_envelope_policy.py exists" $(if (Test-Path (Join-Path $RouterDir "test_envelope_policy.py")) { "PASS" } else { "FAIL" })
 Write-Result "test_plugin_units.py exists" $(if (Test-Path (Join-Path $RouterDir "test_plugin_units.py")) { "PASS" } else { "FAIL" })
+Write-Result "run_python.sh exists" $(if (Test-Path (Join-Path $PluginDir "scripts\run_python.sh")) { "PASS" } else { "FAIL" })
+Write-Result "test_launcher_config.py exists" $(if (Test-Path (Join-Path $RouterDir "test_launcher_config.py")) { "PASS" } else { "FAIL" })
 
 # === 3. Codex plugin & marketplace manifests ==================
 
@@ -247,7 +249,7 @@ else {
     Write-Host "  Running test_envelope_policy.py..."
     $testFile = Join-Path $RouterDir "test_envelope_policy.py"
     $output = & python $testFile 2>&1 | Out-String
-    if ($output -match "(\d+)/(\d+) passed") {
+    if ($LASTEXITCODE -eq 0 -and $output -match "(\d+)/(\d+) passed") {
         $passed = $Matches[1]; $total = $Matches[2]
         Write-Result "test_envelope_policy.py: $passed/$total passed" $(if ($passed -eq $total) { "PASS" } else { "FAIL" }) $output
     }
@@ -259,13 +261,18 @@ else {
     Write-Host "  Running test_plugin_units.py..."
     $testFile = Join-Path $RouterDir "test_plugin_units.py"
     $output = & python $testFile 2>&1 | Out-String
-    if ($output -match "(\d+)/(\d+) passed") {
+    if ($LASTEXITCODE -eq 0 -and $output -match "(\d+)/(\d+) passed") {
         $passed = $Matches[1]; $total = $Matches[2]
         Write-Result "test_plugin_units.py: $passed/$total passed" $(if ($passed -eq $total) { "PASS" } else { "FAIL" }) $output
     }
     else {
         Write-Result "test_plugin_units.py: could not parse results" "FAIL" $output
     }
+
+    Write-Host "  Running test_launcher_config.py..."
+    $testFile = Join-Path $RouterDir "test_launcher_config.py"
+    $output = & python $testFile -v 2>&1 | Out-String
+    Write-Result "test_launcher_config.py" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
 }
 
 # === 6. Snowflake connection ===================================

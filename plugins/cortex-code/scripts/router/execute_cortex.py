@@ -19,20 +19,21 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
 from session_state import load_active_session, save_active_session
+from security import config_manager
 
-# Audit logger — optional (degrades gracefully if security/ module is missing)
+# Audit output is best-effort; configuration validation is mandatory.
 _audit_logger = None
 
-def _get_audit_logger():
-    """Lazily initialize the audit logger from config. Returns None on failure."""
+def _get_audit_logger(config=None):
+    """Return None on audit initialization failure, but propagate invalid config."""
     global _audit_logger
+    if config is None:
+        config = config_manager.ConfigManager()
     if _audit_logger is not None:
         return _audit_logger
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from security.audit_logger import AuditLogger
-        from security.config_manager import ConfigManager
-        config = ConfigManager()
         log_path = Path(config.get("security.audit_log_path",
                                    str(Path.home() / ".claude" / "skills" / "cortex-code" / "audit.log")))
         rotation = config.get("security.audit_log_rotation", "10MB")
@@ -247,20 +248,19 @@ def build_envelope_prompt(prompt: str, envelope: str) -> str:
     return prompt
 
 
-def _check_envelope_allowed(envelope: str) -> Optional[str]:
+def _check_envelope_allowed(envelope: str, config=None) -> Optional[str]:
     """Check if the requested envelope is in allowed_envelopes. Returns error message or None."""
     try:
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from security.config_manager import ConfigManager
-        config = ConfigManager()
+        if config is None:
+            config = config_manager.ConfigManager()
         allowed = config.get("security.allowed_envelopes", [])
-        if allowed and envelope not in allowed:
+        if envelope not in allowed:
             return (
                 f"Envelope '{envelope}' is not in allowed_envelopes {allowed}. "
                 f"Only these envelopes are permitted: {', '.join(allowed)}."
             )
-    except Exception:
-        pass
+    except Exception as error:
+        return f"Cannot validate envelope policy; execution stopped: {error}"
     return None
 
 
@@ -317,7 +317,14 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         }
 
     # Pre-flight: check envelope is allowed by config
-    envelope_error = _check_envelope_allowed(envelope)
+    try:
+        config = config_manager.ConfigManager()
+    except config_manager.ConfigValidationError as error:
+        return {
+            "session_id": None, "events": [], "permission_decisions": [],
+            "final_result": None, "error": str(error),
+        }
+    envelope_error = _check_envelope_allowed(envelope, config)
     if envelope_error:
         print(f"⛔ {envelope_error}", file=sys.stderr)
         return {
@@ -358,7 +365,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     envelope_prompt = build_envelope_prompt(prompt, envelope)
 
     # Initialize audit logger (best-effort, non-blocking)
-    audit = _get_audit_logger()
+    audit = _get_audit_logger(config)
 
     cmd = _cortex_cmd([
         "--output-format", "stream-json",
@@ -561,6 +568,12 @@ def _run_codex_mode(args):
                      "Refusing to send to Cortex Code for security.")
         print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
                           "final_result": None, "error": error_msg}, indent=2))
+        return 1
+
+    envelope_error = _check_envelope_allowed(args.envelope)
+    if envelope_error:
+        print(json.dumps({"session_id": None, "events": [], "permission_decisions": [],
+                          "final_result": None, "error": envelope_error}, indent=2))
         return 1
 
     envelope_prompt = build_envelope_prompt(args.prompt, args.envelope)

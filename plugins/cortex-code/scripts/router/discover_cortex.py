@@ -17,7 +17,7 @@ import re
 # Add parent directory to path for security imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from security.cache_manager import CacheManager
-from security.config_manager import ConfigManager
+from security.config_manager import ConfigManager, ConfigValidationError
 
 
 def _cortex_cmd(args):
@@ -214,12 +214,13 @@ def main():
     )
     args = parser.parse_args()
 
+    # Validate policy even when the cache directory was supplied explicitly.
+    config_manager = ConfigManager()
     # Determine cache directory
     if args.cache_dir:
         cache_dir = args.cache_dir
     else:
         # Get default from config
-        config_manager = ConfigManager()
         cache_dir_str = config_manager.get("security.cache_dir")
         cache_dir = Path(cache_dir_str).expanduser()
 
@@ -261,4 +262,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except ConfigValidationError as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

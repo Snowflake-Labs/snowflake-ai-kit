@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any
 
 # Add parent directory to path for security imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from security.config_manager import ConfigManager
+from security.config_manager import ConfigManager, ConfigValidationError
 from security.cache_manager import CacheManager
 
 
@@ -43,9 +43,9 @@ CLAUDE_CODE_INDICATORS = [
 
 def load_cortex_capabilities():
     """Load cached Cortex capabilities using CacheManager."""
+    config_manager = ConfigManager()
     try:
         # Get cache directory from config
-        config_manager = ConfigManager()
         cache_dir_str = config_manager.get("security.cache_dir")
         cache_dir = Path(cache_dir_str).expanduser()
 
@@ -243,4 +243,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ConfigValidationError as error:
+        print(json.dumps({"route": "blocked", "error": str(error)}))
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

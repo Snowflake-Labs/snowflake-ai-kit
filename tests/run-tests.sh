@@ -121,6 +121,8 @@ fi
 # Test files exist alongside code
 check "test_envelope_policy.py exists" test -f "$ROUTER_DIR/test_envelope_policy.py"
 check "test_plugin_units.py exists"    test -f "$ROUTER_DIR/test_plugin_units.py"
+check "run_python.sh exists" test -f "$PLUGIN_DIR/scripts/run_python.sh"
+check "test_launcher_config.py exists" test -f "$ROUTER_DIR/test_launcher_config.py"
 
 # === 3. Codex plugin & marketplace manifests =======================
 
@@ -263,7 +265,8 @@ else
     # Run envelope policy tests
     echo "  Running test_envelope_policy.py..."
     OUTPUT=$(cd "$ROUTER_DIR" && python3 test_envelope_policy.py 2>&1)
-    if echo "$OUTPUT" | grep -q "^[0-9]*/[0-9]* passed$"; then
+    TEST_STATUS=$?
+    if [ "$TEST_STATUS" -eq 0 ] && echo "$OUTPUT" | grep -q "^[0-9]*/[0-9]* passed$"; then
         TOTAL_LINE=$(echo "$OUTPUT" | grep "^[0-9]*/[0-9]* passed$")
         PASSED=$(echo "$TOTAL_LINE" | cut -d/ -f1)
         TOTAL=$(echo "$TOTAL_LINE" | cut -d/ -f2 | cut -d' ' -f1)
@@ -280,7 +283,8 @@ else
     # Run plugin unit tests
     echo "  Running test_plugin_units.py..."
     OUTPUT=$(cd "$ROUTER_DIR" && python3 test_plugin_units.py 2>&1)
-    if echo "$OUTPUT" | grep -q "^[0-9]*/[0-9]* passed$"; then
+    TEST_STATUS=$?
+    if [ "$TEST_STATUS" -eq 0 ] && echo "$OUTPUT" | grep -q "^[0-9]*/[0-9]* passed$"; then
         TOTAL_LINE=$(echo "$OUTPUT" | grep "^[0-9]*/[0-9]* passed$")
         PASSED=$(echo "$TOTAL_LINE" | cut -d/ -f1)
         TOTAL=$(echo "$TOTAL_LINE" | cut -d/ -f2 | cut -d' ' -f1)
@@ -293,6 +297,14 @@ else
         fail "test_plugin_units.py: could not parse results"
         if $VERBOSE; then echo "$OUTPUT"; fi
     fi
+
+    echo "  Running test_launcher_config.py..."
+    if OUTPUT=$(python3 "$ROUTER_DIR/test_launcher_config.py" -v 2>&1); then
+        pass "test_launcher_config.py"
+    else
+        fail "test_launcher_config.py"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
 fi
 
 # === 6. Integration tests (optional, requires cortex CLI + Snowflake connection) ===
