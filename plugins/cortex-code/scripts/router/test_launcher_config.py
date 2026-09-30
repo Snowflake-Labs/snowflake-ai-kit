@@ -332,5 +332,99 @@ class LauncherTests(unittest.TestCase):
             self.assertNotRegex(text, r"(?m)^python(?:3)? ")
 
 
+class ValidationTests(unittest.TestCase):
+    """Tests for config_manager validation rules added in this PR."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.user = self.root / "config.yaml"
+        self.policy = self.root / "policy.yaml"
+        for patcher in (
+            patch.object(config_manager, "DEFAULT_CONFIG_PATH", self.user),
+            patch.object(config_manager, "DEFAULT_ORG_POLICY_PATH", self.policy),
+            patch.dict(os.environ, {}, clear=False),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        os.environ.pop("CORTEX_SKILL_CONFIG", None)
+        os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
+
+    def write(self, path, text):
+        path.write_text(text, encoding="utf-8")
+
+    @unittest.skipUnless(config_manager.HAS_YAML, "PyYAML-dependent parsing")
+    def test_valid_audit_log_rotation_patterns_accepted(self):
+        for rotation in ("10MB", "500KB", "1GB", "100"):
+            with self.subTest(rotation=rotation):
+                self.write(self.user, f"security:\n  audit_log_rotation: '{rotation}'\n")
+                config = config_manager.ConfigManager()
+                self.assertEqual(config.get("security.audit_log_rotation"), rotation)
+            self.user.unlink()
+
+    @unittest.skipUnless(config_manager.HAS_YAML, "PyYAML-dependent parsing")
+    def test_invalid_audit_log_rotation_rejected(self):
+        for rotation in ("big", "10TB", "MB", "-5", "10 MB"):
+            with self.subTest(rotation=rotation):
+                self.write(self.user, f"security:\n  audit_log_rotation: '{rotation}'\n")
+                with self.assertRaises(config_manager.ConfigValidationError):
+                    config_manager.ConfigManager()
+            self.user.unlink()
+
+    @unittest.skipUnless(config_manager.HAS_YAML, "PyYAML-dependent parsing")
+    def test_valid_cache_permissions_accepted(self):
+        for perms in ("0600", "0700", "0644", "600", "755"):
+            with self.subTest(perms=perms):
+                self.write(self.user, f"security:\n  cache_permissions: '{perms}'\n")
+                config = config_manager.ConfigManager()
+                self.assertEqual(config.get("security.cache_permissions"), perms)
+            self.user.unlink()
+
+    @unittest.skipUnless(config_manager.HAS_YAML, "PyYAML-dependent parsing")
+    def test_invalid_cache_permissions_rejected(self):
+        for perms in ("777a", "rwx", "9999", ""):
+            with self.subTest(perms=perms):
+                self.write(self.user, f"security:\n  cache_permissions: '{perms}'\n")
+                with self.assertRaises(config_manager.ConfigValidationError):
+                    config_manager.ConfigManager()
+            self.user.unlink()
+
+    @unittest.skipUnless(config_manager.HAS_YAML, "PyYAML-dependent parsing")
+    def test_type_mismatch_rejected_for_all_validated_fields(self):
+        cases = (
+            ("allowed_envelopes", "RO"),       # should be list, not string
+            ("sanitize_conversation_history", "'true'"),  # should be bool
+            ("cache_dir", "null"),              # should be non-empty string
+            ("audit_log_retention", "1.5"),     # should be int
+            ("max_history_items", "-1"),        # should be non-negative
+            ("cache_ttl", "-1"),                # should be non-negative
+        )
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                self.write(self.user, f"security:\n  {field}: {value}\n")
+                with self.assertRaises(config_manager.ConfigValidationError):
+                    config_manager.ConfigManager()
+            self.user.unlink()
+
+    def test_envelope_check_returns_config_error_message(self):
+        """_check_envelope_allowed surfaces config errors, not silent None."""
+        self.write(self.policy, "security:\n  allowed_envelopes: [RO]\n")
+        with patch.object(config_manager, "HAS_YAML", False):
+            result = execute_cortex._check_envelope_allowed("RO")
+            self.assertIsNotNone(result)
+            self.assertIn("execution stopped", result)
+
+    def test_execute_returns_config_error_before_subprocess(self):
+        """execute_cortex_streaming returns config error without launching CLI."""
+        self.write(self.policy, "security:\n  allowed_envelopes: [RO]\n")
+        with patch.object(config_manager, "HAS_YAML", False), \
+             patch.object(execute_cortex.subprocess, "Popen") as popen:
+            result = execute_cortex.execute_cortex_streaming("show tables", envelope="RO")
+            self.assertIn("PyYAML", result["error"])
+            self.assertIsNone(result["session_id"])
+            popen.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
