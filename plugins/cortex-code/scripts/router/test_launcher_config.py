@@ -300,15 +300,15 @@ class LauncherTests(unittest.TestCase):
     def test_python_only_fallback(self):
         executable = Path(sys.executable).as_posix()
         self.stub("python", f"exec {shlex.quote(executable)} \"$@\"")
-        result = self.launch(["-c", "print('ok')"])
+        result = self.launch(["-c", "import sys; print(sys.version_info[0])"])
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "ok\n")
+        self.assertEqual(result.stdout.strip(), "3")
 
     def test_bad_python3_probe_uses_verified_python(self):
         self.stub("python3", "exit 1")
         executable = Path(sys.executable).as_posix()
         self.stub("python", f"exec {shlex.quote(executable)} \"$@\"")
-        result = self.launch(["-c", "print('ok')"])
+        result = self.launch(["-c", "import sys; print(sys.version_info[0])"])
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_missing_or_python2_interpreter_is_rejected(self):
