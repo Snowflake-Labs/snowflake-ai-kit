@@ -59,8 +59,13 @@ Default to **RW** unless the request is clearly read-only.
 
 Run the prompt through the execution script:
 
+Use the shared launcher in Bash (Git Bash on Windows). It prefers `python3`,
+accepts `python` only if it is Python 3, and never retries a failed script.
+On a configuration/policy error, STOP and report it; do not switch interpreters
+or bypass the plugin.
+
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
   --envelope "RW"
 ```
@@ -68,7 +73,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
 For read-only queries:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
   --envelope "RO"
 ```
@@ -76,7 +81,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
 To specify a Snowflake connection:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
   --envelope "RW" \
   --connection "connection_name"
@@ -120,7 +125,7 @@ not one-shot batches per prompt.
 
 ```bash
 # Follow-up on the previous Cortex turn
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "also show me the column types" --envelope "RO" \
   --resume-last
 ```

@@ -75,6 +75,10 @@ Built-in protections: PII sanitization, credential path blocking, SHA256-validat
 
 ## Configuration
 
+Hooks and skill commands use `scripts/run_python.sh` in Bash (Git Bash on Windows).
+The launcher prefers `python3` and accepts `python` only after verifying Python 3.
+It preserves stdin and arguments and never retries a failed script with another interpreter.
+
 The router config file lives at `scripts/router/config.yaml.example`. To customize:
 
 ```bash
@@ -82,6 +86,31 @@ cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/corte
 ```
 
 Edit the config to change approval mode, allowed envelopes, audit settings, and sanitization options.
+
+YAML configuration requires **PyYAML in the interpreter selected by the launcher**.
+From the repository root, install it in that environment with:
+
+```bash
+bash plugins/cortex-code/scripts/run_python.sh -m pip install PyYAML
+```
+
+If Python is externally managed, create and activate a virtual environment, install
+PyYAML there, and start the host from that environment. Restart the host after
+changing its PATH. Do not use `--break-system-packages`.
+
+Without configuration files, built-in defaults work without PyYAML. If a user
+config or `~/.snowflake/cortex/claude-skill-policy.yaml` exists, missing PyYAML,
+unreadable files, invalid YAML, and invalid setting types **stop routing/execution**
+with an error identifying the file. Empty files must be replaced with an explicit
+mapping such as `{}`. Paths explicitly supplied through flags or
+`CORTEX_SKILL_CONFIG` / `CORTEX_SKILL_ORG_POLICY` must exist; missing default paths
+remain optional. An empty `allowed_envelopes` list permits no execution.
+
+This validation does not implement approval-mode behavior: the live executor still
+uses envelope decisions; the approval-mode wrapper remains a simulation.
+The existing Codex execution path still auto-approves individual tool calls; this
+change validates configuration and the selected envelope before launching it,
+but does not add per-tool envelope enforcement to that path.
 
 Skill discovery runs automatically on session start. To force a re-discovery, start a new session.
 
@@ -98,6 +127,11 @@ bash tests/run-tests.sh --integration
 ```
 
 **Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks.
+
+CI tests macOS and Windows with and without PyYAML. Launcher/configuration regressions
+are in `scripts/router/test_launcher_config.py`; they do not invoke Cortex or Snowflake.
+Parsing-specific tests are skipped when PyYAML is absent; missing-dependency and
+fail-closed tests still run.
 
 **Integration tests** (`--integration` flag): spawn real Cortex CLI sessions against a live Snowflake connection. Located at `scripts/router/test_integration.py`. Verifies:
 

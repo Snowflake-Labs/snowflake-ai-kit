@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.3.1
+  version: 3.4.0
   compatibility: Requires Cortex Code CLI installed and configured
 ---
 
@@ -32,10 +32,14 @@ If `cortex` is NOT found:
 Run the routing script to check if this prompt should go to Cortex or stay in Claude Code:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/route_request.py" --prompt "USER_PROMPT_HERE"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/route_request.py" --prompt "USER_PROMPT_HERE"
 ```
 
 Replace `USER_PROMPT_HERE` with the actual user prompt (shell-escaped).
+
+The shared launcher selects `python3`, or `python` only after verifying Python 3.
+Use Bash (Git Bash on Windows). It never retries a failed script under another interpreter.
+If routing fails, STOP and report the error; do not bypass a configuration/policy error.
 
 **Read the output carefully:**
 - If output says **"route: cortex"** → proceed to Step 3
@@ -54,7 +58,7 @@ Choose a security envelope based on the operation:
 Default to **RW** unless the request is clearly read-only.
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
   --envelope "RW"
 ```
@@ -77,7 +81,7 @@ multi-turn, not one-shot batches per prompt.
 
 ```bash
 # Follow-up on the previous Cortex turn
-python "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "drill into the top customer" --envelope "RO" \
   --resume-last
 ```
@@ -95,5 +99,5 @@ Format Cortex's output for the user:
 
 - Cortex has bundled skills for: data-quality, semantic-view, cost-intelligence, ML, governance, security, lineage, dynamic-tables, and more
 - For simple SQL queries that don't need Cortex skills, Step 2 should route to Claude Code
-- If `route_request.py` is missing or fails, fall back to Claude Code tools
+- If routing or execution fails, STOP and report the error rather than bypassing the plugin
 - Multi-turn context is preserved across invocations via `--resume-last` (see Step 3)

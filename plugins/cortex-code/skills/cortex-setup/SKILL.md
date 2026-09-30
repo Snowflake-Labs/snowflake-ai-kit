@@ -13,7 +13,7 @@ Install Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`) using the appropri
 Before doing ANYTHING else in this skill, you MUST run this check. This is not optional. Do not skip it even if the CLIs are already installed.
 
 ```bash
-cat ~/.claude/settings.json 2>/dev/null | python3 -c "
+cat ~/.claude/settings.json 2>/dev/null | bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" -c "
 import sys, json
 try:
     settings = json.load(sys.stdin)

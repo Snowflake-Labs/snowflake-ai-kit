@@ -253,6 +253,10 @@ def test_config_security_floor():
     """Verify user config cannot escalate without org policy."""
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from security.config_manager import ConfigManager
+    from security.config_manager import HAS_YAML
+    if not HAS_YAML:
+        print("[SKIP] config parsing requires PyYAML (missing-dependency behavior tested separately)")
+        return []
 
     results = []
     tmpdir = Path(tempfile.mkdtemp(prefix="test_config_"))
@@ -331,7 +335,10 @@ def test_deploy_enforcement():
 def test_config_auto_discovery():
     """Verify ConfigManager auto-discovers config files and env var overrides."""
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from security.config_manager import ConfigManager
+    import security.config_manager as cm_mod
+    if not cm_mod.HAS_YAML:
+        print("[SKIP] config auto-discovery parsing requires PyYAML")
+        return []
 
     results = []
     tmpdir = Path(tempfile.mkdtemp(prefix="test_config_disc_"))
@@ -345,11 +352,7 @@ def test_config_auto_discovery():
         config_file = config_dir / "config.yaml"
         config_file.write_text("security:\n  allowed_envelopes: [\"RO\"]\n", encoding="utf-8")
 
-        with patch("security.config_manager.Path.home", return_value=tmpdir):
-            # Reimport to pick up patched home
-            import importlib
-            import security.config_manager as cm_mod
-            importlib.reload(cm_mod)
+        with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", config_file):
             cm = cm_mod.ConfigManager()
             results.append(expect("autodiscovery: loads config from default path",
                                   cm.get("security.allowed_envelopes"), ["RO"]))
@@ -359,8 +362,7 @@ def test_config_auto_discovery():
         alt_config.write_text("security:\n  allowed_envelopes: [\"RO\", \"RW\"]\n", encoding="utf-8")
 
         with patch.dict(os.environ, {"CORTEX_SKILL_CONFIG": str(alt_config)}):
-            with patch("security.config_manager.Path.home", return_value=tmpdir):
-                importlib.reload(cm_mod)
+            with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", config_file):
                 cm = cm_mod.ConfigManager()
                 results.append(expect("autodiscovery: CORTEX_SKILL_CONFIG env var works",
                                       cm.get("security.allowed_envelopes"), ["RO", "RW"]))
@@ -368,11 +370,10 @@ def test_config_auto_discovery():
         # 3. No config file exists -> uses defaults
         empty_dir = tmpdir / "empty_home"
         empty_dir.mkdir()
-        with patch("security.config_manager.Path.home", return_value=empty_dir):
+        with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", empty_dir / "config.yaml"):
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("CORTEX_SKILL_CONFIG", None)
                 os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
-                importlib.reload(cm_mod)
                 cm = cm_mod.ConfigManager()
                 results.append(expect("autodiscovery: missing file -> defaults",
                                       sorted(cm.get("security.allowed_envelopes")),
@@ -1406,7 +1407,7 @@ def test_windows_cmd_compatibility():
     return results
 
 
-def main():
+def run_tests():
     all_results = []
     all_results.extend(test_credential_paths())
     all_results.extend(test_build_envelope_prompt())
@@ -1435,6 +1436,21 @@ def main():
     total = len(all_results)
     print(f"\n{passed}/{total} passed")
     return 0 if passed == total else 1
+
+
+def main():
+    from unittest.mock import patch
+    from security import config_manager
+
+    # Developer policies must not influence unit tests or receive test audit logs.
+    with tempfile.TemporaryDirectory(prefix="plugin_tests_") as temporary_home:
+        home = Path(temporary_home)
+        with patch.dict(os.environ, {"HOME": temporary_home, "USERPROFILE": temporary_home}), \
+             patch.object(config_manager, "DEFAULT_CONFIG_PATH", home / "config.yaml"), \
+             patch.object(config_manager, "DEFAULT_ORG_POLICY_PATH", home / "policy.yaml"):
+            os.environ.pop("CORTEX_SKILL_CONFIG", None)
+            os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
+            return run_tests()
 
 
 if __name__ == "__main__":
