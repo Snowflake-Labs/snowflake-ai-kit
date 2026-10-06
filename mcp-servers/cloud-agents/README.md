@@ -45,6 +45,13 @@ Add to your IDE's MCP config (see `examples/` for full snippets):
 | `cloud_agent_send_input` | no | Follow-up turn on same thread |
 | `cloud_agent_output` | no | Read buffered text/tool events |
 | `cloud_agent_wait` | **yes** | Block until terminal/turn_complete/next_event |
+
+## Output Behavior
+
+- **`cloud_agent_wait`** returns clean `text` only by default. Raw SSE events, sequence numbers, and internal metadata are not included.
+- **`cloud_agent_output`** also returns `text` only by default. Pass `include_activity: true` to get a compacted activity log (paired tool steps with descriptions and elapsed times, plus a progress line).
+- **Wait timeout is clamped to 90 seconds** server-side. MCP transports (e.g., Cursor) can drop connections at ~120s. If the agent hasn't finished, the response includes `wait_clamped: true` so the client can retry.
+- **Activity log** (`include_activity: true`): collapses raw SSE events into a readable step log — each `tool_use` + `tool_result` pair becomes one `step` entry with the tool name, description, and elapsed time in ms.
 | `cloud_agent_status` | no | Status for one or more agents |
 | `cloud_agent_list` | no | List local handles |
 | `cloud_agent_close` | no | Close + optional cancel/delete |
