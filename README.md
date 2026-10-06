@@ -38,6 +38,18 @@ Ask naturally — the plugin handles routing:
 
 Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in your current agent.
 
+### Devin
+
+Connect Devin (Cloud, CLI, Desktop) to Snowflake via a Managed MCP Server — no local CLI or Docker required.
+
+Upload the plugin from [`plugins/snowflake-mcp-devin/`](plugins/snowflake-mcp-devin/) or install locally:
+
+```bash
+devin plugins install --local ./plugins/snowflake-mcp-devin
+```
+
+See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for Snowflake setup and OAuth configuration.
+
 ## How It Works
 
 ```

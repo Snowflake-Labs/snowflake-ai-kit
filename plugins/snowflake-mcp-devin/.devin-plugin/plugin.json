@@ -1,0 +1,19 @@
+{
+  "name": "snowflake",
+  "displayName": "Snowflake (Managed MCP)",
+  "version": "0.1.0",
+  "description": "Connect to Snowflake via Managed MCP Server — governed Cortex Agents, Analyst, Search, and SQL execution. Zero local dependencies.",
+  "homepage": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp",
+  "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
+  "logo": "logo.svg",
+  "keywords": ["Databases", "Snowflake", "Cortex", "MCP", "SQL", "Data", "AI"],
+  "mcpServers": {
+    "snowflake": {
+      "url": "${SNOWFLAKE_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${SNOWFLAKE_PAT}",
+        "User-Agent": "Devin-Snowflake-MCP/0.1"
+      }
+    }
+  }
+}
