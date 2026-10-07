@@ -315,7 +315,7 @@ REVOKE USAGE ON MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP FROM ROLE MCP_ACCESS_R
 
 ## Caveats
 
-- **Auth:** The plugin manifest uses a role-restricted PAT, because Devin rejects OAuth credentials in plugin files. OAuth is configured as a custom MCP (see Quick start step 2).
+- **Auth:** The plugin manifest uses a role-restricted PAT, because Devin rejects OAuth credentials in plugin files. OAuth is configured as a custom MCP (see Quick start step 2). Devin substitutes `${…}` secrets only in a plugin MCP's URL and headers, not in its OAuth client ID or scopes, and each Snowflake account has its own client ID. So OAuth uses a custom MCP.
 - **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2).
 - **Hostname format:** Use hyphens in the account URL (`my-org-my-account`), not underscores. Underscored hostnames silently break MCP connections.
 - **Admin setup required:** A Snowflake admin must create the agent, the MCP server, and either the OAuth integration or the PAT service user before this plugin can connect.
