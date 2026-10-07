@@ -75,6 +75,8 @@ The Devin plugin works differently. It has no hook and no local CLI. Devin calls
 Devin → [MCP over HTTPS] → Snowflake MCP server → Cortex Code agent → Snowflake
 ```
 
+> *See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for setup, auth, security, and troubleshooting.*
+
 ## Cursor
 
 Works natively — enable "Third-party skills" in Cursor Settings. No separate plugin needed.
