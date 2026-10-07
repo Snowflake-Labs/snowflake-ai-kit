@@ -89,7 +89,17 @@ The agent above uses `always_allow`, so Devin's requests run without an approval
 
 ### 4. Choose an auth method
 
-Pick one. OAuth signs in as a real user. The PAT runs as a service user with no sign-in.
+Pick one. Both run as `MCP_ACCESS_ROLE`, so they can do exactly the same things. The difference is who Snowflake sees and how the credential is managed:
+
+| | OAuth (recommended) | PAT |
+|---|---|---|
+| Runs as | `MY_USER`, a real person | `DEVIN_MCP_SVC`, a service user |
+| Connected through | A custom MCP you add in Devin | The plugin's built-in **snowflake** MCP |
+| Sign-in | Browser sign-in to Snowflake, once | None. Paste a token |
+| Credential lifetime | Refresh token (90 days by default), then reconnect | 30 days as written below, then rotate |
+| Locked to Devin's IPs | No | Yes, via network policy |
+| Audit trail | Queries show the person who signed in | Queries show the service user |
+
 
 **OAuth (recommended).** Devin's custom MCP form takes a client ID but no secret, so it signs in as a public client using PKCE. The redirect URI below is for app.devin.ai. Dedicated Devin deployments use a different one, so copy the callback URL shown in Devin's custom MCP form.
 
@@ -111,7 +121,7 @@ ALTER SCHEMA MY_DB.MCP_SCHEMA SET OAUTH_SCOPES_SUPPORTED = 'session:role:MCP_ACC
 DESCRIBE SECURITY INTEGRATION DEVIN_MCP_OAUTH;
 ```
 
-`ALLOWED_ROLES_LIST` limits sign-ins to the access role. Snowflake blocks ACCOUNTADMIN and SECURITYADMIN for OAuth by default.
+`ALLOWED_ROLES_LIST` limits sign-ins to the access role. Snowflake blocks ACCOUNTADMIN and SECURITYADMIN for OAuth by default. `MY_USER` also needs the grants marked "OAuth only" in step 3.
 
 **PAT.** Use a dedicated service user, locked to Devin's published egress IPs, with a PAT restricted to the access role. Don't use a personal PAT: if it has no role restriction, it runs as your default role, which may be ACCOUNTADMIN.
 
@@ -138,7 +148,10 @@ ALTER USER DEVIN_MCP_SVC ADD PROGRAMMATIC ACCESS TOKEN DEVIN_MCP_PAT
   DAYS_TO_EXPIRY = 30;
 ```
 
-Copy `token_secret` from the output. Snowflake shows it only once. The token expires after 30 days; create a new one before then. Devin can change its IPs, so check the list when the connection starts failing.
+Copy `token_secret` from the output. Snowflake shows it only once.
+
+- **Expiry:** the token expires after 30 days. Before then, run `ALTER USER DEVIN_MCP_SVC ROTATE PROGRAMMATIC ACCESS TOKEN DEVIN_MCP_PAT;` and paste the new `token_secret` into Devin.
+- **IPs:** the network rule allows Devin Cloud only. If you run the plugin from Devin CLI or Desktop, requests come from your own machine, so add its egress IP to the rule. Devin can change its IPs, so check the list when the connection starts failing.
 
 ### 5. Get your MCP server URL
 
@@ -158,10 +171,16 @@ See the [Snowflake Managed MCP Server docs](https://docs.snowflake.com/en/user-g
 
 ### 1. Install the plugin
 
-**Devin web UI (recommended):**
-1. Build the zip from a clone of this repo: `cd plugins && zip -r snowflake-mcp-devin.zip snowflake-mcp-devin -x '*.DS_Store'`
-2. Go to [Customize](https://app.devin.ai/customize) → Plugins → Add plugin → Upload .zip
-3. Upload `snowflake-mcp-devin.zip` to your Personal scope
+Choose one. All three install the same skills, rule, and **snowflake** MCP.
+
+**From the repository (recommended).** No download needed, and Reindex picks up updates.
+1. Go to [Customize](https://app.devin.ai/customize) → Plugins → Add plugin → From repository.
+2. Enter `https://github.com/Snowflake-Labs/snowflake-ai-kit` with subdirectory `plugins/snowflake-mcp-devin`.
+3. Devin reads the default branch. To install from another branch, open Plugins → gear icon → Edit manifest, add `"ref": "<branch>"` to the plugin's `requiredPlugins` entry, save, and click Reindex.
+
+**Upload a .zip:**
+1. From a clone of this repo: `cd plugins && zip -r snowflake-mcp-devin.zip snowflake-mcp-devin -x '*.DS_Store'`
+2. Go to Customize → Plugins → Add plugin → Upload .zip, and upload it to your Personal scope.
 
 **Devin CLI** (from the root of a clone of this repo):
 ```bash
@@ -170,14 +189,17 @@ devin plugins install --local ./plugins/snowflake-mcp-devin
 
 ### 2. Connect the MCP server
 
-Use the method you chose in Prerequisites step 4.
+Use the method you chose in Prerequisites step 4. Enable only one Snowflake MCP at a time, so Devin doesn't see two servers. MCP changes apply to new sessions only; running sessions keep what they loaded at start.
 
-**OAuth (recommended).** Devin rejects OAuth credentials in plugin files, so add the server as a custom MCP. Keep the plugin installed for its skills, but don't connect its **snowflake** MCP, so the session doesn't see two Snowflake servers. If you already connected it, disconnect it on the MCPs tab.
+#### OAuth (recommended)
+
+The plugin's MCP can't hold OAuth settings (see [Caveats](#caveats)), so add the server as a custom MCP. Keep the plugin installed for its skills, and turn off the toggle on its **snowflake** MCP under Customize → MCPs.
 
 1. Go to Customize → MCPs → Add MCP → Add custom MCP, and fill in:
 
    | Field | Value |
    |---|---|
+   | Name | Anything except `snowflake`, for example `snowflake-oauth` |
    | Transport type | HTTP |
    | Server URL | The URL from Prerequisites step 5 |
    | Authentication | OAuth |
@@ -187,18 +209,42 @@ Use the method you chose in Prerequisites step 4.
 
 2. Click Add. Devin replaces the header value with a `${USER_AGENT}` placeholder, so open the MCP's settings and save a `USER_AGENT` credential with the value `Devin-Snowflake-MCP/0.1`. Without it, the server fails at startup.
 3. Click Connect, sign in to Snowflake as `MY_USER`, and approve.
-4. Click Test tools.
+4. Click Test tools. You should see `cortex_code_agent`.
+
+When the refresh token expires, Devin's calls fail with an auth error. Click Connect again and sign in.
 
 For organization-scope OAuth, sign in with a service account rather than a personal one. Every member's sessions share that connection.
 
-**PAT.** Go to Customize → MCPs → find **snowflake** (added by the plugin) → Connect MCP, and fill in:
+#### PAT
 
-| Variable | Value |
+1. Go to Customize → MCPs, and open **snowflake** under "From plugins".
+2. Click Connect MCP and fill in:
+
+   | Variable | Value |
+   |---|---|
+   | `SNOWFLAKE_MCP_URL` | The URL from Prerequisites step 5 |
+   | `SNOWFLAKE_PAT` | The `token_secret` for `DEVIN_MCP_PAT` from Prerequisites step 4. Not a personal PAT |
+
+3. Make sure the toggle is on, and turn off any OAuth custom MCP.
+
+To replace the token later, edit `SNOWFLAKE_PAT` on the same screen and start a new session.
+
+#### Verify
+
+In a new session, ask Devin to run `SELECT CURRENT_USER(), CURRENT_ROLE()`.
+
+| Path | Expected result |
 |---|---|
-| `SNOWFLAKE_MCP_URL` | The URL from Prerequisites step 5 |
-| `SNOWFLAKE_PAT` | The `token_secret` from Prerequisites step 4 |
+| OAuth | `MY_USER`, `MCP_ACCESS_ROLE` |
+| PAT | `DEVIN_MCP_SVC`, `MCP_ACCESS_ROLE` |
 
-**Verify either path.** In a new session, ask Devin to run `SELECT CURRENT_USER(), CURRENT_ROLE()`. With OAuth, it should return `MY_USER` and `MCP_ACCESS_ROLE`. With the PAT, it should return `DEVIN_MCP_SVC` and `MCP_ACCESS_ROLE`. If it returns ACCOUNTADMIN, stop and fix the role setup before going further.
+If it returns another user or ACCOUNTADMIN, stop: the wrong credential is connected (see [Troubleshooting](#troubleshooting)). Snowflake's login history confirms what connected:
+
+```sql
+SELECT event_timestamp, user_name, first_authentication_factor, client_ip
+FROM TABLE(INFORMATION_SCHEMA.LOGIN_HISTORY(DATEADD('hour', -1, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()))
+ORDER BY event_timestamp DESC LIMIT 10;
+```
 
 ### 3. Use it
 
@@ -208,7 +254,7 @@ Start a new Devin session and ask naturally:
 Query the top 10 customers by revenue from MY_DB.DATA_SCHEMA.ORDERS
 ```
 
-Devin picks a skill automatically, or you can call one directly with the commands below.
+Devin picks a skill automatically, or you can call one directly with the commands below. Devin sees only what `MCP_ACCESS_ROLE` can see, so tables without a `SELECT` grant won't appear.
 
 ### Available skills
 
@@ -315,7 +361,7 @@ REVOKE USAGE ON MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP FROM ROLE MCP_ACCESS_R
 
 ## Caveats
 
-- **Auth:** The plugin manifest uses a role-restricted PAT, because Devin rejects OAuth credentials in plugin files. OAuth is configured as a custom MCP (see Quick start step 2). Devin substitutes `${…}` secrets only in a plugin MCP's URL and headers, not in its OAuth client ID or scopes, and each Snowflake account has its own client ID. So OAuth uses a custom MCP.
+- **Why OAuth isn't in the plugin:** Devin rejects OAuth secrets in plugin files, and it substitutes `${…}` values only in a plugin MCP's URL and headers, not its OAuth client ID or scopes. Each Snowflake account has its own client ID, so the plugin can't ship one. The plugin MCP uses a PAT header, and OAuth uses a custom MCP.
 - **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2).
 - **Hostname format:** Use hyphens in the account URL (`my-org-my-account`), not underscores. Underscored hostnames silently break MCP connections.
 - **Admin setup required:** A Snowflake admin must create the agent, the MCP server, and either the OAuth integration or the PAT service user before this plugin can connect.
@@ -347,7 +393,11 @@ plugins/snowflake-mcp-devin/
 
 | Symptom | Fix |
 |---|---|
-| HTTP 400, "Invalid or empty User-Agent header" | PAT: the plugin manifest sets it, so re-upload the unmodified plugin. OAuth: save the `USER_AGENT` credential on the custom MCP |
+| HTTP 400, "Invalid or empty User-Agent header" | PAT: the plugin manifest sets it, so reinstall the unmodified plugin. OAuth: save the `USER_AGENT` credential on the custom MCP |
+| `CURRENT_USER()` returns your own user, or the role is ACCOUNTADMIN | A personal PAT is in `SNOWFLAKE_PAT`, or the wrong MCP is on. Replace it with the `DEVIN_MCP_PAT` secret, check that only one Snowflake MCP is enabled, and start a new session. Rotate the personal PAT, since it was stored in Devin |
+| Changes to MCPs or secrets have no effect | Running sessions keep the config they started with. Start a new session |
+| Repo install: "No plugin manifest found" | Devin read the default branch, where the plugin doesn't exist. Add `ref` in Edit manifest (see Quick start step 1) and Reindex |
+| OAuth worked, then stopped | The refresh token expired. Click Connect on the custom MCP and sign in again |
 | HTTP 401, "Programmatic access token is invalid" | The PAT expired or was copied incorrectly. Create a new one on `DEVIN_MCP_SVC` and update `SNOWFLAKE_PAT` |
 | "The role ALL requested has been explicitly blocked" | Set the OAuth scope to `session:role:<access role>` in the custom MCP form, and set `OAUTH_SCOPES_SUPPORTED` on the schema |
 | "OAuth client integration with the given client id is not found" | The custom MCP has a stale client ID. `CREATE OR REPLACE SECURITY INTEGRATION` generates a new one. Delete the custom MCP and add it again with the current ID |
@@ -355,7 +405,7 @@ plugins/snowflake-mcp-devin/
 | MCP server hostname connection failure | Use hyphens (`-`) not underscores (`_`) in the account hostname |
 | "Session failed to initialize" | Set `DEFAULT_WAREHOUSE` on the user (`MY_USER` or `DEVIN_MCP_SVC`) |
 | OAuth MCP fails at startup, or the header shows `${USER_AGENT}` | Save a `USER_AGENT` credential on the custom MCP (value `Devin-Snowflake-MCP/0.1`) |
-| HTTP 401 / login blocked for the service user | Devin's IP isn't in `DEVIN_EGRESS_RULE`. Compare it against Devin's published IP list |
+| HTTP 401 / login blocked for the service user | The client IP isn't in `DEVIN_EGRESS_RULE`. Check `client_ip` in login history against Devin's published list. Devin CLI and Desktop connect from your machine's IP |
 | A write "succeeds" but nothing changed | The agent uses `always_ask`. Over MCP, approvals can't be relayed, so the write never ran |
 | Devin push fails with HTTP 403 | Install the Devin GitHub app on the repo owner, and connect it in Devin org settings → Integrations → GitHub |
 | "Connect GitHub Organization" loops back to Connect | The app is already installed. Uninstall it on GitHub (Settings → Applications → Installed GitHub Apps), then connect again from Devin |
