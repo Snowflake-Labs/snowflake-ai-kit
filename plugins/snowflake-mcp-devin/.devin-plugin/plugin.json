@@ -9,11 +9,13 @@
   "keywords": ["Databases", "Snowflake", "Cortex", "MCP", "SQL", "Data", "AI"],
   "mcpServers": {
     "snowflake": {
+      "type": "http",
       "url": "${SNOWFLAKE_MCP_URL}",
       "headers": {
-        "Authorization": "Bearer ${SNOWFLAKE_PAT}",
         "User-Agent": "Devin-Snowflake-MCP/0.1"
-      }
+      },
+      "oauthClientId": "${SNOWFLAKE_OAUTH_CLIENT_ID}",
+      "oauthScopes": ["session:role:${SNOWFLAKE_ROLE}", "refresh_token"]
     }
   }
 }
