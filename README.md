@@ -42,13 +42,13 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in yo
 
 Connect Devin (Cloud, CLI, Desktop) to Snowflake via a Managed MCP Server — no local CLI or Docker required.
 
-Upload the plugin from [`plugins/snowflake-mcp-devin/`](plugins/snowflake-mcp-devin/) or install locally:
+In Devin, go to Customize → Plugins → Add plugin → From repository, and enter this repo with subdirectory `plugins/snowflake-mcp-devin`. Or install from a clone:
 
 ```bash
 devin plugins install --local ./plugins/snowflake-mcp-devin
 ```
 
-See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for Snowflake setup and OAuth configuration.
+Then connect with OAuth (custom MCP, signs in as you) or a role-restricted PAT on a service user. See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for the Snowflake setup and both auth paths.
 
 ## How It Works
 
@@ -68,6 +68,12 @@ $cortex-run show me my warehouses and their current state
 ```
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation on security model, envelopes, and configuration.*
+
+The Devin plugin works differently. It has no hook and no local CLI. Devin calls a Snowflake Managed MCP Server over HTTPS, and a Cortex Code agent runs the task in a sandbox inside Snowflake:
+
+```
+Devin → [MCP over HTTPS] → Snowflake MCP server → Cortex Code agent → Snowflake
+```
 
 ## Cursor
 
