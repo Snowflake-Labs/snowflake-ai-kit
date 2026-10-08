@@ -85,7 +85,9 @@ GRANT ROLE MCP_ACCESS_ROLE TO USER MY_USER;
 ALTER USER MY_USER SET DEFAULT_WAREHOUSE = 'MY_WH';
 ```
 
-The agent above uses `always_allow`, so Devin's requests run without an approval step. `always_ask` doesn't work over MCP. See [Security](#security) for why the role is the control that matters.
+The agent above uses `always_allow`, so Devin's requests run without an approval step. MCP can't pass approvals back, so with `always_ask`, writes don't run. See [Security](#security) for why the role is the control that matters.
+
+If Devin should only read, `always_ask` also works: safe reads run, and writes pause instead of running.
 
 ### 4. Choose an auth method
 
@@ -344,7 +346,7 @@ The Snowflake role is the main control. Devin Cloud has no per-tool approval for
 - **Grant the access role only what Devin needs.** Prefer read-only grants. Add write privileges on specific schemas only when Devin should build objects there.
 - **Never connect as ACCOUNTADMIN.** Use OAuth with the access role, or a role-restricted PAT on a service user.
 - **Limit where the PAT works.** Use the network policy in Prerequisites step 4 so the token only authenticates from Devin's IPs.
-- **`always_ask` isn't a fix.** Over MCP, a write that needs approval stops without running, but MCP still reports the call as successful. Devin can't tell the write never happened.
+- **`always_ask` isn't a fix.** A write that needs approval doesn't run. Depending on the client, MCP either reports success anyway or keeps re-asking. MCP has no way to pass an approval back.
 - **The agent sandbox has internet access.** Agent-generated code can reach external hosts, so treat prompts and fetched content as untrusted.
 - **Use Devin security profiles for organizations.** They can limit sessions to approved MCP servers and network destinations.
 - **Rotate tokens.** Keep PATs short-lived. Use `SHOW USER PROGRAMMATIC ACCESS TOKENS FOR USER DEVIN_MCP_SVC` to review them.
@@ -406,6 +408,7 @@ plugins/snowflake-mcp-devin/
 | "Session failed to initialize" | Set `DEFAULT_WAREHOUSE` on the user (`MY_USER` or `DEVIN_MCP_SVC`) |
 | OAuth MCP fails at startup, or the header shows `${USER_AGENT}` | Save a `USER_AGENT` credential on the custom MCP (value `Devin-Snowflake-MCP/0.1`) |
 | HTTP 401 / login blocked for the service user | The client IP isn't in `DEVIN_EGRESS_RULE`. Check `client_ip` in login history against Devin's published list. Devin CLI and Desktop connect from your machine's IP |
+| Agent re-asks for permission, or loops on "Allow this command" | The agent uses `always_ask`. Approvals can't be sent over MCP. Recreate it with `always_allow` and limit access through the role |
 | A write "succeeds" but nothing changed | The agent uses `always_ask`. Over MCP, approvals can't be relayed, so the write never ran |
 | Devin push fails with HTTP 403 | Install the Devin GitHub app on the repo owner, and connect it in Devin org settings → Integrations → GitHub |
 | "Connect GitHub Organization" loops back to Connect | The app is already installed. Uninstall it on GitHub (Settings → Applications → Installed GitHub Apps), then connect again from Devin |
