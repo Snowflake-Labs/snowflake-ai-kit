@@ -55,6 +55,16 @@ COMPILED_SF = [re.compile(p, re.IGNORECASE) for p in SNOWFLAKE_KEYWORDS]
 COMPILED_LOCAL = [re.compile(p, re.IGNORECASE) for p in LOCAL_KEYWORDS]
 
 
+def _mcp_conflict_check_disabled() -> bool:
+    """True when the user opted out of the Snowflake MCP conflict check.
+
+    Set CORTEX_MCP_CONFLICT_CHECK=off (also: 0, false, no, disabled) for setups
+    that deliberately run a Snowflake MCP server alongside Cortex Code.
+    """
+    value = os.environ.get("CORTEX_MCP_CONFLICT_CHECK", "").strip().lower()
+    return value in {"off", "0", "false", "no", "disabled"}
+
+
 def _check_mcp_servers_in_dict(servers, source_label):
     """Scan an mcpServers dict for Snowflake-related entries."""
     if not isinstance(servers, dict):
@@ -87,6 +97,9 @@ def _check_mcp_conflict():
     - Local: ~/.claude.json projects.<cwd>.mcpServers
     - Manual: ~/.claude/settings.json
     """
+    if _mcp_conflict_check_disabled():
+        return None
+
     # 1. Project scope: .mcp.json in cwd
     try:
         mcp_json = Path.cwd() / ".mcp.json"
