@@ -397,6 +397,7 @@ plugins/snowflake-mcp-devin/
 |---|---|
 | HTTP 400, "Invalid or empty User-Agent header" | PAT: the plugin manifest sets it, so reinstall the unmodified plugin. OAuth: save the `USER_AGENT` credential on the custom MCP |
 | `CURRENT_USER()` returns your own user, or the role is ACCOUNTADMIN | A personal PAT is in `SNOWFLAKE_PAT`, or the wrong MCP is on. Replace it with the `DEVIN_MCP_PAT` secret, check that only one Snowflake MCP is enabled, and start a new session. Rotate the personal PAT, since it was stored in Devin |
+| Connect MCP: "Only letters, numbers, . _ and - can go in the typed part of the URL" | The Server URL field rejects a full URL. Leave it blank, add the URL as a Secret named `SNOWFLAKE_MCP_URL`, and start a new session |
 | Changes to MCPs or secrets have no effect | Running sessions keep the config they started with. Start a new session |
 | Repo install: "No plugin manifest found" | Devin read the default branch, where the plugin doesn't exist. Add `ref` in Edit manifest (see Quick start step 1) and Reindex |
 | OAuth worked, then stopped | The refresh token expired. Click Connect on the custom MCP and sign in again |

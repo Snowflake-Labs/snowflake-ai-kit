@@ -105,6 +105,12 @@ class DevinPluginContentTests(unittest.TestCase):
                 hit = ACCOUNT_SPECIFIC.search(read(path))
                 self.assertIsNone(hit, f"{path.relative_to(REPO_ROOT)}: {hit and hit.group(0)}")
 
+    def test_troubleshooting_covers_server_url_validation(self):
+        table = section(read(DEVIN_DIR / "README.md"), "Troubleshooting")
+        row = next((l for l in table.splitlines() if "Only letters, numbers" in l), "")
+        self.assertIn("SNOWFLAKE_MCP_URL", row)
+        self.assertIn("Secret", row)
+
     def test_query_skill_names_default_tool(self):
         text = read(DEVIN_DIR / "skills" / "snowflake-query" / "SKILL.md")
         self.assertIn("cortex_code_agent", text)
