@@ -148,6 +148,13 @@ class RepoDocsTests(unittest.TestCase):
         self.assertEqual(entry["version"], self.version)
         self.assertIn(f"version: {self.version}", router)
 
+    def test_codeowners_names_at_least_two_owners(self):
+        path = REPO_ROOT / ".github" / "CODEOWNERS"
+        self.assertTrue(path.is_file(), ".github/CODEOWNERS is missing")
+        rule = next((l for l in read(path).splitlines() if l.startswith("* ")), "")
+        owners = re.findall(r"@[\w-]+", rule)
+        self.assertGreaterEqual(len(set(owners)), 2, "mythos-codeowners needs 2 users")
+
     def test_agents_md_versions_are_current(self):
         versions = set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", self.agents))
         self.assertEqual(versions, {self.version})
