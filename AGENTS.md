@@ -12,7 +12,7 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex plugin (v3.4.0)
+  cortex-code/                                ← Claude Code + Codex plugin (v3.5.0)
     .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
     hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)

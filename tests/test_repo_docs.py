@@ -139,6 +139,15 @@ class RepoDocsTests(unittest.TestCase):
         for entry in ("snowflake-mcp-devin/", "actions/", "mcp-servers/", "test_repo_docs.py"):
             self.assertIn(entry, arch)
 
+    def test_cortex_code_version_consistent_everywhere(self):
+        codex = load_json(CORTEX_DIR / ".codex-plugin" / "plugin.json")["version"]
+        market = load_json(REPO_ROOT / ".claude-plugin" / "marketplace.json")
+        entry = next(p for p in market["plugins"] if p["name"] == "snowflake-cortex-code")
+        router = read(CORTEX_DIR / "skills" / "cortex-router" / "SKILL.md")
+        self.assertEqual(codex, self.version)
+        self.assertEqual(entry["version"], self.version)
+        self.assertIn(f"version: {self.version}", router)
+
     def test_agents_md_versions_are_current(self):
         versions = set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", self.agents))
         self.assertEqual(versions, {self.version})
