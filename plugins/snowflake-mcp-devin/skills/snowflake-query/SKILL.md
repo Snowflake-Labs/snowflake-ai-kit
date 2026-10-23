@@ -20,7 +20,7 @@ Run SQL queries against Snowflake. Use this skill when the user asks to query da
 ## How to use
 
 1. Identify the SQL. Use Snowflake dialect (ILIKE, TRY_CAST, FLATTEN, QUALIFY).
-2. Call the MCP server's SQL execution tool (or Cortex Agent) with the query.
+2. Send the query to the MCP server. With the default setup in this plugin's README, that's the `cortex_code_agent` tool. If the server exposes a dedicated SQL execution tool, use that instead.
 3. Summarize results. For large sets, show a sample and total count.
 
 ## Examples

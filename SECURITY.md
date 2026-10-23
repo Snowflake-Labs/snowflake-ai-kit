@@ -17,9 +17,10 @@ We will acknowledge receipt within 48 hours and provide a timeline for a fix.
 
 ## Scope
 
-This repository contains markdown skills, shell scripts, and a Claude Code plugin. Security concerns include:
+This repository contains markdown skills, shell scripts, a Claude Code + Codex plugin, and a Devin plugin. Security concerns include:
 
 - **Credential leakage** — skills, templates, and scripts must never contain real tokens, keys, or passwords
+- **Devin plugin manifests** — the MCP server config may only reference `${SNOWFLAKE_MCP_URL}` and `${SNOWFLAKE_PAT}` placeholders, which Devin fills from the user's saved credentials. Never commit a real token, account URL, or OAuth client ID
 - **Supply chain** — the install script downloads files from this GitHub repo; verify you're using the official `Snowflake-Labs/snowflake-ai-kit` source
 - **Code injection** — skills instruct AI agents to generate code; skill authors should avoid patterns that could lead to SQL injection, command injection, or XSS in generated code
 

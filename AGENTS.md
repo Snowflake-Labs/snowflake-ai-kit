@@ -2,14 +2,19 @@
 
 ## What This Repo Is
 
-Developer tools for building on Snowflake with AI coding agents. Includes a Claude Code plugin (auto-routes Snowflake prompts to Cortex Code) and installers (shell + PowerShell + npx).
+Developer tools for building on Snowflake with AI coding agents. Includes:
+
+- A Claude Code + Codex plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
+- A Devin plugin (`plugins/snowflake-mcp-devin/`) that connects Devin to a Snowflake Managed MCP Server over HTTPS, with no local dependencies
+- Installers (shell + PowerShell + npx)
 
 ## Architecture
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code plugin (v3.0.1)
-    .claude-plugin/plugin.json                ← plugin manifest
+  cortex-code/                                ← Claude Code + Codex plugin (v3.4.0)
+    .claude-plugin/plugin.json                ← Claude Code manifest
+    .codex-plugin/plugin.json                 ← Codex manifest
     hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)
     scripts/router/
       prompt_filter.py                        ← keyword detection, fires additionalContext
@@ -20,10 +25,20 @@ plugins/
       cortex-router/                          ← auto-routing skill
       cortex-run/                             ← explicit invocation ($cortex-run)
       cortex-setup/                           ← CLI install + connection setup
+  snowflake-mcp-devin/                        ← Devin plugin (Snowflake Managed MCP, no local deps)
+    .devin-plugin/plugin.json                 ← Devin manifest: HTTP MCP with ${SNOWFLAKE_MCP_URL} + ${SNOWFLAKE_PAT}
+    .claude-plugin/plugin.json                ← fallback manifest for Claude Code
+    AGENTS.md                                 ← always-on Snowflake context
+    skills/                                   ← 7 skills (/snowflake:snowflake-query, -explore, ...)
+.agents/plugins/marketplace.json              ← Codex marketplace
+.claude-plugin/marketplace.json               ← Claude Code marketplace
+actions/cortex-code/                          ← GitHub Action
+mcp-servers/cloud-agents/                     ← Cloud Agents MCP server
 install.sh / install.ps1 / bin/install.mjs    ← one-command installers
 tests/
   run-tests.sh                                ← bash test runner (Mac/Linux)
   run-tests.ps1                               ← PowerShell test runner (Windows)
+  test_repo_docs.py                           ← Devin plugin structure + docs consistency checks
   validate-install.ps1                        ← install validation
 .github/workflows/
   test.yml                                    ← CI: runs tests on macOS + Windows
@@ -72,6 +87,11 @@ Both runners also execute `test_launcher_config.py` for launcher selection and
 fail-closed policy loading. CI has PyYAML-present and PyYAML-absent jobs on both
 macOS and Windows; parsing-only tests skip without PyYAML, while missing-dependency
 tests still run. Tests isolate home/config paths and do not call live Cortex.
+
+Both runners also execute `tests/test_repo_docs.py`: the Devin plugin's manifests, skills, and
+placeholder-only credentials, a scan for leftover test-account values, and consistency between
+the docs and the cortex-code version. The Devin plugin has no live tests; verify it by
+installing it in Devin (see its README).
 
 ## Installers
 

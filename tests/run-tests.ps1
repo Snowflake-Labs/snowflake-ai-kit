@@ -2,7 +2,8 @@
 # run-tests.ps1 -- Test harness for Snowflake AI Kit (Windows)
 #
 # Validates plugin structure, runs unit tests, checks content sanity.
-# Updated for the plugin architecture (plugins/cortex-code/).
+# Updated for the plugin architecture (plugins/cortex-code/), plus
+# tests/test_repo_docs.py for the Devin plugin and docs consistency.
 #
 # Usage:
 #   .\tests\run-tests.ps1                # Run all tests
@@ -273,6 +274,11 @@ else {
     $testFile = Join-Path $RouterDir "test_launcher_config.py"
     $output = & python $testFile -v 2>&1 | Out-String
     Write-Result "test_launcher_config.py" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
+
+    Write-Host "  Running test_repo_docs.py..."
+    $testFile = Join-Path $ScriptDir "test_repo_docs.py"
+    $output = & python $testFile -v 2>&1 | Out-String
+    Write-Result "test_repo_docs.py (Devin plugin + docs)" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
 }
 
 # === 6. Snowflake connection ===================================
