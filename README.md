@@ -1,12 +1,12 @@
 # Snowflake AI Kit
 
-Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more.
+Connect your AI coding agent to Snowflake. Plugins for **Claude Code** and **OpenAI Codex** that automatically detect Snowflake prompts and route them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more. A **Devin** plugin connects through a Snowflake Managed MCP Server instead, with no local CLI.
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Marketplace-8A2BE2)](https://claude.com/plugins/snowflake-cortex-code)
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/Snowflake-Labs/snowflake-ai-kit/test.yml?label=CI)](https://github.com/Snowflake-Labs/snowflake-ai-kit/actions)
-[![Plugin](https://img.shields.io/badge/Plugin-v3.4.1-green)](plugins/cortex-code)
+[![Plugin](https://img.shields.io/badge/Plugin-v3.5.0-green)](plugins/cortex-code)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-yellow)](https://python.org)
 
 ## Quick Start
@@ -38,6 +38,18 @@ Ask naturally — the plugin handles routing:
 
 Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in your current agent.
 
+### Devin
+
+Connect Devin (Cloud, CLI, Desktop) to Snowflake via a Managed MCP Server — no local CLI or Docker required.
+
+In Devin, go to Customize → Plugins → Add plugin → From repository, and enter this repo with subdirectory `plugins/snowflake-mcp-devin`. Or install from a clone:
+
+```bash
+devin plugins install --local ./plugins/snowflake-mcp-devin
+```
+
+Then connect with OAuth (custom MCP, signs in as you) or a role-restricted PAT on a service user. See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for the Snowflake setup and both auth paths.
+
 ## How It Works
 
 ```
@@ -56,6 +68,14 @@ $cortex-run show me my warehouses and their current state
 ```
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation on security model, envelopes, and configuration.*
+
+The Devin plugin works differently. It has no hook and no local CLI. Devin calls a Snowflake Managed MCP Server over HTTPS, and a Cortex Code agent runs the task in a sandbox inside Snowflake:
+
+```
+Devin → [MCP over HTTPS] → Snowflake MCP server → Cortex Code agent → Snowflake
+```
+
+> *See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for setup, auth, security, and troubleshooting.*
 
 ## Cursor
 

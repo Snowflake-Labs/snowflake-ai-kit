@@ -3,7 +3,8 @@
 # run-tests.sh -- Test harness for Snowflake AI Kit (Mac/Linux)
 #
 # Validates plugin structure, runs unit tests, checks content sanity.
-# Designed for the plugin architecture (plugins/cortex-code/).
+# Covers plugins/cortex-code/, plus tests/test_repo_docs.py for the Devin
+# plugin (plugins/snowflake-mcp-devin/) and docs consistency.
 #
 # Usage:
 #   bash tests/run-tests.sh              # Run all tests
@@ -303,6 +304,14 @@ else
         pass "test_launcher_config.py"
     else
         fail "test_launcher_config.py"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
+
+    echo "  Running test_repo_docs.py..."
+    if OUTPUT=$(python3 "$SCRIPT_DIR/test_repo_docs.py" -v 2>&1); then
+        pass "test_repo_docs.py (Devin plugin + docs)"
+    else
+        fail "test_repo_docs.py (Devin plugin + docs)"
     fi
     if $VERBOSE; then echo "$OUTPUT"; fi
 fi

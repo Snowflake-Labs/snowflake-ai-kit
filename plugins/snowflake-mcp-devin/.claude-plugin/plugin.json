@@ -1,0 +1,16 @@
+{
+  "name": "snowflake",
+  "version": "0.1.0",
+  "author": { "name": "Snowflake" },
+  "description": "Connect to Snowflake via Managed MCP Server — governed Cortex Agents, Analyst, Search, and SQL execution. Zero local dependencies.",
+  "mcpServers": {
+    "snowflake": {
+      "type": "http",
+      "url": "${SNOWFLAKE_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${SNOWFLAKE_PAT}",
+        "User-Agent": "Devin-Snowflake-MCP/0.1"
+      }
+    }
+  }
+}
