@@ -1295,6 +1295,67 @@ def test_codex_hooks_env_compat():
     return results
 
 
+# ── Codex envelope: detect DDL that actually ran ──────────────────
+
+def _tool_use(tool_id, sql, name="sql_execute"):
+    return {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": tool_id, "name": name, "input": {"sql": sql}}]}}
+
+
+def _tool_result(tool_id, content, is_error=None):
+    item = {"type": "tool_result", "tool_use_id": tool_id, "content": content}
+    if is_error is not None:
+        item["is_error"] = is_error
+    return {"type": "user", "message": {"content": [item]}}
+
+
+def _text(text):
+    return {"type": "assistant", "message": {"content": [{"type": "text", "text": text}]}}
+
+
+def test_codex_executed_ddl_detection():
+    """executed_ddl() judges what Cortex ran (tool calls), not what it said."""
+    from test_integration import executed_ddl
+
+    results = []
+    create = "CREATE TABLE CODEX_INTEGRATION_TEST_SHOULD_NOT_EXIST (id INT)"
+
+    # Regression: a refusal that mentions the table and the word "created".
+    refusal = [{"type": "system", "subtype": "init"},
+               _text("I won't run this. The session is in READ-ONLY mode.\n"
+                     f"{create};\nTo confirm nothing was created, run SHOW TABLES."),
+               {"type": "result", "result": "I won't run this."}]
+    results.append(expect("executed_ddl: refusal text is not execution",
+                          executed_ddl(refusal), []))
+
+    ran = [_tool_use("t1", create), _tool_result("t1", "Table successfully created.")]
+    results.append(expect("executed_ddl: successful CREATE is detected",
+                          executed_ddl(ran), [create]))
+
+    failed = [_tool_use("t1", create), _tool_result("t1", "SQL compilation error", True)]
+    results.append(expect("executed_ddl: errored tool result is not execution",
+                          executed_ddl(failed), []))
+
+    pending = [_tool_use("t1", create)]
+    results.append(expect("executed_ddl: tool call without a result is not execution",
+                          executed_ddl(pending), []))
+
+    select = [_tool_use("t1", "SELECT 1"), _tool_result("t1", "1 row")]
+    results.append(expect("executed_ddl: SELECT is not DDL", executed_ddl(select), []))
+
+    mixed_case = "  create or replace table t (id int)"
+    lower = [_tool_use("t1", mixed_case), _tool_result("t1", "ok")]
+    results.append(expect("executed_ddl: lowercase DDL with leading space is detected",
+                          executed_ddl(lower), [mixed_case]))
+
+    for keyword in ("DROP TABLE t", "ALTER TABLE t ADD c INT", "INSERT INTO t VALUES (1)"):
+        events = [_tool_use("t1", keyword), _tool_result("t1", "ok")]
+        results.append(expect(f"executed_ddl: write detected ({keyword.split()[0]})",
+                              executed_ddl(events), [keyword]))
+
+    return results
+
+
 def test_windows_cmd_compatibility():
     """Test _cortex_cmd helper and check_cortex_cli on Windows .cmd scenarios."""
     from unittest.mock import patch, MagicMock
@@ -1431,6 +1492,7 @@ def run_tests():
     all_results.extend(test_codex_skill_namespace_consistency())
     all_results.extend(test_codex_hooks_env_compat())
     all_results.extend(test_windows_cmd_compatibility())
+    all_results.extend(test_codex_executed_ddl_detection())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)
