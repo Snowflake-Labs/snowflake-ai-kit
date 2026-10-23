@@ -108,6 +108,16 @@ def check_cortex_cli() -> bool:
         return False
 
 
+def _mcp_conflict_check_disabled() -> bool:
+    """True when the user opted out of the Snowflake MCP conflict check.
+
+    Set CORTEX_MCP_CONFLICT_CHECK=off (also: 0, false, no, disabled) for setups
+    that deliberately run a Snowflake MCP server alongside Cortex Code.
+    """
+    value = os.environ.get("CORTEX_MCP_CONFLICT_CHECK", "").strip().lower()
+    return value in {"off", "0", "false", "no", "disabled"}
+
+
 def _check_mcp_servers_in_dict(servers: dict, source_label: str) -> Optional[str]:
     """Scan an mcpServers dict for Snowflake-related entries.
 
@@ -144,6 +154,9 @@ def check_mcp_conflict() -> Optional[str]:
     If found, Cortex Code and the MCP server will conflict (duplicate tool
     registrations, auth confusion). Returns conflict message or None.
     """
+    if _mcp_conflict_check_disabled():
+        return None
+
     # 1. Project scope: .mcp.json in cwd
     try:
         mcp_json = Path.cwd() / ".mcp.json"
