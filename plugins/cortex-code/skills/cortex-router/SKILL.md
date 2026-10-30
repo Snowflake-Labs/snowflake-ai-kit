@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.5.0
+  version: 3.6.0
   compatibility: Requires Cortex Code CLI installed and configured
 ---
 
@@ -15,6 +15,9 @@ Route Snowflake operations to Cortex Code CLI, which has specialized bundled ski
 (data-quality, semantic-view, cost-intelligence, ML, governance, etc.).
 
 **CRITICAL: Follow steps 1 → 2 → 3 in order. Do NOT skip to Step 3.**
+
+In Devin CLI, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook gives
+the exact commands with absolute paths: run those instead of the ones below.
 
 ## Step 1: Verify CLI
 

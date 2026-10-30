@@ -168,5 +168,122 @@ class RepoDocsTests(unittest.TestCase):
         self.assertIn("${SNOWFLAKE_PAT}", scope)
 
 
+class CortexCodeDevinCliDocsTests(unittest.TestCase):
+    """The Cortex Code plugin also runs in Devin CLI, routing to the local cortex CLI."""
+
+    def setUp(self):
+        self.plugin_readme = read(CORTEX_DIR / "README.md")
+        self.root_readme = read(REPO_ROOT / "README.md")
+
+    def test_plugin_readme_installs_in_devin_cli(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("### Devin CLI", install)
+        self.assertIn("devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local", install)
+        self.assertIn("/snowflake-cortex-code:cortex-run", self.plugin_readme)
+
+    def test_plugin_readme_explains_choice_between_devin_plugins(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("snowflake-mcp-devin", install)
+
+    def test_plugin_readme_explains_imported_mcp_conflicts(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("read_config_from", install)
+        self.assertIn("devin mcp list", install)
+
+    def test_root_readme_offers_both_devin_paths(self):
+        devin = self.root_readme.split("### Devin", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("plugins/cortex-code", devin)
+        self.assertIn("plugins/snowflake-mcp-devin", devin)
+        self.assertIn("Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code", devin)
+
+    def test_claude_manifest_read_by_devin_names_it(self):
+        # Devin CLI falls back to .claude-plugin/plugin.json and shows its description.
+        description = load_json(CORTEX_DIR / ".claude-plugin" / "plugin.json")["description"]
+        self.assertIn("Devin CLI", description)
+
+    def test_agents_md_covers_devin_cli_hosting(self):
+        agents = read(REPO_ROOT / "AGENTS.md")
+        self.assertIn("Devin CLI", section(agents, "What This Repo Is"))
+        arch = section(agents, "Architecture")
+        for entry in ("hosts.py", "test_hosts.py", "test_devin_e2e.py"):
+            self.assertIn(entry, arch)
+        testing = section(agents, "Testing")
+        self.assertIn("test_hosts.py", testing)
+        self.assertIn("--devin-e2e", testing)
+
+    def test_security_scope_covers_devin_cli_routing(self):
+        scope = section(read(REPO_ROOT / "SECURITY.md"), "Scope")
+        self.assertIn("Devin CLI", scope)
+
+
+class ReadmeAccuracyTests(unittest.TestCase):
+    """Root and Cortex Code READMEs stay accurate across Claude Code, Codex, and Devin CLI."""
+
+    def setUp(self):
+        self.root = read(REPO_ROOT / "README.md")
+        self.plugin = read(CORTEX_DIR / "README.md")
+
+    def test_root_intro_describes_one_plugin_for_three_agents(self):
+        intro = self.root.split("\n## ", 1)[0]
+        self.assertIn("One plugin", intro)
+        self.assertNotIn("Plugins for", intro)
+
+    def test_root_quick_start_ends_with_usage(self):
+        quick = section(self.root, "Quick Start")
+        headings = re.findall(r"^### (.+)$", quick, re.M)
+        self.assertEqual(headings[-1], "That's it", headings)
+        self.assertIn("Devin", headings)
+
+    def test_root_devin_options_are_unambiguous(self):
+        self.assertNotIn("no local CLI", self.root)
+
+    def test_root_prerequisites_match_plugin_requirements(self):
+        prereq = section(self.root, "Prerequisites")
+        self.assertIn("Python 3.9", prereq)
+        self.assertIn("Git Bash", prereq)
+
+    def test_mcp_plugin_removal_uses_its_installed_name(self):
+        name = load_json(DEVIN_DIR / ".devin-plugin" / "plugin.json")["name"]
+        self.assertIn(f"devin plugins remove {name}`", self.plugin)
+        self.assertIn(f"installed as `{name}`", self.plugin)
+
+    def test_root_how_it_works_shows_devin_command(self):
+        self.assertIn("/snowflake-cortex-code:cortex-run", section(self.root, "How It Works"))
+
+    def test_root_troubleshooting_covers_devin(self):
+        trouble = section(self.root, "Troubleshooting")
+        for text in ("devin plugins list", "devin mcp list", "read_config_from", "os error 1314"):
+            self.assertIn(text, trouble)
+
+    def test_root_contributing_has_no_stale_test_count(self):
+        contributing = section(self.root, "Contributing")
+        self.assertNotRegex(contributing, r"\(\d+ tests\)")
+        self.assertIn("--integration", contributing)
+        self.assertIn("--devin-e2e", contributing)
+
+    def test_python_requirement_matches_tested_minimum(self):
+        # Python 3.8 fails to import execute_cortex.py; 3.9 runs the full suite.
+        self.assertIn("badge/Python-3.9%2B-", self.root)
+        self.assertIn("Python 3.9", section(self.plugin, "Requirements"))
+
+    def test_plugin_how_it_works_covers_every_host(self):
+        how = section(self.plugin, "How It Works")
+        for host in ("Claude Code", "Codex", "Devin CLI"):
+            self.assertIn(host, how)
+
+    def test_plugin_requirements_cover_windows(self):
+        self.assertIn("Git Bash", section(self.plugin, "Requirements"))
+
+    def test_plugin_devin_section_covers_windows_install_error(self):
+        install = section(self.plugin, "Install")
+        self.assertIn("os error 1314", install)
+        self.assertIn("Developer Mode", install)
+
+    def test_plugin_testing_covers_new_suites(self):
+        testing = section(self.plugin, "Testing")
+        self.assertIn("test_hosts.py", testing)
+        self.assertIn("--devin-e2e", testing)
+
+
 if __name__ == "__main__":
     unittest.main()

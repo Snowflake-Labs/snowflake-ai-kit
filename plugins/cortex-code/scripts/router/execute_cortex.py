@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent))
 from envelope_policy import decide as envelope_decide
+import hosts
 from session_state import load_active_session, save_active_session
 from security import config_manager
 
@@ -108,93 +109,35 @@ def check_cortex_cli() -> bool:
         return False
 
 
-def _check_mcp_servers_in_dict(servers: dict, source_label: str) -> Optional[str]:
-    """Scan an mcpServers dict for Snowflake-related entries.
-
-    Returns a conflict message naming the server and source file, or None.
-    """
-    if not isinstance(servers, dict):
-        return None
-    for name, cfg in servers.items():
-        if not isinstance(cfg, dict):
-            continue
-        command = cfg.get("command", "")
-        args = " ".join(str(a) for a in cfg.get("args", []))
-        url = cfg.get("url", "")
-        search_str = f"{name} {command} {args} {url}".lower()
-        if "snowflake" in search_str:
-            return (
-                f"CONFLICT: Snowflake MCP server '{name}' is active in "
-                f"{source_label}. This conflicts with Cortex Code CLI "
-                "(duplicate tools, auth issues). "
-                "Please disable or remove it, then retry."
-            )
-    return None
+def _entrypoint_label(host: Optional[str]) -> str:
+    """Name the calling agent for Cortex Code. An explicit --host wins over env signals."""
+    if host:
+        return hosts.by_name(host).entrypoint
+    # Claude Code signals take precedence over PLUGIN_ROOT
+    if os.environ.get("CLAUDECODE") or os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+        return hosts.CLAUDE_CODE.entrypoint
+    if os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT"):
+        return hosts.CODEX.entrypoint
+    return "Unknown"
 
 
-def check_mcp_conflict() -> Optional[str]:
-    """Check if a Snowflake MCP server is configured in any Claude Code scope.
-
-    Claude Code registers MCP servers in three scopes:
-    - Project: .mcp.json in the current working directory
-    - User: ~/.claude.json top-level mcpServers
-    - Local: ~/.claude.json projects.<cwd>.mcpServers
-    - Manual: ~/.claude/settings.json mcpServers (legacy/manual)
+def check_mcp_conflict(host: Optional["hosts.Host"] = None) -> Optional[str]:
+    """Check if a Snowflake MCP server is configured where the host reads MCP config.
 
     If found, Cortex Code and the MCP server will conflict (duplicate tool
     registrations, auth confusion). Returns conflict message or None.
     """
-    # 1. Project scope: .mcp.json in cwd
-    try:
-        mcp_json = Path.cwd() / ".mcp.json"
-        if mcp_json.exists():
-            data = json.loads(mcp_json.read_text(encoding="utf-8"))
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, ".mcp.json (project scope)")
-            if conflict:
-                return conflict
-    except (json.JSONDecodeError, PermissionError, OSError):
-        pass
-
-    # 2. User + Local scope: ~/.claude.json
-    try:
-        claude_json = Path.home() / ".claude.json"
-        if claude_json.exists():
-            data = json.loads(claude_json.read_text(encoding="utf-8"))
-            # User scope: top-level mcpServers
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, "~/.claude.json (user scope)")
-            if conflict:
-                return conflict
-            # Local scope: projects.<cwd_key>.mcpServers
-            projects = data.get("projects", {})
-            if isinstance(projects, dict):
-                cwd_str = str(Path.cwd())
-                for project_path, project_cfg in projects.items():
-                    if isinstance(project_cfg, dict):
-                        servers = project_cfg.get("mcpServers", {})
-                        conflict = _check_mcp_servers_in_dict(
-                            servers,
-                            f"~/.claude.json (local scope: {project_path})"
-                        )
-                        if conflict:
-                            return conflict
-    except (json.JSONDecodeError, PermissionError, OSError):
-        pass
-
-    # 3. Manual/legacy: ~/.claude/settings.json
-    try:
-        settings_path = Path.home() / ".claude" / "settings.json"
-        if settings_path.exists():
-            data = json.loads(settings_path.read_text(encoding="utf-8"))
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, "~/.claude/settings.json")
-            if conflict:
-                return conflict
-    except (json.JSONDecodeError, PermissionError, OSError):
-        pass
-
-    return None
+    host = host or hosts.detect(os.environ, {})
+    found = hosts.find_snowflake_mcp_server(host, Path.home(), Path.cwd(), os.environ)
+    if not found:
+        return None
+    name, location = found
+    return (
+        f"CONFLICT: Snowflake MCP server '{name}' is active in "
+        f"{location}. This conflicts with Cortex Code CLI "
+        "(duplicate tools, auth issues). "
+        "Please disable or remove it, then retry."
+    )
 
 
 # Prompt-level security envelope instructions.
@@ -283,7 +226,8 @@ def _send_control_response(stdin, request_id: str, behavior: str, message: str =
 
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              envelope: str = "RW",
-                             resume_session_id: Optional[str] = None) -> Dict:
+                             resume_session_id: Optional[str] = None,
+                             host: Optional[str] = None) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
@@ -297,6 +241,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         connection: Optional Snowflake connection name
         envelope: Security envelope mode (RO, RW, RESEARCH, DEPLOY)
         resume_session_id: Optional session ID to resume for multi-turn
+        host: Optional host name (hosts.HOSTS) from --host; otherwise detected from env
 
     Returns:
         Dictionary with execution results
@@ -336,7 +281,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         }
 
     # Pre-flight: check for conflicting Snowflake MCP server
-    mcp_conflict = check_mcp_conflict()
+    mcp_conflict = check_mcp_conflict(hosts.by_name(host) if host else None)
     if mcp_conflict:
         print(f"\u26d4 {mcp_conflict}", file=sys.stderr)
         return {
@@ -387,13 +332,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     try:
         env = os.environ.copy()
-        # Detect calling agent: Claude Code signals take precedence over PLUGIN_ROOT
-        if os.environ.get("CLAUDECODE") or os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
-            env["CORTEX_CODE_ENTRYPOINT"] = "Claude Code Plugin"
-        elif os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT"):
-            env["CORTEX_CODE_ENTRYPOINT"] = "Codex Plugin"
-        else:
-            env["CORTEX_CODE_ENTRYPOINT"] = "Unknown"
+        env["CORTEX_CODE_ENTRYPOINT"] = _entrypoint_label(host)
 
         process = subprocess.Popen(
             cmd,
@@ -680,6 +619,8 @@ def main():
                        help="Resume a specific cortex session by id")
     parser.add_argument("--codex", action="store_true",
                        help="Codex mode: auto-approve tools, skip MCP, use subprocess.run")
+    parser.add_argument("--host", choices=sorted(hosts.HOSTS),
+                       help="Calling agent, recorded as the Cortex Code entrypoint")
     args = parser.parse_args()
 
     # Codex mode: simple subprocess.run path (no bidirectional pipe)
@@ -700,6 +641,7 @@ def main():
         connection=args.connection,
         envelope=args.envelope,
         resume_session_id=resume_session_id,
+        host=args.host,
     )
 
     print(json.dumps(results, indent=2))

@@ -1,6 +1,6 @@
-# Cortex Code plugin for Claude Code and OpenAI Codex
+# Cortex Code plugin for Claude Code, OpenAI Codex, and Devin CLI
 
-Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+Route Snowflake work from Claude Code, OpenAI Codex, or Devin CLI to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
 
 ## How It Works
 
@@ -8,7 +8,10 @@ Route Snowflake work from Claude Code or OpenAI Codex to Cortex Code automatical
 
 ### Auto-routing (default)
 
-A lightweight keyword filter (`prompt_filter.py`) runs on every prompt. When it detects Snowflake-related patterns, it loads the `cortex-router` skill which delegates to Cortex Code.
+A lightweight keyword filter (`prompt_filter.py`) runs on every prompt as a `UserPromptSubmit` hook. When it detects Snowflake-related patterns, it tells your agent how to hand the prompt to Cortex Code:
+
+- **Claude Code** loads the `cortex-router` skill, which runs the routing check and then Cortex Code.
+- **OpenAI Codex** and **Devin CLI** get the same steps as direct commands with the plugin's script paths filled in.
 
 Examples that auto-route:
 - "Show me my Snowflake warehouses"
@@ -32,9 +35,13 @@ Type `$cortex-run` followed by your prompt to force routing to Cortex Code, bypa
 $cortex-run analyze query performance for the last 7 days
 ```
 
+In Devin CLI, the command is `/snowflake-cortex-code:cortex-run`.
+
 ## Requirements
 
-- **Cortex Code CLI** (`cortex`) installed and on your PATH
+- **Cortex Code CLI** (`cortex`) installed and on your PATH, with a Snowflake connection
+- **Python 3.9 or later** on your PATH as `python3` or `python` (`py -3` on Windows)
+- **Bash**: on Windows, [Git Bash](https://git-scm.com/download/win), which hooks and skill commands run in
 
 ## Install
 
@@ -54,6 +61,33 @@ codex plugin add snowflake-cortex-code@snowflake-ai-kit
 ```
 
 Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Snowflake AI Kit marketplace.
+
+### Devin CLI
+
+Devin CLI loads this plugin as-is, including the prompt hook. Install it from this repo:
+
+```bash
+devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local
+```
+
+`--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install from a clone instead: `devin plugins install --local ./plugins/cortex-code`.
+
+Check it with `devin plugins info snowflake-cortex-code`. Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup` to install the CLI. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
+
+On Windows, installing from a local folder fails with `os error 1314` unless Developer Mode is on (Settings → System → For developers), because Devin links the plugin into its cache.
+
+**This plugin or `snowflake-mcp-devin`?** Both connect Devin to Snowflake:
+
+- Use this plugin in Devin CLI when the Cortex Code CLI is installed on your machine and you want its bundled skills, local connections, and security envelopes.
+- Use [`snowflake-mcp-devin`](../snowflake-mcp-devin/) in Devin Cloud, Desktop, or CLI when the Cortex Code CLI isn't installed, connecting through a Snowflake Managed MCP Server.
+
+Use one at a time. The prompt hook can't see MCP servers that come from installed plugins, so with `snowflake-mcp-devin` installed Devin may answer with its tools instead of routing to Cortex Code. Check `devin plugins list` and remove it before using this one: it's installed as `snowflake`, so run `devin plugins remove snowflake`.
+
+**MCP conflicts.** The prompt hook stops when a Snowflake MCP server is active for Devin, because its tools duplicate Cortex Code's and confuse auth. It checks Devin's own MCP config (`~/.config/devin/mcp_config.json`, `.devin/mcp_config.json`, `.devin/mcp_config.local.json`) and the Cursor, Windsurf, Claude Code, OpenCode, and Zed config that Devin imports. If it stops on a Snowflake server you configured for another tool, run `devin mcp list` to see where it comes from, then either disable that server or stop Devin importing from that tool in `~/.config/devin/config.json` (`%APPDATA%\devin\config.json` on Windows):
+
+```json
+{ "read_config_from": { "cursor": false } }
+```
 
 ## Security Model
 
@@ -126,7 +160,7 @@ bash tests/run-tests.sh
 bash tests/run-tests.sh --integration
 ```
 
-**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks.
+**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks. `scripts/router/test_hosts.py` pins the exact routing output for Claude Code and Codex and covers Devin CLI detection, instructions, and MCP conflict scans.
 
 CI tests macOS and Windows with and without PyYAML. Launcher/configuration regressions
 are in `scripts/router/test_launcher_config.py`; they do not invoke Cortex or Snowflake.
@@ -141,6 +175,8 @@ fail-closed tests still run.
 - Process cleanup (no orphaned `cortex` processes after execution)
 
 Set `CORTEX_TEST_CONNECTION` env var to test against a specific Snowflake connection (defaults to your CLI default).
+
+**Devin CLI end-to-end** (`--devin-e2e` flag): installs a temporary copy of this plugin into Devin CLI, sends real prompts with `devin -p`, and checks the audit log for envelope-enforced Cortex sessions. Needs the `devin` and `cortex` CLIs and a Snowflake connection. It skips if `snowflake-cortex-code` is already installed in Devin or a Snowflake MCP server is active for Devin, and removes the copy afterwards. Located at `tests/test_devin_e2e.py`.
 
 ## License
 

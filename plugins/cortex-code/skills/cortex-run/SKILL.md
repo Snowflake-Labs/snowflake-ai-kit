@@ -1,6 +1,6 @@
 ---
 name: cortex-run
-description: "ONLY load this skill when the user explicitly types $cortex-run or /cortex-run. NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."
+description: "ONLY load this skill when the user explicitly types $cortex-run, /cortex-run, or /snowflake-cortex-code:cortex-run (Devin CLI). NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
@@ -40,7 +40,9 @@ If `cortex` is NOT found or the command fails:
 
 ### Step 2: Extract the User Prompt
 
-The user's message after `$cortex-run` is the prompt to send. If the user typed only `$cortex-run` with no additional text, ask what they want to do in Snowflake.
+The user's message after the command (`$cortex-run`, or `/snowflake-cortex-code:cortex-run` in Devin CLI) is the prompt to send. If the user typed only the command with no additional text, ask what they want to do in Snowflake.
+
+In Devin CLI, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook supplies the absolute plugin root: use it in place of `${CLAUDE_PLUGIN_ROOT}` in every command below, and add `--host devin_cli` to `execute_cortex.py`.
 
 ### Step 3: Choose Security Envelope
 
