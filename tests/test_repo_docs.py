@@ -216,6 +216,39 @@ class CortexCodeDevinCliDocsTests(unittest.TestCase):
         self.assertIn("Devin CLI", scope)
 
 
+class DevinCliMigrationDocsTests(unittest.TestCase):
+    """Devin CLI routes database migrations to Snowflake AIM in Cortex Code."""
+
+    def setUp(self):
+        self.plugin = read(CORTEX_DIR / "README.md")
+        self.root = read(REPO_ROOT / "README.md")
+        self.agents = read(REPO_ROOT / "AGENTS.md")
+
+    def test_plugin_readme_has_devin_migration_section(self):
+        install = section(self.plugin, "Install")
+        self.assertIn("#### Database migrations (Snowflake AIM)", install)
+        migrations = install.split("#### Database migrations (Snowflake AIM)", 1)[1]
+        for text in ("start a database migration", "continue my migration", "/migrate",
+                     "RW", "--resume-last", "install", "Claude Code and Codex",
+                     "https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview"):
+            self.assertIn(text, migrations)
+
+    def test_root_troubleshooting_covers_devin_migrations(self):
+        trouble = section(self.root, "Troubleshooting")
+        self.assertIn("Snowflake AIM", trouble)
+
+    def test_agents_md_covers_workloads(self):
+        self.assertIn("workloads.py", section(self.agents, "Architecture"))
+        self.assertIn("test_workloads.py", section(self.agents, "Architecture"))
+        self.assertIn("workloads.py", section(self.agents, "Plugin Scripts"))
+        self.assertIn("test_workloads.py", section(self.agents, "Testing"))
+
+    def test_runners_run_workload_tests(self):
+        for runner in ("run-tests.sh", "run-tests.ps1"):
+            with self.subTest(runner=runner):
+                self.assertIn("test_workloads.py", read(REPO_ROOT / "tests" / runner))
+
+
 class ReadmeAccuracyTests(unittest.TestCase):
     """Root and Cortex Code READMEs stay accurate across Claude Code, Codex, and Devin CLI."""
 

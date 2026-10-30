@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 
 import hosts
+import workloads
 
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
@@ -95,10 +96,16 @@ def check_prompt(prompt: str, host=None) -> str | None:
         if pattern.search(prompt):
             return None
 
+    root = hosts.plugin_root(os.environ)
+    if host.supports_workloads:
+        workload = workloads.classify(prompt)
+        if workload is not workloads.GENERAL:
+            return host.routing_instruction(root, workload)
+
     # Check for Snowflake keywords
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
-            return host.routing_instruction(hosts.plugin_root(os.environ))
+            return host.routing_instruction(root)
 
     return None
 

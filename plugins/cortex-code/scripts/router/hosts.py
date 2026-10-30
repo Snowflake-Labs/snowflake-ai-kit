@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
 
+import workloads
+
 CORTEX_DOCS_URL = "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
 
 
@@ -45,8 +47,17 @@ class Host:
     # Prompts starting with this prefix already invoke the plugin explicitly; don't reroute them.
     explicit_prefix: str | None = None
     _explicit_context: Callable[[str], str] | None = None
+    # Instructions for non-GENERAL workloads; set only on hosts that support them.
+    _workload_instruction: Callable[[str, "workloads.Workload"], str] | None = None
 
-    def routing_instruction(self, plugin_root: str) -> str:
+    @property
+    def supports_workloads(self) -> bool:
+        return self._workload_instruction is not None
+
+    def routing_instruction(self, plugin_root: str,
+                            workload: "workloads.Workload" = workloads.GENERAL) -> str:
+        if workload is not workloads.GENERAL and self.supports_workloads:
+            return self._workload_instruction(plugin_root, workload)
         return self._routing_instruction(plugin_root)
 
     def explicit_invocation_context(self, plugin_root: str) -> str | None:
@@ -185,6 +196,34 @@ def _devin_instruction(root: str) -> str:
     )
 
 
+def _devin_workload_instruction(root: str, workload: "workloads.Workload") -> str:
+    # MIGRATION is the only non-GENERAL workload. Cortex Code hands it to Snowflake AIM,
+    # which asks questions (including consent to install itself) and spans sessions.
+    python = f'bash "{root}/scripts/run_python.sh"'
+    return (
+        "[CORTEX ROUTER] This is a database migration. Cortex Code runs it with Snowflake AIM, "
+        "its migration agent. Follow these steps IN ORDER and run each command exactly as written:\n"
+        "Step 1: Verify cortex CLI is installed by running: cortex --version\n"
+        f"Step 2: Run the routing check: {python} \"{root}/scripts/router/route_request.py\" "
+        "--prompt \"<USER_PROMPT>\" --host devin_cli\n"
+        "  - Replace <USER_PROMPT> with the actual user prompt (shell-escaped).\n"
+        "  - If output says route: claude -> STOP routing and handle the request yourself.\n"
+        "  - If the command fails, STOP and report the error. Never bypass configuration/policy errors.\n"
+        f"Step 3: Execute via Cortex Code: {python} \"{root}/scripts/router/execute_cortex.py\" "
+        f"--prompt \"<USER_PROMPT>\" --envelope \"{workload.required_envelope}\" --host devin_cli\n"
+        f"  - Always use --envelope {workload.required_envelope}: AIM works through its MCP server "
+        "and writes project files, which RO denies.\n"
+        "  - Add --resume-last to every prompt after the first, so AIM continues the same migration.\n"
+        "  - Run it in the foreground; steps such as data migration can take many minutes.\n"
+        "Step 4: Relay Cortex's reply to the user word for word. AIM asks questions and approvals "
+        "(for example, consent to install itself, which project directory to use, "
+        "which source connection). Never answer for them: wait for the user's reply, then send it "
+        "with --resume-last.\n"
+        "Do NOT use SnowSQL, snow CLI, SnowConvert, or any other tool for the migration yourself. "
+        "ONLY use the cortex CLI via the scripts above."
+    )
+
+
 def _devin_install() -> str:
     return (
         "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
@@ -283,6 +322,7 @@ DEVIN_CLI = Host(
     _mcp_config_sources=_devin_mcp_sources,
     explicit_prefix=DEVIN_COMMAND_PREFIX,
     _explicit_context=_devin_explicit_context,
+    _workload_instruction=_devin_workload_instruction,
 )
 
 HOSTS = {host.name: host for host in (CLAUDE_CODE, CODEX, DEVIN_CLI)}

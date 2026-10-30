@@ -152,6 +152,7 @@ Skills are organized by source:
 | Devin CLI answers Snowflake prompts without Cortex Code | Run `devin plugins list`: `snowflake-cortex-code` must be installed, and the `snowflake` Managed MCP plugin removed (`devin plugins remove snowflake`). |
 | Devin CLI: "A Snowflake MCP server is active" | Devin also loads MCP servers from Cursor, Windsurf, Claude Code, OpenCode, and Zed config. Run `devin mcp list` to find the server, then disable it or turn off that import with `read_config_from` in `~/.config/devin/config.json`. See [`plugins/cortex-code/`](plugins/cortex-code/README.md#devin-cli). |
 | Devin CLI on Windows: `os error 1314` on install | Installing from a local folder creates a symlink. Turn on Developer Mode (Settings → System → For developers) and retry. |
+| Devin CLI: a migration doesn't start Snowflake AIM | Say `start a database migration` or `/migrate <prompt>`, approve the AIM install when asked, and keep the `RW` envelope allowed. See [Database migrations](plugins/cortex-code/README.md#database-migrations-snowflake-aim). |
 | Installer hangs on Windows | Run PowerShell as Administrator. |
 
 ## Contributing

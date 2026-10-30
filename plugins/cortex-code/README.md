@@ -89,6 +89,17 @@ Use one at a time. The prompt hook can't see MCP servers that come from installe
 { "read_config_from": { "cursor": false } }
 ```
 
+#### Database migrations (Snowflake AIM)
+
+In Devin CLI, migration prompts route to [Snowflake AIM for Data Warehouses](https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview), the Cortex Code agent that migrates a database to Snowflake: it connects to the source, extracts and converts code with SnowConvert, assesses, deploys wave by wave, migrates data, and validates. Start with `start a database migration`, pick up later with `continue my migration`, or type `/migrate <your prompt>`. Prompts that name a source system (SQL Server, Oracle, Teradata, Redshift, Postgres, MySQL, and others), SnowConvert, SSIS, or Informatica also route.
+
+- **First run:** Cortex Code asks before installing the AIM plugin, and AIM then installs SnowConvert (`scai`) and its other tooling. Devin relays the question; answer it in Devin.
+- **Questions and approvals:** AIM asks which project directory and source connection to use, and asks for approval between stages. Devin relays each one and sends your answer with `--resume-last`, so the migration continues in the same Cortex session. Devin doesn't answer for you.
+- **Envelope:** migrations always run with `RW`, because AIM works through its MCP server and writes project files, which `RO` denies. If your `allowed_envelopes` excludes `RW`, the plugin stops before starting Cortex Code.
+- **Long steps:** data migration and test loops can run for many minutes.
+
+This applies to Devin CLI only for now. In Claude Code and Codex, migration prompts route the same way they did before.
+
 ## Security Model
 
 The router wraps Cortex execution with a security layer. Three approval modes:
@@ -160,7 +171,7 @@ bash tests/run-tests.sh
 bash tests/run-tests.sh --integration
 ```
 
-**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks. `scripts/router/test_hosts.py` pins the exact routing output for Claude Code and Codex and covers Devin CLI detection, instructions, and MCP conflict scans.
+**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks. `scripts/router/test_hosts.py` pins the exact routing output for Claude Code and Codex and covers Devin CLI detection, instructions, and MCP conflict scans. `scripts/router/test_workloads.py` covers migration detection and Devin CLI's Snowflake AIM routing, and pins that Claude Code and Codex treat migration prompts as before.
 
 CI tests macOS and Windows with and without PyYAML. Launcher/configuration regressions
 are in `scripts/router/test_launcher_config.py`; they do not invoke Cortex or Snowflake.

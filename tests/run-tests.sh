@@ -129,6 +129,7 @@ check "test_plugin_units.py exists"    test -f "$ROUTER_DIR/test_plugin_units.py
 check "run_python.sh exists" test -f "$PLUGIN_DIR/scripts/run_python.sh"
 check "test_launcher_config.py exists" test -f "$ROUTER_DIR/test_launcher_config.py"
 check "test_hosts.py exists"          test -f "$ROUTER_DIR/test_hosts.py"
+check "test_workloads.py exists"      test -f "$ROUTER_DIR/test_workloads.py"
 
 # === 3. Codex plugin & marketplace manifests =======================
 
@@ -317,6 +318,14 @@ else
         pass "test_hosts.py (Claude Code, Codex, Devin CLI hosts)"
     else
         fail "test_hosts.py (Claude Code, Codex, Devin CLI hosts)"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
+
+    echo "  Running test_workloads.py..."
+    if OUTPUT=$(python3 "$ROUTER_DIR/test_workloads.py" -v 2>&1); then
+        pass "test_workloads.py (Devin CLI migrations to Snowflake AIM)"
+    else
+        fail "test_workloads.py (Devin CLI migrations to Snowflake AIM)"
     fi
     if $VERBOSE; then echo "$OUTPUT"; fi
 
