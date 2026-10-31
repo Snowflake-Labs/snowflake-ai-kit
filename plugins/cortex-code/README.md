@@ -76,6 +76,12 @@ Check it with `devin plugins info snowflake-cortex-code`. Skills are namespaced:
 
 On Windows, installing from a local folder fails with `os error 1314` unless Developer Mode is on (Settings → System → For developers), because Devin links the plugin into its cache.
 
+**Devin Enterprise.** If `devin plugins install` says "Devin CLI plugins are disabled by your organization", an org admin needs to turn on Settings → Enterprise → Devin Desktop → **Devin CLI plugins**. If your account belongs to more than one org, Devin asks you to pick one at startup, so non-interactive runs (`devin -p`) wait forever. Set `devin.org_id` in `~/.config/devin/config.json` (`%APPDATA%\devin\config.json` on Windows) to skip the picker; `devin auth status` shows your primary org ID:
+
+```json
+{ "devin": { "org_id": "org-..." } }
+```
+
 **This plugin or `snowflake-mcp-devin`?** Both connect Devin to Snowflake:
 
 - Use this plugin in Devin CLI when the Cortex Code CLI is installed on your machine and you want its bundled skills, local connections, and security envelopes.

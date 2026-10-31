@@ -190,6 +190,13 @@ class CortexCodeDevinCliDocsTests(unittest.TestCase):
         self.assertIn("read_config_from", install)
         self.assertIn("devin mcp list", install)
 
+    def test_plugin_readme_explains_enterprise_setup(self):
+        # Enterprise orgs disable CLI plugins by default, and `devin -p` waits on the org picker.
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("Devin CLI plugins", install)
+        self.assertIn("devin.org_id", install)
+        self.assertIn("devin auth status", install)
+
     def test_root_readme_offers_both_devin_paths(self):
         devin = self.root_readme.split("### Devin", 1)[1].split("\n## ", 1)[0]
         self.assertIn("plugins/cortex-code", devin)
