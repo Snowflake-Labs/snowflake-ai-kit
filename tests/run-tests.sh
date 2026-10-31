@@ -10,6 +10,8 @@
 #   bash tests/run-tests.sh              # Run all tests
 #   bash tests/run-tests.sh --skip-unit  # Skip unit tests
 #   bash tests/run-tests.sh --verbose    # Show extra detail
+#   bash tests/run-tests.sh --integration  # Also run Cortex Code integration tests
+#   bash tests/run-tests.sh --devin-e2e    # Also run Devin CLI end-to-end (installs plugin, queries Snowflake)
 #
 
 set -uo pipefail
@@ -25,11 +27,13 @@ ROUTER_DIR="$PLUGIN_DIR/scripts/router"
 SKIP_UNIT=false
 VERBOSE=false
 INTEGRATION=false
+DEVIN_E2E=false
 for arg in "$@"; do
     case "$arg" in
         --skip-unit)    SKIP_UNIT=true ;;
         --verbose)      VERBOSE=true ;;
         --integration)  INTEGRATION=true ;;
+        --devin-e2e)    DEVIN_E2E=true ;;
     esac
 done
 
@@ -124,6 +128,8 @@ check "test_envelope_policy.py exists" test -f "$ROUTER_DIR/test_envelope_policy
 check "test_plugin_units.py exists"    test -f "$ROUTER_DIR/test_plugin_units.py"
 check "run_python.sh exists" test -f "$PLUGIN_DIR/scripts/run_python.sh"
 check "test_launcher_config.py exists" test -f "$ROUTER_DIR/test_launcher_config.py"
+check "test_hosts.py exists"          test -f "$ROUTER_DIR/test_hosts.py"
+check "test_workloads.py exists"      test -f "$ROUTER_DIR/test_workloads.py"
 
 # === 3. Codex plugin & marketplace manifests =======================
 
@@ -307,6 +313,22 @@ else
     fi
     if $VERBOSE; then echo "$OUTPUT"; fi
 
+    echo "  Running test_hosts.py..."
+    if OUTPUT=$(python3 "$ROUTER_DIR/test_hosts.py" -v 2>&1); then
+        pass "test_hosts.py (Claude Code, Codex, Devin CLI hosts)"
+    else
+        fail "test_hosts.py (Claude Code, Codex, Devin CLI hosts)"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
+
+    echo "  Running test_workloads.py..."
+    if OUTPUT=$(python3 "$ROUTER_DIR/test_workloads.py" -v 2>&1); then
+        pass "test_workloads.py (Devin CLI migrations to Snowflake AIM)"
+    else
+        fail "test_workloads.py (Devin CLI migrations to Snowflake AIM)"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
+
     echo "  Running test_repo_docs.py..."
     if OUTPUT=$(python3 "$SCRIPT_DIR/test_repo_docs.py" -v 2>&1); then
         pass "test_repo_docs.py (Devin plugin + docs)"
@@ -345,6 +367,25 @@ else
         fi
         if $VERBOSE; then echo "$OUTPUT"; fi
     fi
+fi
+
+# === 6b. Devin CLI end-to-end (optional, installs plugin into Devin CLI) ===
+
+section "Devin CLI end-to-end"
+
+if ! $DEVIN_E2E; then
+    skip "Devin CLI E2E (use --devin-e2e to run)"
+else
+    echo "  Running test_devin_e2e.py (this may take several minutes)..."
+    OUTPUT=$(DEVIN_E2E=1 python3 "$SCRIPT_DIR/test_devin_e2e.py" -v 2>&1)
+    if echo "$OUTPUT" | grep -q "skipped"; then
+        skip "test_devin_e2e.py: $(echo "$OUTPUT" | grep -o "skipped '.*'" | head -1)"
+    elif echo "$OUTPUT" | tail -1 | grep -q "^OK"; then
+        pass "test_devin_e2e.py (Devin CLI -> Cortex Code, enforced envelopes)"
+    else
+        fail "test_devin_e2e.py"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
 fi
 
 # === 7. Snowflake connection =======================================

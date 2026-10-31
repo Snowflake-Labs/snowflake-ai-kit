@@ -32,9 +32,9 @@ print('OK: No Snowflake MCP server found')
 
 > ⚠️ **Snowflake MCP Server detected.** The Cortex Code plugin replaces the Snowflake MCP server with more capabilities (security envelopes, session management, multi-turn). Please disable the MCP server before continuing:
 >
-> 1. Open `~/.claude/settings.json`
+> 1. Open `~/.claude/settings.json` (Devin CLI: run `devin mcp list`, then `devin mcp disable <name>`)
 > 2. Remove the Snowflake MCP server entry from `"mcpServers"`
-> 3. Restart Claude Code
+> 3. Restart your agent (Claude Code, Codex, or Devin CLI)
 >
 > Then re-run this setup.
 

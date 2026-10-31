@@ -12,8 +12,11 @@ from typing import Optional, Dict, Any
 
 # Add parent directory to path for security imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
 from security.config_manager import ConfigManager, ConfigValidationError
 from security.cache_manager import CacheManager
+import hosts
+import workloads
 
 
 # Snowflake/Cortex indicators — strong indicators always count
@@ -132,6 +135,18 @@ def analyze_with_llm_logic(prompt, capabilities):
         return "claude", confidence
 
 
+def decide_route(prompt, capabilities, host=None):
+    """Route a prompt. Hosts that support workloads send migrations to Cortex Code.
+
+    Without such a host the scorer decides exactly as before. A migration names its
+    source system (Postgres, MySQL, ...), which the scorer counts against Snowflake.
+    """
+    if host is not None and host.supports_workloads:
+        if workloads.classify(prompt) is not workloads.GENERAL:
+            return "cortex", 1.0
+    return analyze_with_llm_logic(prompt, capabilities)
+
+
 def check_credential_allowlist(
     prompt: str,
     config_path: Optional[Path] = None,
@@ -201,6 +216,8 @@ def main():
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
     parser.add_argument("--config", help="Path to user config file")
     parser.add_argument("--org-policy", help="Path to organization policy file")
+    parser.add_argument("--host", choices=sorted(hosts.HOSTS),
+                        help="Calling agent; enables its workload routing (e.g. migrations)")
     args = parser.parse_args()
 
     # Step 1: Check credential allowlist BEFORE routing
@@ -225,7 +242,8 @@ def main():
     capabilities = load_cortex_capabilities()
 
     # Step 3: Analyze prompt for routing
-    route, confidence = analyze_with_llm_logic(args.prompt, capabilities)
+    route, confidence = decide_route(
+        args.prompt, capabilities, hosts.by_name(args.host) if args.host else None)
 
     # Step 4: Output decision
     result = {

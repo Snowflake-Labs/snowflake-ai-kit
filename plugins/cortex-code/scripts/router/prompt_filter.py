@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lightweight Snowflake keyword pre-filter for Claude Code UserPromptSubmit hook.
+"""Lightweight Snowflake keyword pre-filter for the UserPromptSubmit hook.
 
 Reads the user prompt from stdin, checks for Snowflake-related keywords,
 and if matched, prints a routing instruction to stdout that gets injected
@@ -7,12 +7,14 @@ into the conversation context. Runs in <50ms -- no LLM calls, no network.
 """
 from __future__ import annotations
 
-import json as _json
 import os
 import sys
 import re
 import shutil
 from pathlib import Path
+
+import hosts
+import workloads
 
 # Keywords that strongly indicate Snowflake intent
 SNOWFLAKE_KEYWORDS = [
@@ -55,125 +57,38 @@ COMPILED_SF = [re.compile(p, re.IGNORECASE) for p in SNOWFLAKE_KEYWORDS]
 COMPILED_LOCAL = [re.compile(p, re.IGNORECASE) for p in LOCAL_KEYWORDS]
 
 
-def _check_mcp_servers_in_dict(servers, source_label):
-    """Scan an mcpServers dict for Snowflake-related entries."""
-    if not isinstance(servers, dict):
-        return None
-    for name, cfg in servers.items():
-        if not isinstance(cfg, dict):
-            continue
-        command = cfg.get("command", "")
-        args = " ".join(str(a) for a in cfg.get("args", []))
-        url = cfg.get("url", "")
-        search_str = f"{name} {command} {args} {url}".lower()
-        if "snowflake" in search_str:
-            return (
-                f"STOP. A Snowflake MCP server '{name}' is active in "
-                f"{source_label}. This CONFLICTS with Cortex Code CLI "
-                "(duplicate tools, auth issues). "
-                "Do NOT proceed with any Snowflake operations. "
-                "Tell the user: 'A Snowflake MCP server is active and conflicts "
-                "with Cortex Code. Please disable or remove it and try again.'"
-            )
-    return None
-
-
-def _check_mcp_conflict():
+def _check_mcp_conflict(host=None):
     """Return a STOP message if a Snowflake MCP server is active, else None.
 
-    Checks all Claude Code MCP scopes:
-    - Project: .mcp.json in cwd
-    - User: ~/.claude.json top-level mcpServers
-    - Local: ~/.claude.json projects.<cwd>.mcpServers
-    - Manual: ~/.claude/settings.json
+    Scans every MCP config location the host owns.
     """
-    # 1. Project scope: .mcp.json in cwd
-    try:
-        mcp_json = Path.cwd() / ".mcp.json"
-        if mcp_json.exists():
-            data = _json.loads(mcp_json.read_text(encoding="utf-8"))
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, ".mcp.json (project scope)")
-            if conflict:
-                return conflict
-    except (ValueError, PermissionError, OSError):
-        pass
-
-    # 2. User + Local scope: ~/.claude.json
-    try:
-        claude_json = Path.home() / ".claude.json"
-        if claude_json.exists():
-            data = _json.loads(claude_json.read_text(encoding="utf-8"))
-            # User scope: top-level mcpServers
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, "~/.claude.json (user scope)")
-            if conflict:
-                return conflict
-            # Local scope: projects.<path>.mcpServers
-            projects = data.get("projects", {})
-            if isinstance(projects, dict):
-                for project_path, project_cfg in projects.items():
-                    if isinstance(project_cfg, dict):
-                        servers = project_cfg.get("mcpServers", {})
-                        conflict = _check_mcp_servers_in_dict(
-                            servers,
-                            f"~/.claude.json (local scope: {project_path})"
-                        )
-                        if conflict:
-                            return conflict
-    except (ValueError, PermissionError, OSError):
-        pass
-
-    # 3. Manual/legacy: ~/.claude/settings.json
-    try:
-        settings_path = Path.home() / ".claude" / "settings.json"
-        if settings_path.exists():
-            data = _json.loads(settings_path.read_text(encoding="utf-8"))
-            servers = data.get("mcpServers", {})
-            conflict = _check_mcp_servers_in_dict(servers, "~/.claude/settings.json")
-            if conflict:
-                return conflict
-    except (ValueError, PermissionError, OSError):
-        pass
-
-    return None
+    host = host or hosts.detect(os.environ, {})
+    found = hosts.find_snowflake_mcp_server(host, Path.home(), Path.cwd(), os.environ)
+    if not found:
+        return None
+    name, location = found
+    return (
+        f"STOP. A Snowflake MCP server '{name}' is active in "
+        f"{location}. This CONFLICTS with Cortex Code CLI "
+        "(duplicate tools, auth issues). "
+        "Do NOT proceed with any Snowflake operations. "
+        "Tell the user: 'A Snowflake MCP server is active and conflicts "
+        "with Cortex Code. Please disable or remove it and try again.'"
+    )
 
 
-def _get_plugin_root():
-    """Get the plugin root directory from environment."""
-    return os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT") or ""
-
-
-# Module-level flag set by main() based on stdin format detection
+# Retained so existing callers that reset it keep working; detection no longer reads it.
 _detected_claude_code_from_stdin = False
 
 
-def _is_claude_code():
-    """Detect if running inside Claude Code (vs Codex). Fail-safe: ambiguous = Claude Code.
-
-    Claude Code signals (any one is sufficient):
-    1. Env: CLAUDECODE=1 or CLAUDE_CODE_ENTRYPOINT set
-    2. Stdin payload contains hook_event_name or transcript_path
-
-    Codex signals (must be present AND no Claude Code signal):
-    1. Env: PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT set
-    """
-    # Positive Claude Code detection
-    if os.environ.get("CLAUDECODE") or os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
-        return True
-    if _detected_claude_code_from_stdin:
-        return True
-    # Only Codex if PLUGIN_ROOT is explicitly set
-    if os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT"):
-        return False
-    # Ambiguous — default to Claude Code (permission-gated = safe)
-    return True
-
-
-def check_prompt(prompt: str) -> str | None:
+def check_prompt(prompt: str, host=None) -> str | None:
     """Return routing instruction if Snowflake keywords detected, else None."""
     # Skip empty or very short prompts
     if not prompt or len(prompt.strip()) < 5:
+        return None
+
+    host = host or hosts.detect(os.environ, {})
+    if host.is_explicit_invocation(prompt):
         return None
 
     # Check for local keywords first -- if present, don't route
@@ -181,56 +96,18 @@ def check_prompt(prompt: str) -> str | None:
         if pattern.search(prompt):
             return None
 
+    root = hosts.plugin_root(os.environ)
+    if host.supports_workloads:
+        workload = workloads.classify(prompt)
+        if workload is not workloads.GENERAL:
+            return host.routing_instruction(root, workload)
+
     # Check for Snowflake keywords
     for pattern in COMPILED_SF:
         if pattern.search(prompt):
-            if _is_claude_code():
-                return _claude_code_routing_instruction()
-            else:
-                plugin_root = _get_plugin_root()
-                return _codex_routing_instruction(plugin_root)
+            return host.routing_instruction(root)
 
     return None
-
-
-def _codex_routing_instruction(plugin_root: str) -> str:
-    """Routing instruction for OpenAI Codex — direct bash commands."""
-    return (
-        "[CORTEX ROUTER] This prompt needs Cortex Code CLI. "
-        "Follow these steps IN ORDER:\n"
-        "Step 1: Verify cortex CLI is installed by running: which cortex && cortex --version\n"
-        f"Step 2: Run the routing check: bash \"{plugin_root}/scripts/run_python.sh\" \"{plugin_root}/scripts/router/route_request.py\" "
-        "--prompt \"<USER_PROMPT>\"\n"
-        "  - Replace <USER_PROMPT> with the actual user prompt (shell-escaped).\n"
-        "  - If output says route: claude -> STOP routing and handle the request yourself.\n"
-        "  - If output says route: cortex -> proceed to Step 3.\n"
-        "  - If the command fails, STOP and report the error. Never bypass configuration/policy errors.\n"
-        f"Step 3: Execute via Cortex Code: bash \"{plugin_root}/scripts/run_python.sh\" \"{plugin_root}/scripts/router/execute_cortex.py\" "
-        "--prompt \"<USER_PROMPT>\" --envelope \"RW\" --codex\n"
-        "  - Use --envelope RO for read-only queries (SELECT, SHOW, DESCRIBE).\n"
-        "  - Use --envelope RW for modifications (CREATE, ALTER, INSERT).\n"
-        "  - The --codex flag is REQUIRED (enables non-interactive mode).\n"
-        "  - For follow-up prompts, add --resume-last to maintain context.\n"
-        "  - IMPORTANT: This command requires network access to Snowflake. Do NOT run it in a background terminal. Run it as a foreground command.\n"
-        "Do NOT use SnowSQL, snow CLI, or any other tool for Snowflake operations. "
-        "ONLY use the cortex CLI via the scripts above."
-    )
-
-
-def _claude_code_routing_instruction() -> str:
-    """Routing instruction for Claude Code — uses Skill tool."""
-    return (
-        "[CORTEX ROUTER] This prompt may need Cortex Code CLI. "
-        "Load the snowflake-cortex-code:cortex-router skill using the Skill tool, "
-        "then follow ALL steps IN ORDER — do NOT skip any steps. "
-        "Step 1: verify cortex CLI is installed. "
-        "Step 2: run route_request.py to check if this should go to Cortex or stay in Claude Code. "
-        "Step 3: ONLY if Step 2 says route=cortex, execute via execute_cortex.py. "
-        "If this prompt is a follow-up to a previous Cortex turn "
-        "(continue/keep going/drill in/also/fix that), pass --resume-last "
-        "to execute_cortex.py so Cortex sees prior context. "
-        "Do NOT load snowflake-cortex-code:cortex-run (that is for explicit $cortex-run invocation only)."
-    )
 
 
 def main():
@@ -245,14 +122,9 @@ def main():
         sys.exit(0)
 
     # Extract the prompt text
+    host = hosts.detect(os.environ, data)
     prompt = ""
     if isinstance(data, dict):
-        # Detect Claude Code positively from stdin payload structure:
-        # Claude Code UserPromptSubmit sends hook_event_name + transcript_path + prompt
-        global _detected_claude_code_from_stdin
-        if "hook_event_name" in data or "transcript_path" in data:
-            _detected_claude_code_from_stdin = True
-
         # The hook receives the full message object
         prompt = data.get("prompt", data.get("message", ""))
         if isinstance(prompt, dict):
@@ -263,7 +135,11 @@ def main():
                 block.get("text", "") for block in prompt if isinstance(block, dict)
             )
 
-    result = check_prompt(str(prompt))
+    explicit = host.is_explicit_invocation(str(prompt))
+    if explicit:
+        result = host.explicit_invocation_context(hosts.plugin_root(os.environ))
+    else:
+        result = check_prompt(str(prompt), host)
     if result:
         from security.config_manager import ConfigManager, ConfigValidationError
         try:
@@ -273,7 +149,7 @@ def main():
             print(str(error), file=sys.stderr)
             sys.exit(2)
         # Check MCP conflicts before CLI discovery.
-        mcp_conflict = _check_mcp_conflict()
+        mcp_conflict = _check_mcp_conflict(host)
         if mcp_conflict:
             output = {
                 "hookSpecificOutput": {
@@ -284,29 +160,13 @@ def main():
             print(json.dumps(output))
             sys.exit(0)
 
-        # Snowflake prompt detected -- check if cortex CLI is available
-        if not shutil.which("cortex"):
-            if not _is_claude_code():
-                install_msg = (
-                    "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
-                    "snow CLI, or any other workaround. "
-                    "Tell the user to install it: visit "
-                    "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli "
-                    "and follow the installation instructions. Then retry."
-                )
-            else:
-                install_msg = (
-                    "STOP. Cortex Code CLI is not installed. Do NOT attempt to use SnowSQL, "
-                    "snow CLI, or any other workaround. "
-                    "Load the snowflake-cortex-code:cortex-setup skill NOW using the Skill tool, "
-                    "then follow its instructions to install the CLI. "
-                    "If the user declines, tell them to visit "
-                    "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli"
-                )
+        # Snowflake prompt detected -- check if cortex CLI is available.
+        # Explicit commands (including setup) handle a missing CLI themselves.
+        if not explicit and not shutil.which("cortex"):
             output = {
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
-                    "additionalContext": install_msg,
+                    "additionalContext": host.install_message(),
                 }
             }
         else:

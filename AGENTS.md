@@ -4,7 +4,7 @@
 
 Developer tools for building on Snowflake with AI coding agents. Includes:
 
-- A Claude Code + Codex plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
+- A Claude Code + Codex + Devin CLI plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
 - A Devin plugin (`plugins/snowflake-mcp-devin/`) that connects Devin to a Snowflake Managed MCP Server over HTTPS, with no local dependencies
 - Installers (shell + PowerShell + npx)
 
@@ -12,12 +12,16 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex plugin (v3.5.0)
-    .claude-plugin/plugin.json                ← Claude Code manifest
+  cortex-code/                                ← Claude Code + Codex + Devin CLI plugin (v3.6.0)
+    .claude-plugin/plugin.json                ← Claude Code manifest (Devin CLI reads it too)
     .codex-plugin/plugin.json                 ← Codex manifest
     hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)
     scripts/router/
       prompt_filter.py                        ← keyword detection, fires additionalContext
+      hosts.py                                ← Host model: detection, instructions, MCP config per agent
+      test_hosts.py                           ← host routing tests (Claude Code, Codex, Devin CLI)
+      workloads.py                            ← Workload model: GENERAL vs MIGRATION (Snowflake AIM)
+      test_workloads.py                       ← migration routing tests (Devin CLI only; Claude Code/Codex pinned)
       discover_cortex.py                      ← finds Cortex CLI + discovers skills
       execute_cortex.py                       ← spawns cortex CLI, credential blocking
       route_request.py                        ← indicator scoring + skill trigger matching
@@ -39,6 +43,7 @@ tests/
   run-tests.sh                                ← bash test runner (Mac/Linux)
   run-tests.ps1                               ← PowerShell test runner (Windows)
   test_repo_docs.py                           ← Devin plugin structure + docs consistency checks
+  test_devin_e2e.py                           ← opt-in: Devin CLI routes to local Cortex Code (--devin-e2e)
   validate-install.ps1                        ← install validation
 .github/workflows/
   test.yml                                    ← CI: runs tests on macOS + Windows
@@ -53,7 +58,9 @@ tests/
 
 ## Plugin Scripts
 
-- `prompt_filter.py` — reads `message` field from stdin JSON. Returns `additionalContext` for Snowflake-related prompts, `{}` otherwise.
+- `prompt_filter.py` — reads `message` field from stdin JSON. Returns `additionalContext` for Snowflake-related prompts, `{}` otherwise. Everything that differs by agent comes from the detected Host in `hosts.py`.
+- `hosts.py` — one `Host` per agent (Claude Code, Codex, Devin CLI): detection, routing instruction, install message, MCP config locations, entrypoint label. Devin CLI is detected first because it also sets Claude-compatible env vars and payload fields. Devin doesn't expand `${CLAUDE_PLUGIN_ROOT}` in the agent's shell, so its instruction uses absolute paths. Add a new agent here, not as branches in callers.
+- `workloads.py` — what kind of Cortex work a prompt is, independent of the Host. `GENERAL` is today's routing; `MIGRATION` hands database migrations to Snowflake AIM and requires the `RW` envelope and resumed sessions. Only hosts with `supports_workloads` (Devin CLI) classify prompts, so Claude Code and Codex route exactly as before. `route_request.py --host devin_cli` applies the same rule.
 - `discover_cortex.py` — finds Cortex CLI binary and parses skill output. Has Windows/macOS/Linux path handling.
 - `execute_cortex.py` — spawns `cortex` CLI subprocess. Key behaviors: credential path blocking (`CREDENTIAL_PATTERNS`), break-on-result, `process.terminate()` cleanup. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input — do not remove it.
 - `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching at line 88 can produce false positives.
@@ -88,10 +95,20 @@ fail-closed policy loading. CI has PyYAML-present and PyYAML-absent jobs on both
 macOS and Windows; parsing-only tests skip without PyYAML, while missing-dependency
 tests still run. Tests isolate home/config paths and do not call live Cortex.
 
-Both runners also execute `tests/test_repo_docs.py`: the Devin plugin's manifests, skills, and
-placeholder-only credentials, a scan for leftover test-account values, and consistency between
-the docs and the cortex-code version. The Devin plugin has no live tests; verify it by
+Both runners also execute `tests/test_repo_docs.py`: the `snowflake-mcp-devin` plugin's manifests,
+skills, and placeholder-only credentials, a scan for leftover test-account values, and consistency
+between the docs and the cortex-code version. `snowflake-mcp-devin` has no live tests; verify it by
 installing it in Devin (see its README).
+
+Both runners also execute `test_hosts.py`: exact Claude Code and Codex routing output
+(characterization), plus Devin CLI detection, absolute-path instructions, and MCP config scans.
+They also execute `test_workloads.py`: migration detection, Devin CLI's Snowflake AIM routing
+(RW envelope, question relay, `--resume-last`), and pinned Claude Code and Codex output for the
+same migration prompts.
+`bash tests/run-tests.sh --devin-e2e` adds `tests/test_devin_e2e.py`, which installs a temporary
+copy of the plugin into Devin CLI, sends real prompts, and checks the audit log for
+envelope-enforced Cortex sessions. It needs the devin and cortex CLIs and a Snowflake
+connection, skips if the plugin is already installed in Devin, and removes it afterwards.
 
 ## Installers
 

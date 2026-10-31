@@ -116,6 +116,8 @@ Write-Result "test_envelope_policy.py exists" $(if (Test-Path (Join-Path $Router
 Write-Result "test_plugin_units.py exists" $(if (Test-Path (Join-Path $RouterDir "test_plugin_units.py")) { "PASS" } else { "FAIL" })
 Write-Result "run_python.sh exists" $(if (Test-Path (Join-Path $PluginDir "scripts\run_python.sh")) { "PASS" } else { "FAIL" })
 Write-Result "test_launcher_config.py exists" $(if (Test-Path (Join-Path $RouterDir "test_launcher_config.py")) { "PASS" } else { "FAIL" })
+Write-Result "test_hosts.py exists" $(if (Test-Path (Join-Path $RouterDir "test_hosts.py")) { "PASS" } else { "FAIL" })
+Write-Result "test_workloads.py exists" $(if (Test-Path (Join-Path $RouterDir "test_workloads.py")) { "PASS" } else { "FAIL" })
 
 # === 3. Codex plugin & marketplace manifests ==================
 
@@ -274,6 +276,16 @@ else {
     $testFile = Join-Path $RouterDir "test_launcher_config.py"
     $output = & python $testFile -v 2>&1 | Out-String
     Write-Result "test_launcher_config.py" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
+
+    Write-Host "  Running test_hosts.py..."
+    $testFile = Join-Path $RouterDir "test_hosts.py"
+    $output = & python $testFile -v 2>&1 | Out-String
+    Write-Result "test_hosts.py (Claude Code, Codex, Devin CLI hosts)" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
+
+    Write-Host "  Running test_workloads.py..."
+    $testFile = Join-Path $RouterDir "test_workloads.py"
+    $output = & python $testFile -v 2>&1 | Out-String
+    Write-Result "test_workloads.py (Devin CLI migrations to Snowflake AIM)" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
 
     Write-Host "  Running test_repo_docs.py..."
     $testFile = Join-Path $ScriptDir "test_repo_docs.py"
