@@ -64,11 +64,15 @@ Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Sn
 
 ### Devin CLI
 
-Devin CLI loads this plugin as-is, including the prompt hook. Install it from this repo:
+Devin CLI loads this plugin as-is, including the prompt hook. Quick start: install the Cortex Code CLI, plus the [Snowflake AIM](#database-migrations-snowflake-aim) plugin for database migrations, then this plugin:
 
 ```bash
+git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
+bash install.sh --include-aim        # Windows: .\install.ps1 -IncludeAim, then open a new terminal
 devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local
 ```
+
+Leave out `--include-aim` if you don't need migrations. If you already have the Cortex Code CLI, only the last command is required.
 
 `--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install from a clone instead: `devin plugins install --local ./plugins/cortex-code`.
 

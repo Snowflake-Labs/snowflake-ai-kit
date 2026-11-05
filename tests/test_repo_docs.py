@@ -257,6 +257,18 @@ class IncludeAimDocsTests(unittest.TestCase):
         self.assertIn("--include-aim", migrations)
         self.assertIn(f"cortex plugin install {self.AIM_SOURCE}", migrations)
 
+    def test_devin_quick_start_installs_cli_and_aim_before_plugin(self):
+        devin = section(self.plugin, "Install").split("### Devin CLI", 1)[1].split("#### Database migrations", 1)[0]
+        steps = ["bash install.sh --include-aim", ".\\install.ps1 -IncludeAim",
+                 "devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local"]
+        for step in steps:
+            self.assertIn(step, devin)
+        self.assertLess(devin.index(steps[0]), devin.index(steps[2]), "install the CLI and AIM before the plugin")
+
+    def test_root_devin_bullet_runs_installer_first(self):
+        devin = self.root.split("### Devin", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("--include-aim", devin)
+
 
 class DevinCliMigrationDocsTests(unittest.TestCase):
     """Devin CLI routes database migrations to Snowflake AIM in Cortex Code."""
