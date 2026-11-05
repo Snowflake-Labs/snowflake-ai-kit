@@ -9,12 +9,14 @@
 #   .\install.ps1
 #   .\install.ps1 -Check
 #   .\install.ps1 -WithClaude -WithCodex
+#   .\install.ps1 -IncludeAim
 #
 
 param(
     [switch]$Check,
     [switch]$WithClaude,
     [switch]$WithCodex,
+    [switch]$IncludeAim,
     [switch]$Help
 )
 
@@ -100,6 +102,64 @@ function Install-CortexCodeCLI {
     Write-Err "Could not install Cortex Code CLI. See $Troubleshoot"
 }
 
+# Snowflake AIM for Data Warehouses (database migrations), a Cortex Code plugin.
+# Same source Cortex Code's own migration-guide skill installs. AIM updates itself
+# (plugin and scai) to its release channel each session.
+$AimSource = "https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin"
+
+function Test-AimInstalled {
+    $plugins = & cortex plugin list 2>$null
+    return [bool]($plugins -match "snowflake-migration")
+}
+
+# AIM installs SnowConvert AI (scai) from its SessionStart hook, which headless Cortex
+# sessions (the plugin's stream-json mode) don't run. Run the same script directly.
+function Install-AimDependencies {
+    $deps = Join-Path $HOME ".snowflake\cortex\plugins\snowflake-migration\hooks\install-dependencies.ps1"
+    Write-Msg "Installing SnowConvert AI (scai) for the Snowflake AIM plugin..."
+    if (Test-Path $deps) {
+        try {
+            & $deps *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Ok "SnowConvert AI (scai) installed"
+                Write-Msg "  Open a new terminal so scai is on PATH. Its terms and source drivers are set up the first time you start a migration."
+                return $true
+            }
+        }
+        catch { }
+    }
+    Write-Warn "Could not install SnowConvert AI (scai). The AIM plugin is installed."
+    Write-Msg "  Retry: powershell -ExecutionPolicy Bypass -File `"$deps`""
+    return $false
+}
+
+# Never fails the run: Cortex Code stays usable if AIM can't be installed.
+function Install-AimPlugin {
+    if (Test-AimInstalled) {
+        Write-Ok "Snowflake AIM plugin already installed"
+    }
+    else {
+        Write-Msg "Installing Snowflake AIM plugin (database migrations)..."
+        $installed = $false
+        try {
+            & cortex plugin install $AimSource
+            $installed = ($LASTEXITCODE -eq 0)
+        }
+        catch { }
+        if (-not $installed) {
+            Write-Warn "Could not install the Snowflake AIM plugin. Cortex Code is still installed."
+            Write-Msg "  Retry: cortex plugin install $AimSource"
+            return $false
+        }
+        Write-Ok "Snowflake AIM plugin installed"
+    }
+    $localScai = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "snowconvertai\bin\scai.cmd" } else { "" }
+    if (-not (Test-Command "scai") -and -not ($localScai -and (Test-Path $localScai))) {
+        return (Install-AimDependencies)
+    }
+    return $true
+}
+
 function Install-ClaudeCodeCLI {
     if (Test-Command "claude") {
         Write-Ok "Claude Code CLI (claude) already installed"
@@ -146,6 +206,7 @@ if ($Help) {
     Write-Host "  -Check       Check installation status without installing"
     Write-Host "  -WithClaude  Also install Claude Code CLI"
     Write-Host "  -WithCodex   Also install OpenAI Codex CLI"
+    Write-Host "  -IncludeAim  Also install the Snowflake AIM plugin for database migrations"
     Write-Host "  -Help        Show this help"
     return
 }
@@ -163,6 +224,9 @@ if ($Check) {
     if (Test-Command "cortex") { Write-Ok "Cortex Code CLI (cortex) installed" } else { Write-Warn "Cortex Code CLI (cortex) not found" }
     if (Test-Command "claude") { Write-Ok "Claude Code CLI (claude) installed" } else { Write-Warn "Claude Code CLI (claude) not found" }
     if (Test-Command "codex")  { Write-Ok "OpenAI Codex CLI (codex) installed" } else { Write-Warn "OpenAI Codex CLI (codex) not found" }
+    if ($IncludeAim) {
+        if ((Test-Command "cortex") -and (Test-AimInstalled)) { Write-Ok "Snowflake AIM plugin installed" } else { Write-Warn "Snowflake AIM plugin not found" }
+    }
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
@@ -171,6 +235,11 @@ if ($Check) {
 Write-Step "Installing core CLIs..."
 Install-SnowflakeCLI | Out-Null
 Install-CortexCodeCLI | Out-Null
+
+if ($IncludeAim) {
+    Write-Step "Installing Snowflake AIM plugin..."
+    Install-AimPlugin | Out-Null
+}
 
 # Optional: Claude Code CLI
 if ($WithClaude -or (Test-Command "claude")) {

@@ -43,6 +43,7 @@ tests/
   run-tests.sh                                ← bash test runner (Mac/Linux)
   run-tests.ps1                               ← PowerShell test runner (Windows)
   test_repo_docs.py                           ← Devin plugin structure + docs consistency checks
+  test_installers.py                          ← install.sh / install.ps1 behaviour (stub CLIs), incl. --include-aim
   test_devin_e2e.py                           ← opt-in: Devin CLI routes to local Cortex Code (--devin-e2e)
   validate-install.ps1                        ← install validation
 .github/workflows/

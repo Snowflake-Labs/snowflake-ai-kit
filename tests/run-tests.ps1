@@ -291,6 +291,11 @@ else {
     $testFile = Join-Path $ScriptDir "test_repo_docs.py"
     $output = & python $testFile -v 2>&1 | Out-String
     Write-Result "test_repo_docs.py (Devin plugin + docs)" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
+
+    Write-Host "  Running test_installers.py..."
+    $testFile = Join-Path $ScriptDir "test_installers.py"
+    $output = & python $testFile -v 2>&1 | Out-String
+    Write-Result "test_installers.py (install.sh / install.ps1, --include-aim)" $(if ($LASTEXITCODE -eq 0) { "PASS" } else { "FAIL" }) $output
 }
 
 # === 6. Snowflake connection ===================================

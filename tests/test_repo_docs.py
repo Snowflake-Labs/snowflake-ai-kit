@@ -223,6 +223,41 @@ class CortexCodeDevinCliDocsTests(unittest.TestCase):
         self.assertIn("Devin CLI", scope)
 
 
+class IncludeAimDocsTests(unittest.TestCase):
+    """--include-aim installs the Snowflake AIM plugin with Cortex Code, and cortex-setup uses it in Devin CLI."""
+
+    AIM_SOURCE = "https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin"
+
+    def setUp(self):
+        self.setup_skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
+        self.plugin = read(CORTEX_DIR / "README.md")
+        self.root = read(REPO_ROOT / "README.md")
+
+    def test_setup_fallback_uses_the_real_cortex_installers(self):
+        self.assertNotIn("curl -fsSL https://docs.snowflake.com", self.setup_skill)
+        self.assertIn("https://ai.snowflake.com/static/cc-scripts/install.sh", self.setup_skill)
+        self.assertIn("https://ai.snowflake.com/static/cc-scripts/install.ps1", self.setup_skill)
+
+    def test_setup_installs_aim_in_devin_cli(self):
+        self.assertIn("--include-aim", self.setup_skill)
+        self.assertIn("-IncludeAim", self.setup_skill)
+        self.assertIn(f"cortex plugin install {self.AIM_SOURCE}", self.setup_skill)
+        self.assertIn("snowflake-migration", self.setup_skill)
+        self.assertIn("Devin CLI", self.setup_skill)
+        # Headless Cortex sessions skip AIM's SessionStart hook, which installs scai.
+        self.assertIn("hooks/install-dependencies.sh", self.setup_skill)
+        self.assertIn("hooks\\install-dependencies.ps1", self.setup_skill)
+        self.assertIn("scai --version", self.setup_skill)
+
+    def test_root_readme_documents_flag(self):
+        self.assertIn("`--include-aim` / `-IncludeAim`", self.root)
+
+    def test_plugin_readme_explains_aim_preinstall(self):
+        migrations = section(self.plugin, "Install").split("#### Database migrations (Snowflake AIM)", 1)[1]
+        self.assertIn("--include-aim", migrations)
+        self.assertIn(f"cortex plugin install {self.AIM_SOURCE}", migrations)
+
+
 class DevinCliMigrationDocsTests(unittest.TestCase):
     """Devin CLI routes database migrations to Snowflake AIM in Cortex Code."""
 

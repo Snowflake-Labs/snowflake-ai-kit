@@ -336,6 +336,14 @@ else
         fail "test_repo_docs.py (Devin plugin + docs)"
     fi
     if $VERBOSE; then echo "$OUTPUT"; fi
+
+    echo "  Running test_installers.py..."
+    if OUTPUT=$(python3 "$SCRIPT_DIR/test_installers.py" -v 2>&1); then
+        pass "test_installers.py (install.sh / install.ps1, --include-aim)"
+    else
+        fail "test_installers.py (install.sh / install.ps1, --include-aim)"
+    fi
+    if $VERBOSE; then echo "$OUTPUT"; fi
 fi
 
 # === 6. Integration tests (optional, requires cortex CLI + Snowflake connection) ===

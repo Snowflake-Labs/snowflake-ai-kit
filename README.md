@@ -120,6 +120,7 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 | `--check` / `-Check` | Check installation status without installing |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI + plugin |
 | `--with-codex` / `-WithCodex` | Also install OpenAI Codex CLI + plugin |
+| `--include-aim` / `-IncludeAim` | Also install the [Snowflake AIM](https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview) plugin for database migrations (used by Devin CLI) |
 | `--help` / `-Help` | Show help |
 
 ## Skills
