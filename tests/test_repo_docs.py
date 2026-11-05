@@ -168,5 +168,209 @@ class RepoDocsTests(unittest.TestCase):
         self.assertIn("${SNOWFLAKE_PAT}", scope)
 
 
+class CortexCodeDevinCliDocsTests(unittest.TestCase):
+    """The Cortex Code plugin also runs in Devin CLI, routing to the local cortex CLI."""
+
+    def setUp(self):
+        self.plugin_readme = read(CORTEX_DIR / "README.md")
+        self.root_readme = read(REPO_ROOT / "README.md")
+
+    def test_plugin_readme_installs_in_devin_cli(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("### Devin CLI", install)
+        self.assertIn("devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local", install)
+        self.assertIn("/snowflake-cortex-code:cortex-run", self.plugin_readme)
+
+    def test_plugin_readme_explains_choice_between_devin_plugins(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("snowflake-mcp-devin", install)
+
+    def test_plugin_readme_explains_imported_mcp_conflicts(self):
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("read_config_from", install)
+        self.assertIn("devin mcp list", install)
+
+    def test_plugin_readme_explains_enterprise_setup(self):
+        # Enterprise orgs disable CLI plugins by default, and `devin -p` waits on the org picker.
+        install = section(self.plugin_readme, "Install")
+        self.assertIn("Devin CLI plugins", install)
+        self.assertIn("devin.org_id", install)
+        self.assertIn("devin auth status", install)
+
+    def test_root_readme_offers_both_devin_paths(self):
+        devin = self.root_readme.split("### Devin", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("plugins/cortex-code", devin)
+        self.assertIn("plugins/snowflake-mcp-devin", devin)
+        self.assertIn("Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code", devin)
+
+    def test_claude_manifest_read_by_devin_names_it(self):
+        # Devin CLI falls back to .claude-plugin/plugin.json and shows its description.
+        description = load_json(CORTEX_DIR / ".claude-plugin" / "plugin.json")["description"]
+        self.assertIn("Devin CLI", description)
+
+    def test_agents_md_covers_devin_cli_hosting(self):
+        agents = read(REPO_ROOT / "AGENTS.md")
+        self.assertIn("Devin CLI", section(agents, "What This Repo Is"))
+        arch = section(agents, "Architecture")
+        for entry in ("hosts.py", "test_hosts.py", "test_devin_e2e.py"):
+            self.assertIn(entry, arch)
+        testing = section(agents, "Testing")
+        self.assertIn("test_hosts.py", testing)
+        self.assertIn("--devin-e2e", testing)
+
+    def test_security_scope_covers_devin_cli_routing(self):
+        scope = section(read(REPO_ROOT / "SECURITY.md"), "Scope")
+        self.assertIn("Devin CLI", scope)
+
+
+class IncludeAimDocsTests(unittest.TestCase):
+    """--include-aim installs the Snowflake AIM plugin with Cortex Code, and cortex-setup uses it in Devin CLI."""
+
+    AIM_SOURCE = "https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin"
+
+    def setUp(self):
+        self.setup_skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
+        self.plugin = read(CORTEX_DIR / "README.md")
+        self.root = read(REPO_ROOT / "README.md")
+
+    def test_setup_fallback_uses_the_real_cortex_installers(self):
+        self.assertNotIn("curl -fsSL https://docs.snowflake.com", self.setup_skill)
+        self.assertIn("https://ai.snowflake.com/static/cc-scripts/install.sh", self.setup_skill)
+        self.assertIn("https://ai.snowflake.com/static/cc-scripts/install.ps1", self.setup_skill)
+
+    def test_setup_installs_aim_in_devin_cli(self):
+        self.assertIn("--include-aim", self.setup_skill)
+        self.assertIn("-IncludeAim", self.setup_skill)
+        self.assertIn(f"cortex plugin install {self.AIM_SOURCE}", self.setup_skill)
+        self.assertIn("snowflake-migration", self.setup_skill)
+        self.assertIn("Devin CLI", self.setup_skill)
+        # Headless Cortex sessions skip AIM's SessionStart hook, which installs scai.
+        self.assertIn("hooks/install-dependencies.sh", self.setup_skill)
+        self.assertIn("hooks\\install-dependencies.ps1", self.setup_skill)
+        self.assertIn("scai --version", self.setup_skill)
+
+    def test_root_readme_documents_flag(self):
+        self.assertIn("`--include-aim` / `-IncludeAim`", self.root)
+
+    def test_plugin_readme_explains_aim_preinstall(self):
+        migrations = section(self.plugin, "Install").split("#### Database migrations (Snowflake AIM)", 1)[1]
+        self.assertIn("--include-aim", migrations)
+        self.assertIn(f"cortex plugin install {self.AIM_SOURCE}", migrations)
+
+    def test_devin_quick_start_installs_cli_and_aim_before_plugin(self):
+        devin = section(self.plugin, "Install").split("### Devin CLI", 1)[1].split("#### Database migrations", 1)[0]
+        steps = ["bash install.sh --include-aim", ".\\install.ps1 -IncludeAim",
+                 "devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local"]
+        for step in steps:
+            self.assertIn(step, devin)
+        self.assertLess(devin.index(steps[0]), devin.index(steps[2]), "install the CLI and AIM before the plugin")
+
+    def test_root_devin_bullet_runs_installer_first(self):
+        devin = self.root.split("### Devin", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("--include-aim", devin)
+
+
+class DevinCliMigrationDocsTests(unittest.TestCase):
+    """Devin CLI routes database migrations to Snowflake AIM in Cortex Code."""
+
+    def setUp(self):
+        self.plugin = read(CORTEX_DIR / "README.md")
+        self.root = read(REPO_ROOT / "README.md")
+        self.agents = read(REPO_ROOT / "AGENTS.md")
+
+    def test_plugin_readme_has_devin_migration_section(self):
+        install = section(self.plugin, "Install")
+        self.assertIn("#### Database migrations (Snowflake AIM)", install)
+        migrations = install.split("#### Database migrations (Snowflake AIM)", 1)[1]
+        for text in ("start a database migration", "continue my migration", "/migrate",
+                     "RW", "--resume-last", "install", "Claude Code and Codex",
+                     "https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview"):
+            self.assertIn(text, migrations)
+
+    def test_root_troubleshooting_covers_devin_migrations(self):
+        trouble = section(self.root, "Troubleshooting")
+        self.assertIn("Snowflake AIM", trouble)
+
+    def test_agents_md_covers_workloads(self):
+        self.assertIn("workloads.py", section(self.agents, "Architecture"))
+        self.assertIn("test_workloads.py", section(self.agents, "Architecture"))
+        self.assertIn("workloads.py", section(self.agents, "Plugin Scripts"))
+        self.assertIn("test_workloads.py", section(self.agents, "Testing"))
+
+    def test_runners_run_workload_tests(self):
+        for runner in ("run-tests.sh", "run-tests.ps1"):
+            with self.subTest(runner=runner):
+                self.assertIn("test_workloads.py", read(REPO_ROOT / "tests" / runner))
+
+
+class ReadmeAccuracyTests(unittest.TestCase):
+    """Root and Cortex Code READMEs stay accurate across Claude Code, Codex, and Devin CLI."""
+
+    def setUp(self):
+        self.root = read(REPO_ROOT / "README.md")
+        self.plugin = read(CORTEX_DIR / "README.md")
+
+    def test_root_intro_describes_one_plugin_for_three_agents(self):
+        intro = self.root.split("\n## ", 1)[0]
+        self.assertIn("One plugin", intro)
+        self.assertNotIn("Plugins for", intro)
+
+    def test_root_quick_start_ends_with_usage(self):
+        quick = section(self.root, "Quick Start")
+        headings = re.findall(r"^### (.+)$", quick, re.M)
+        self.assertEqual(headings[-1], "That's it", headings)
+        self.assertIn("Devin", headings)
+
+    def test_root_devin_options_are_unambiguous(self):
+        self.assertNotIn("no local CLI", self.root)
+
+    def test_root_prerequisites_match_plugin_requirements(self):
+        prereq = section(self.root, "Prerequisites")
+        self.assertIn("Python 3.9", prereq)
+        self.assertIn("Git Bash", prereq)
+
+    def test_mcp_plugin_removal_uses_its_installed_name(self):
+        name = load_json(DEVIN_DIR / ".devin-plugin" / "plugin.json")["name"]
+        self.assertIn(f"devin plugins remove {name}`", self.plugin)
+        self.assertIn(f"installed as `{name}`", self.plugin)
+
+    def test_root_how_it_works_shows_devin_command(self):
+        self.assertIn("/snowflake-cortex-code:cortex-run", section(self.root, "How It Works"))
+
+    def test_root_troubleshooting_covers_devin(self):
+        trouble = section(self.root, "Troubleshooting")
+        for text in ("devin plugins list", "devin mcp list", "read_config_from", "os error 1314"):
+            self.assertIn(text, trouble)
+
+    def test_root_contributing_has_no_stale_test_count(self):
+        contributing = section(self.root, "Contributing")
+        self.assertNotRegex(contributing, r"\(\d+ tests\)")
+        self.assertIn("--integration", contributing)
+        self.assertIn("--devin-e2e", contributing)
+
+    def test_python_requirement_matches_tested_minimum(self):
+        # Python 3.8 fails to import execute_cortex.py; 3.9 runs the full suite.
+        self.assertIn("badge/Python-3.9%2B-", self.root)
+        self.assertIn("Python 3.9", section(self.plugin, "Requirements"))
+
+    def test_plugin_how_it_works_covers_every_host(self):
+        how = section(self.plugin, "How It Works")
+        for host in ("Claude Code", "Codex", "Devin CLI"):
+            self.assertIn(host, how)
+
+    def test_plugin_requirements_cover_windows(self):
+        self.assertIn("Git Bash", section(self.plugin, "Requirements"))
+
+    def test_plugin_devin_section_covers_windows_install_error(self):
+        install = section(self.plugin, "Install")
+        self.assertIn("os error 1314", install)
+        self.assertIn("Developer Mode", install)
+
+    def test_plugin_testing_covers_new_suites(self):
+        testing = section(self.plugin, "Testing")
+        self.assertIn("test_hosts.py", testing)
+        self.assertIn("--devin-e2e", testing)
+
+
 if __name__ == "__main__":
     unittest.main()
