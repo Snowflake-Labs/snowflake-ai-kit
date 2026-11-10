@@ -9,7 +9,7 @@
       "url": "${SNOWFLAKE_MCP_URL}",
       "headers": {
         "Authorization": "Bearer ${SNOWFLAKE_PAT}",
-        "User-Agent": "Devin-Snowflake-MCP/0.1"
+        "User-Agent": "Cognition_Devin"
       }
     }
   }

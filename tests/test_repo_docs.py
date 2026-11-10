@@ -12,6 +12,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEVIN_DIR = REPO_ROOT / "plugins" / "snowflake-mcp-devin"
+CLIENT_ID = "Cognition_Devin"
 CORTEX_DIR = REPO_ROOT / "plugins" / "cortex-code"
 
 DEVIN_SKILLS = {
@@ -70,13 +71,13 @@ class DevinPluginManifestTests(unittest.TestCase):
             self.assertEqual(server["url"], "${SNOWFLAKE_MCP_URL}")
             self.assertEqual(server["headers"]["Authorization"], "Bearer ${SNOWFLAKE_PAT}")
 
-    def test_user_agent_tracks_plugin_version(self):
-        version = self.devin["version"]
+    def test_user_agent_is_client_id(self):
         for manifest in (self.devin, self.claude):
             agent = manifest["mcpServers"]["snowflake"]["headers"]["User-Agent"]
-            self.assertRegex(agent, r"^Devin-Snowflake-MCP/\d+(\.\d+)*$")
-            self.assertTrue(version.startswith(agent.split("/", 1)[1]),
-                            f"User-Agent {agent} does not match version {version}")
+            self.assertEqual(agent, CLIENT_ID)
+        readme = read(DEVIN_DIR / "README.md")
+        self.assertNotIn("Devin-Snowflake-MCP", readme)
+        self.assertIn(f"User-Agent: {CLIENT_ID}", readme)
 
     def test_no_oauth_settings_in_manifests(self):
         # Devin rejects OAuth secrets in plugin files; OAuth is a custom MCP.
