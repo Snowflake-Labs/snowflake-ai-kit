@@ -205,11 +205,11 @@ The plugin's MCP can't hold OAuth settings (see [Caveats](#caveats)), so add the
    | Transport type | HTTP |
    | Server URL | The URL from Prerequisites step 5 |
    | Authentication | OAuth |
-   | Custom headers | `User-Agent: Devin-Snowflake-MCP/0.1` |
+   | Custom headers | `User-Agent: Cognition_Devin` |
    | OAuth client ID | `OAUTH_CLIENT_ID` from `DESCRIBE SECURITY INTEGRATION` |
    | OAuth scope | `session:role:MCP_ACCESS_ROLE refresh_token` |
 
-2. Click Add. Devin replaces the header value with a `${USER_AGENT}` placeholder, so open the MCP's settings and save a `USER_AGENT` credential with the value `Devin-Snowflake-MCP/0.1`. Without it, the server fails at startup.
+2. Click Add. Devin replaces the header value with a `${USER_AGENT}` placeholder, so open the MCP's settings and save a `USER_AGENT` credential with the value `Cognition_Devin`. Without it, the server fails at startup.
 3. Click Connect, sign in to Snowflake as `MY_USER`, and approve.
 4. Click Test tools. You should see `cortex_code_agent`.
 
@@ -361,10 +361,22 @@ ALTER SECURITY INTEGRATION DEVIN_MCP_OAUTH SET ENABLED = FALSE;           -- OAu
 REVOKE USAGE ON MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP FROM ROLE MCP_ACCESS_ROLE;  -- both
 ```
 
+## Client identifier
+
+The plugin identifies itself to Snowflake as `Cognition_Devin`. Use the same value, unchanged, when Devin connects to Snowflake another way:
+
+| Connection | Where to set `Cognition_Devin` |
+|---|---|
+| Snowflake-managed MCP (this plugin, PAT or OAuth) | `User-Agent` header. The plugin manifest sets it; the OAuth custom MCP gets it from the `USER_AGENT` credential |
+| Cortex Agents, Analyst, or Search REST APIs, and the SQL API | `User-Agent: Cognition_Devin` request header |
+| Snowflake CLI (`snow`) and other Python connector clients | `application = "Cognition_Devin"` in the connection, e.g. in `~/.snowflake/connections.toml` or `snowflake.connector.connect(application="Cognition_Devin", ...)` |
+| JDBC / ODBC / Go / .NET / Node.js / Spark | The driver's `application` parameter (JDBC URL `application=Cognition_Devin`, ODBC `application`, Go `Application`, Node.js `application`, Spark `sfApplication`) |
+| Snowpark Python (including code running in Snowpark Container Services) | `Session.builder.configs({..., "application": "Cognition_Devin"})` |
+
 ## Caveats
 
 - **Why OAuth isn't in the plugin:** Devin rejects OAuth secrets in plugin files, and it substitutes `${…}` values only in a plugin MCP's URL and headers, not its OAuth client ID or scopes. Each Snowflake account has its own client ID, so the plugin can't ship one. The plugin MCP uses a PAT header, and OAuth uses a custom MCP.
-- **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2).
+- **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2). Keep the value exactly `Cognition_Devin` (see [Client identifier](#client-identifier)).
 - **Hostname format:** Use hyphens in the account URL (`my-org-my-account`), not underscores. Underscored hostnames silently break MCP connections.
 - **Admin setup required:** A Snowflake admin must create the agent, the MCP server, and either the OAuth integration or the PAT service user before this plugin can connect.
 - **Skill portability:** These skills use generic SQL instructions, not CoCo-specific tool calls. They work in any MCP-compatible host.
@@ -407,7 +419,7 @@ plugins/snowflake-mcp-devin/
 | "Could not set up snowflake: configuration differs" | Two MCP entries share the name. On Customize → MCPs, remove the stale one under "Not in use", then reconnect |
 | MCP server hostname connection failure | Use hyphens (`-`) not underscores (`_`) in the account hostname |
 | "Session failed to initialize" | Set `DEFAULT_WAREHOUSE` on the user (`MY_USER` or `DEVIN_MCP_SVC`) |
-| OAuth MCP fails at startup, or the header shows `${USER_AGENT}` | Save a `USER_AGENT` credential on the custom MCP (value `Devin-Snowflake-MCP/0.1`) |
+| OAuth MCP fails at startup, or the header shows `${USER_AGENT}` | Save a `USER_AGENT` credential on the custom MCP (value `Cognition_Devin`) |
 | HTTP 401 / login blocked for the service user | The client IP isn't in `DEVIN_EGRESS_RULE`. Check `client_ip` in login history against Devin's published list. Devin CLI and Desktop connect from your machine's IP |
 | Agent re-asks for permission, or loops on "Allow this command" | The agent uses `always_ask`. Approvals can't be sent over MCP. Recreate it with `always_allow` and limit access through the role |
 | A write "succeeds" but nothing changed | The agent uses `always_ask`. Over MCP, approvals can't be relayed, so the write never ran |
