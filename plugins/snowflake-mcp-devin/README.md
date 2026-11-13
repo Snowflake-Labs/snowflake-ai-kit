@@ -165,9 +165,15 @@ See the [Snowflake Managed MCP Server docs](https://docs.snowflake.com/en/user-g
 
 ### 1. Install the plugin
 
-Choose one. All three install the same skills, rule, and **snowflake** MCP.
+Choose one. All four install the same skills, rule, and **snowflake** MCP.
 
-**From the repository (recommended).** No download needed, and Reindex picks up updates.
+**From Devin's Marketplace (recommended).**
+1. Go to [Customize](https://app.devin.ai/customize) → Plugins, and open **Snowflake (Managed MCP)** under Marketplace.
+2. Click **Install for me**.
+
+The Marketplace pins the plugin to a reviewed commit, so it can lag behind this repo's default branch. Use the repository install below to get the latest version.
+
+**From the repository.** No download needed, and Reindex picks up updates.
 1. Go to [Customize](https://app.devin.ai/customize) → Plugins → Add plugin → From repository.
 2. Enter `https://github.com/Snowflake-Labs/snowflake-ai-kit` with subdirectory `plugins/snowflake-mcp-devin`.
 3. Devin reads the default branch. To install from another branch, open Plugins → gear icon → Edit manifest, add `"ref": "<branch>"` to the plugin's `requiredPlugins` entry, save, and click Reindex.

@@ -10,6 +10,7 @@
 #   bash install.sh
 #   bash install.sh --check
 #   bash install.sh --with-claude --with-codex
+#   bash install.sh --include-aim
 #
 
 set -e
@@ -85,6 +86,46 @@ install_cortex_code_cli() {
   die "Could not install Cortex Code CLI. See $TROUBLESHOOT"
 }
 
+# Snowflake AIM for Data Warehouses (database migrations), a Cortex Code plugin.
+# Same source Cortex Code's own migration-guide skill installs. AIM updates itself
+# (plugin and scai) to its release channel each session.
+AIM_SOURCE="https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin"
+
+aim_installed() {
+  cortex plugin list 2>/dev/null | grep -q "snowflake-migration"
+}
+
+# AIM installs SnowConvert AI (scai) from its SessionStart hook, which headless Cortex
+# sessions (the plugin's stream-json mode) don't run. Run the same script directly.
+install_aim_dependencies() {
+  local deps="$HOME/.snowflake/cortex/plugins/snowflake-migration/hooks/install-dependencies.sh"
+  msg "Installing SnowConvert AI (scai) for the Snowflake AIM plugin..."
+  if [[ -f "$deps" ]] && bash "$deps" </dev/null >/dev/null 2>&1; then
+    ok "SnowConvert AI (scai) installed"
+    msg "  Its terms and source drivers are set up the first time you start a migration."
+    return 0
+  fi
+  warn "Could not install SnowConvert AI (scai). The AIM plugin is installed."
+  msg "  Retry: bash $deps"
+  return 0
+}
+
+# Never fails the run: Cortex Code stays usable if AIM can't be installed.
+install_aim_plugin() {
+  if aim_installed; then
+    ok "Snowflake AIM plugin already installed"
+  else
+    msg "Installing Snowflake AIM plugin (database migrations)..."
+    if ! cortex plugin install "$AIM_SOURCE" </dev/null; then
+      warn "Could not install the Snowflake AIM plugin. Cortex Code is still installed."
+      msg "  Retry: cortex plugin install $AIM_SOURCE"
+      return 0
+    fi
+    ok "Snowflake AIM plugin installed"
+  fi
+  check_cmd scai || [[ -x "$HOME/.local/bin/scai" ]] || install_aim_dependencies
+}
+
 install_claude_code_cli() {
   if check_cmd claude; then
     ok "Claude Code CLI (claude) already installed"
@@ -120,6 +161,7 @@ install_codex_cli() {
 CHECK_ONLY=false
 WITH_CLAUDE=false
 WITH_CODEX=false
+INCLUDE_AIM=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -135,6 +177,10 @@ while [ $# -gt 0 ]; do
       WITH_CODEX=true
       shift
       ;;
+    --include-aim)
+      INCLUDE_AIM=true
+      shift
+      ;;
     --help|-h)
       echo "Snowflake AI Kit — Installer"
       echo ""
@@ -147,6 +193,7 @@ while [ $# -gt 0 ]; do
       echo "  --check, -c      Check installation status without installing"
       echo "  --with-claude    Also install Claude Code CLI"
       echo "  --with-codex     Also install OpenAI Codex CLI"
+      echo "  --include-aim    Also install the Snowflake AIM plugin for database migrations"
       echo "  --help, -h       Show this help"
       exit 0
       ;;
@@ -169,6 +216,9 @@ if $CHECK_ONLY; then
   check_cmd cortex && ok "Cortex Code CLI (cortex) installed"    || warn "Cortex Code CLI (cortex) not found"
   check_cmd claude && ok "Claude Code CLI (claude) installed"    || warn "Claude Code CLI (claude) not found"
   check_cmd codex  && ok "OpenAI Codex CLI (codex) installed"    || warn "OpenAI Codex CLI (codex) not found"
+  if $INCLUDE_AIM; then
+    check_cmd cortex && aim_installed && ok "Snowflake AIM plugin installed" || warn "Snowflake AIM plugin not found"
+  fi
   check_snowflake_auth || true
   echo ""
   exit 0
@@ -177,6 +227,11 @@ fi
 step "Installing core CLIs..."
 install_snowflake_cli
 install_cortex_code_cli
+
+if $INCLUDE_AIM; then
+  step "Installing Snowflake AIM plugin..."
+  install_aim_plugin
+fi
 
 # Optional: Claude Code CLI
 if $WITH_CLAUDE || check_cmd claude; then
