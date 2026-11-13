@@ -64,19 +64,37 @@ Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Sn
 
 ### Devin CLI
 
-Devin CLI loads this plugin as-is, including the prompt hook. Quick start: install the Cortex Code CLI, plus the [Snowflake AIM](#database-migrations-snowflake-aim) plugin for database migrations, then this plugin:
+Devin CLI loads this plugin as-is, including the prompt hook. Snowflake prompts route to the Cortex Code CLI on your machine, and database migrations route to [Snowflake AIM](#database-migrations-snowflake-aim).
 
-```bash
-git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
-bash install.sh --include-aim        # Windows: .\install.ps1 -IncludeAim, then open a new terminal
-devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local
-```
+**Get started**
 
-Leave out `--include-aim` if you don't need migrations. If you already have the Cortex Code CLI, only the last command is required.
+1. Install Devin CLI and sign in:
 
-`--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install from a clone instead: `devin plugins install --local ./plugins/cortex-code`.
+   ```bash
+   curl -fsSL https://cli.devin.ai/install.sh | bash
+   devin auth login
+   ```
 
-Check it with `devin plugins info snowflake-cortex-code`. Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup` to install the CLI. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
+2. Install the Cortex Code CLI, plus Snowflake AIM for database migrations. Leave out `--include-aim` if you don't need migrations.
+
+   ```bash
+   git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
+   bash install.sh --include-aim        # Windows: .\install.ps1 -IncludeAim, then open a new terminal
+   ```
+
+3. If the installer warns that no Snowflake connection is configured, add one with `snow connection add`.
+4. From the same folder, install this plugin and check it:
+
+   ```bash
+   devin plugins install --local ./plugins/cortex-code
+   devin plugins info snowflake-cortex-code   # verify
+   ```
+
+5. Start `devin` in a project folder and try `list my Snowflake databases`, or `start a database migration`.
+
+`--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install straight from GitHub without a clone: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
+
+Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup` to install the CLI. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
 
 On Windows, installing from a local folder fails with `os error 1314` unless Developer Mode is on (Settings → System → For developers), because Devin links the plugin into its cache.
 
@@ -101,11 +119,27 @@ Use one at a time. The prompt hook can't see MCP servers that come from installe
 
 #### Devin Desktop
 
-Devin Desktop's built-in agent uses the same plugin install as Devin CLI, so Snowflake prompts and migrations route the same way. Install from a terminal:
+Devin Desktop's built-in agent uses the same plugin install as Devin CLI, so Snowflake prompts and migrations route the same way. Setup happens in a terminal.
 
-1. Get the `devin` command. Desktop doesn't add it to your PATH by itself: run **Install Devin CLI** from Desktop's Command Palette (an Enterprise admin first turns on *Install Devin CLI in Devin Desktop* in the CLI team settings), or run `curl -fsSL https://cli.devin.ai/install.sh | bash`. Then sign in with `devin auth login`.
-2. Install the Cortex Code CLI and Snowflake AIM, then this plugin, as in the [quick start](#devin-cli) above: `bash install.sh --include-aim` and `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
-3. Restart Desktop, open a project folder, and ask a Snowflake question or `start a database migration`.
+**Get started**
+
+1. Get the `devin` command and sign in. Desktop doesn't add it to your PATH by itself: run **Install Devin CLI** from Desktop's Command Palette (an Enterprise admin first turns on *Install Devin CLI in Devin Desktop* in the CLI team settings), or run `curl -fsSL https://cli.devin.ai/install.sh | bash`. Then run `devin auth login`.
+2. Install the Cortex Code CLI, plus Snowflake AIM for database migrations. Leave out `--include-aim` if you don't need migrations.
+
+   ```bash
+   git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
+   bash install.sh --include-aim        # Windows: .\install.ps1 -IncludeAim, then open a new terminal
+   ```
+
+3. If the installer warns that no Snowflake connection is configured, add one with `snow connection add`.
+4. From the same folder, install this plugin and check it:
+
+   ```bash
+   devin plugins install --local ./plugins/cortex-code
+   devin plugins info snowflake-cortex-code   # verify
+   ```
+
+5. Restart Devin Desktop, open a project folder, and try `list my Snowflake databases`, or `start a database migration`.
 
 If AIM's tools never load, run `cortex`, open `/mcp`, and enable `snowflake-migration-mcp`. See [Database migrations](#database-migrations-snowflake-aim) for how migrations run and known AIM issues.
 

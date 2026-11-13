@@ -297,11 +297,23 @@ class DevinCliMigrationDocsTests(unittest.TestCase):
         self.assertIn("Devin CLI or Devin Desktop, with the Cortex Code CLI", self.root)
         self.assertIn("Use this plugin in Devin CLI or Devin Desktop when", self.plugin)
 
+    def test_devin_sections_have_get_started_steps(self):
+        cli = self.plugin.split("### Devin CLI", 1)[1].split("\n#### ", 1)[0]
+        desktop = self.plugin.split("#### Devin Desktop", 1)[1].split("\n#### ", 1)[0]
+        for name, text in (("cli", cli), ("desktop", desktop)):
+            for step in ("**Get started**", "https://cli.devin.ai/install.sh", "devin auth login",
+                         "git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git",
+                         "bash install.sh --include-aim", "snow connection add",
+                         "devin plugins install --local ./plugins/cortex-code",
+                         "devin plugins info snowflake-cortex-code", "start a database migration"):
+                with self.subTest(section=name, step=step):
+                    self.assertIn(step, text)
+
     def test_devin_desktop_users_can_get_the_devin_cli(self):
         self.assertIn("#### Devin Desktop", self.plugin)
         desktop = self.plugin.split("#### Devin Desktop", 1)[1].split("\n#### ", 1)[0]
         for text in ("Install Devin CLI", "https://cli.devin.ai/install.sh", "--include-aim",
-                     "devin plugins install", "/mcp", "#database-migrations-snowflake-aim"):
+                     "devin plugins install --local ./plugins/cortex-code", "/mcp", "#database-migrations-snowflake-aim"):
             with self.subTest(text=text):
                 self.assertIn(text, desktop)
         self.assertIn("plugins/cortex-code/README.md#devin-desktop", section(self.root, "Quick Start"))
