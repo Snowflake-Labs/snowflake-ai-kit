@@ -88,7 +88,7 @@ On Windows, installing from a local folder fails with `os error 1314` unless Dev
 
 **This plugin or `snowflake-mcp-devin`?** Both connect Devin to Snowflake:
 
-- Use this plugin in Devin CLI when the Cortex Code CLI is installed on your machine and you want its bundled skills, local connections, and security envelopes.
+- Use this plugin in Devin CLI or Devin Desktop when the Cortex Code CLI is installed on your machine and you want its bundled skills, local connections, and security envelopes.
 - Use [`snowflake-mcp-devin`](../snowflake-mcp-devin/) in Devin Cloud, Desktop, or CLI when the Cortex Code CLI isn't installed, connecting through a Snowflake Managed MCP Server.
 
 Use one at a time. The prompt hook can't see MCP servers that come from installed plugins, so with `snowflake-mcp-devin` installed Devin may answer with its tools instead of routing to Cortex Code. Check `devin plugins list` and remove it before using this one: it's installed as `snowflake`, so run `devin plugins remove snowflake`.
@@ -107,8 +107,12 @@ In Devin CLI, migration prompts route to [Snowflake AIM for Data Warehouses](htt
 - **Questions and approvals:** AIM asks which project directory and source connection to use, and asks for approval between stages. Devin relays each one and sends your answer with `--resume-last`, so the migration continues in the same Cortex session. Devin doesn't answer for you.
 - **Envelope:** migrations always run with `RW`, because AIM works through its MCP server and writes project files, which `RO` denies. If your `allowed_envelopes` excludes `RW`, the plugin stops before starting Cortex Code.
 - **Long steps:** data migration and test loops can run for many minutes.
+- **Devin Desktop:** its built-in agent uses the same plugin install as Devin CLI, so migrations route the same way there.
+- **AIM tools never load:** if Cortex Code reports that AIM's tools aren't available, check that `snowflake-migration-mcp` is enabled in `/mcp` in an interactive `cortex` session. A plugin first seen in a headless session can be recorded as disabled in `~/.snowflake/cortex/mcp-server-state.json`.
+- **Headless runs:** with `devin -p`, pass `--model` (for example `--model opus`). Without it Devin can print "No models available" and keep running instead of exiting.
+- **Known AIM issues:** with git off, AIM's deploy step can still ask for `git_main_branch` in `.scai/config/plugin.yml`. Setting `git_main_branch: main` gets past it. Data validation can also stay pending or fail every column, because Postgres column names are lowercase and Snowflake's are uppercase. Adding `columnMappings` to the validation config fixes it.
 
-This applies to Devin CLI only for now. In Claude Code and Codex, migration prompts route the same way they did before.
+This applies to Devin CLI and Devin Desktop only for now. In Claude Code and Codex, migration prompts route the same way they did before.
 
 ## Security Model
 

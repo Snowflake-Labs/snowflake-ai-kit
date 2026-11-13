@@ -288,6 +288,15 @@ class DevinCliMigrationDocsTests(unittest.TestCase):
                      "https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview"):
             self.assertIn(text, migrations)
 
+    def test_plugin_readme_covers_devin_migration_field_findings(self):
+        migrations = section(self.plugin, "Install").split("#### Database migrations (Snowflake AIM)", 1)[1]
+        for text in ("Devin Desktop", "mcp-server-state.json", "/mcp", "--model",
+                     "git_main_branch", "columnMappings"):
+            with self.subTest(text=text):
+                self.assertIn(text, migrations)
+        self.assertIn("Devin CLI or Devin Desktop, with the Cortex Code CLI", self.root)
+        self.assertIn("Use this plugin in Devin CLI or Devin Desktop when", self.plugin)
+
     def test_root_troubleshooting_covers_devin_migrations(self):
         trouble = section(self.root, "Troubleshooting")
         self.assertIn("Snowflake AIM", trouble)
