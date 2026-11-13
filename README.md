@@ -39,7 +39,7 @@ Devin Desktop and Devin CLI share one plugin store. For Desktop steps, including
   devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local
   ```
 
-- **Devin Cloud, Desktop, or CLI, without the Cortex Code CLI:** the `snowflake-mcp-devin` plugin connects through a Snowflake Managed MCP Server, no Docker required. In Devin, go to Customize → Plugins → Add plugin → From repository, and enter this repo with subdirectory `plugins/snowflake-mcp-devin`. Or install from a clone:
+- **Devin Cloud, Desktop, or CLI, without the Cortex Code CLI:** the `snowflake-mcp-devin` plugin connects through a Snowflake Managed MCP Server, no Docker required. In Devin, install **Snowflake (Managed MCP)** from the Marketplace (Customize → Plugins → Marketplace → Install for me). Or add it from the repository (Customize → Plugins → Add plugin → From repository, subdirectory `plugins/snowflake-mcp-devin`), or install from a clone:
 
   ```bash
   devin plugins install --local ./plugins/snowflake-mcp-devin

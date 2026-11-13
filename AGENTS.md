@@ -56,6 +56,7 @@ tests/
 2. **License:** Root LICENSE is Apache 2.0.
 3. **Branch protection:** PRs required on main.
 4. **README uses HTTPS clone URLs** (not SSH) — keep it that way for external users.
+5. **Devin Marketplace pin:** Devin's Marketplace lists `plugins/snowflake-mcp-devin` as **Snowflake (Managed MCP)**, pinned to a commit `sha` in [CognitionAI/devin-marketplace](https://github.com/CognitionAI/devin-marketplace) (`.devin-plugin/plugin.json`). After a change to that plugin merges here, open a PR there that bumps the `sha`, or Marketplace users keep the old version.
 
 ## Plugin Scripts
 

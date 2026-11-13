@@ -309,6 +309,21 @@ class DevinCliMigrationDocsTests(unittest.TestCase):
                 with self.subTest(section=name, step=step):
                     self.assertIn(step, text)
 
+    def test_snowflake_mcp_devin_installs_from_devin_marketplace(self):
+        listing = "Snowflake (Managed MCP)"
+        root = section(self.root, "Quick Start")
+        self.assertIn(listing, root)
+        self.assertIn("Marketplace", root)
+        mcp = read(REPO_ROOT / "plugins" / "snowflake-mcp-devin" / "README.md")
+        install = mcp.split("### 1. Install the plugin", 1)[1].split("\n### ", 1)[0]
+        self.assertIn(f"**From Devin's Marketplace (recommended).**", install)
+        self.assertIn(listing, install)
+        self.assertLess(install.index("Marketplace"), install.index("From the repository"))
+        agents = read(REPO_ROOT / "AGENTS.md")
+        for text in ("CognitionAI/devin-marketplace", "sha"):
+            with self.subTest(text=text):
+                self.assertIn(text, section(agents, "Critical Rules"))
+
     def test_aim_install_options_are_clear(self):
         migrations = self.plugin.split("#### Database migrations (Snowflake AIM)", 1)[1].split("\n#### ", 1)[0]
         for text in ("**Installing AIM.**", "AIM isn't installed by default",
