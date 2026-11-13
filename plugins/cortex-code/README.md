@@ -74,6 +74,8 @@ devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --loca
 
 Leave out `--include-aim` if you don't need migrations. If you already have the Cortex Code CLI, only the last command is required.
 
+**Devin Desktop.** Desktop's built-in agent uses the same plugin install as Devin CLI, so install it the same way. Desktop doesn't add the `devin` command to your PATH by itself: run **Install Devin CLI** from Desktop's Command Palette (an Enterprise admin first turns on *Install Devin CLI in Devin Desktop* in the CLI team settings), or install it with `curl -fsSL https://cli.devin.ai/install.sh | bash`. Then restart Desktop.
+
 `--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install from a clone instead: `devin plugins install --local ./plugins/cortex-code`.
 
 Check it with `devin plugins info snowflake-cortex-code`. Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup` to install the CLI. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
