@@ -68,9 +68,9 @@ Supported filter operators: `@eq`, `@contains` (arrays), `@gte`, `@lte`, compose
 
 ## Cortex Agents
 
-If the MCP server wraps a Cortex Agent (`CORTEX_AGENT_RUN`), send a `text` message. The agent decides which internal tools to use (SQL, Analyst, Search, code execution).
+If the MCP server exposes a coding agent (`CODING_AGENT`) or wraps a Cortex Agent (`CORTEX_AGENT_RUN`), send a `text` message. The agent decides which internal tools to use (SQL, Analyst, Search, code execution).
 
-For multi-turn conversations, include `thread_id` from the previous response.
+For multi-turn conversations, include the previous response's `thread_id`, and its `message_id` as `parent_message_id`.
 
 ## Examples
 
