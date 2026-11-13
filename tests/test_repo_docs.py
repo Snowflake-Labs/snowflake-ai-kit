@@ -270,6 +270,29 @@ class IncludeAimDocsTests(unittest.TestCase):
         devin = self.root.split("### Devin", 1)[1].split("\n## ", 1)[0]
         self.assertIn("--include-aim", devin)
 
+    def test_root_devin_section_has_two_options_with_numbered_steps(self):
+        devin = self.root.split("### Devin", 1)[1].split("\n### ", 1)[0]
+        a = devin.index("**Option A")
+        b = devin.index("**Option B")
+        self.assertLess(a, b)
+        opt_a, opt_b = devin[a:b], devin[b:]
+        for text in ("1. ", "2. ", "3. ", "4. ", "bash install.sh --include-aim",
+                     "devin plugins install --local ./plugins/cortex-code",
+                     "plugins/cortex-code/README.md#devin-desktop"):
+            with self.subTest(option="A", text=text):
+                self.assertIn(text, opt_a)
+        for text in ("1. ", "2. ", "Snowflake (Managed MCP)", "Server URL"):
+            with self.subTest(option="B", text=text):
+                self.assertIn(text, opt_b)
+        intro = devin[:a]
+        for text in ("| Database migrations (Snowflake AIM) | Yes", "| No |"):
+            with self.subTest(table=text):
+                self.assertIn(text, intro)
+        for text in ("**With AIM**", "**Without AIM**", "bash install.sh                      # Windows: .\\install.ps1\n"):
+            with self.subTest(option="A", text=text):
+                self.assertIn(text, opt_a)
+        self.assertIn("**No AIM.**", opt_b)
+
 
 class DevinCliMigrationDocsTests(unittest.TestCase):
     """Devin CLI routes database migrations to Snowflake AIM in Cortex Code."""

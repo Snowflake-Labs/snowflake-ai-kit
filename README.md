@@ -29,25 +29,51 @@ Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Sn
 
 ### Devin
 
-Two plugins, depending on where Cortex Code runs:
+Pick one option. Don't install both: with both, Devin may use the MCP plugin's tools instead of routing to Cortex Code.
 
-Devin Desktop and Devin CLI share one plugin store. For Desktop steps, including how to get the `devin` command, see [Devin Desktop](plugins/cortex-code/README.md#devin-desktop).
+| | Option A: Cortex Code plugin | Option B: Snowflake Managed MCP plugin |
+|---|---|---|
+| Database migrations (Snowflake AIM) | Yes, if you install it (`--include-aim`) | No |
+| Where it runs | Devin CLI and Devin Desktop | Devin Cloud, Desktop, and CLI |
+| Needs on your machine | Cortex Code CLI | Nothing |
 
-- **Devin CLI or Devin Desktop, with the Cortex Code CLI installed on your machine:** the same Cortex Code plugin as Claude Code and Codex, with auto-routing and security envelopes. See [`plugins/cortex-code/`](plugins/cortex-code/README.md#devin-cli). Install the CLI first with the installer above; add `--include-aim` to also set up Snowflake AIM for database migrations.
+**Option A: Cortex Code plugin** (Devin CLI or Devin Desktop, with the Cortex Code CLI on your machine). The same plugin as Claude Code and Codex, with auto-routing, security envelopes, and Snowflake AIM for database migrations.
 
-  ```bash
-  devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local
-  ```
+1. Get the `devin` command and sign in. Devin Desktop doesn't add it to your PATH: use **Install Devin CLI** in Desktop's Command Palette, or run `curl -fsSL https://cli.devin.ai/install.sh | bash`. Then run `devin auth login`.
+2. Clone this repo and run the installer. Choose **with** or **without** AIM:
 
-- **Devin Cloud, Desktop, or CLI, without the Cortex Code CLI:** the `snowflake-mcp-devin` plugin connects through a Snowflake Managed MCP Server, no Docker required. In Devin, install **Snowflake (Managed MCP)** from the Marketplace (Customize → Plugins → Marketplace → Install for me). Or add it from the repository (Customize → Plugins → Add plugin → From repository, subdirectory `plugins/snowflake-mcp-devin`), or install from a clone:
+   **With AIM** (database migrations): installs the Cortex Code CLI, the Snowflake AIM plugin, and SnowConvert.
 
-  ```bash
-  devin plugins install --local ./plugins/snowflake-mcp-devin
-  ```
+   ```bash
+   git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
+   bash install.sh --include-aim        # Windows: .\install.ps1 -IncludeAim
+   ```
 
-  Then connect with OAuth (custom MCP, signs in as you) or a role-restricted PAT on a service user. See the [Devin plugin README](plugins/snowflake-mcp-devin/README.md) for the Snowflake setup and both auth paths.
+   **Without AIM**: installs only the Cortex Code CLI. You can add AIM later with `/snowflake-cortex-code:cortex-setup` in Devin, or by approving the install on your first migration prompt.
 
-Use one or the other: with both installed, Devin may pick the MCP plugin's tools instead of routing to Cortex Code.
+   ```bash
+   git clone https://github.com/Snowflake-Labs/snowflake-ai-kit.git && cd snowflake-ai-kit
+   bash install.sh                      # Windows: .\install.ps1
+   ```
+
+3. If the installer says no Snowflake connection is configured, run `snow connection add`.
+4. From the same folder, install the plugin and check it:
+
+   ```bash
+   devin plugins install --local ./plugins/cortex-code
+   devin plugins info snowflake-cortex-code
+   ```
+
+   Or install it straight from GitHub: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
+
+Full steps: [Devin CLI or Devin Desktop, with the Cortex Code CLI](plugins/cortex-code/README.md#devin-cli), or [Devin Desktop](plugins/cortex-code/README.md#devin-desktop).
+
+**Option B: Snowflake Managed MCP plugin** (Devin Cloud, Desktop, or CLI, without the Cortex Code CLI). Connects to a Snowflake Managed MCP Server over HTTPS, with no local install. **No AIM.** For database migrations, use Option A.
+
+1. In Devin, go to Customize → Plugins → Marketplace, open **Snowflake (Managed MCP)**, and click **Install for me**. You can also add it from the repository (Add plugin → From repository, subdirectory `plugins/snowflake-mcp-devin`) or from a clone with `devin plugins install --local ./plugins/snowflake-mcp-devin`.
+2. Connect with OAuth (a custom MCP that signs in as you) or with a role-restricted PAT on a service user. For the PAT, save the full MCP URL as the `SNOWFLAKE_MCP_URL` secret and leave the **Server URL** box empty. Use hyphens, not underscores, in the account hostname.
+
+Full steps: [Devin plugin README](plugins/snowflake-mcp-devin/README.md).
 
 ### That's it
 
