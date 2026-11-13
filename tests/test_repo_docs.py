@@ -298,11 +298,13 @@ class DevinCliMigrationDocsTests(unittest.TestCase):
         self.assertIn("Use this plugin in Devin CLI or Devin Desktop when", self.plugin)
 
     def test_devin_desktop_users_can_get_the_devin_cli(self):
-        devin = self.plugin.split("### Devin CLI", 1)[1].split("#### Database migrations", 1)[0]
-        for text in ("Devin Desktop", "Install Devin CLI", "https://cli.devin.ai/install.sh"):
+        self.assertIn("#### Devin Desktop", self.plugin)
+        desktop = self.plugin.split("#### Devin Desktop", 1)[1].split("\n#### ", 1)[0]
+        for text in ("Install Devin CLI", "https://cli.devin.ai/install.sh", "--include-aim",
+                     "devin plugins install", "/mcp", "#database-migrations-snowflake-aim"):
             with self.subTest(text=text):
-                self.assertIn(text, devin)
-        self.assertIn("Install Devin CLI", section(self.root, "Quick Start"))
+                self.assertIn(text, desktop)
+        self.assertIn("plugins/cortex-code/README.md#devin-desktop", section(self.root, "Quick Start"))
 
     def test_root_troubleshooting_covers_devin_migrations(self):
         trouble = section(self.root, "Troubleshooting")

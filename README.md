@@ -31,7 +31,7 @@ Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Sn
 
 Two plugins, depending on where Cortex Code runs:
 
-Devin Desktop and Devin CLI share one plugin store. Desktop doesn't add the `devin` command on its own: run **Install Devin CLI** from its Command Palette, or use `curl -fsSL https://cli.devin.ai/install.sh | bash`.
+Devin Desktop and Devin CLI share one plugin store. For Desktop steps, including how to get the `devin` command, see [Devin Desktop](plugins/cortex-code/README.md#devin-desktop).
 
 - **Devin CLI or Devin Desktop, with the Cortex Code CLI installed on your machine:** the same Cortex Code plugin as Claude Code and Codex, with auto-routing and security envelopes. See [`plugins/cortex-code/`](plugins/cortex-code/README.md#devin-cli). Install the CLI first with the installer above; add `--include-aim` to also set up Snowflake AIM for database migrations.
 
