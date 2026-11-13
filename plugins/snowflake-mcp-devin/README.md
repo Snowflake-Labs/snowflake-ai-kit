@@ -21,35 +21,22 @@ A Snowflake admin with ACCOUNTADMIN, or equivalent privileges, sets up these obj
 
 | Placeholder | Meaning |
 |---|---|
-| `MY_DB`, `MY_DB.MCP_SCHEMA` | Database and schema for the agent and MCP server |
+| `MY_DB`, `MY_DB.MCP_SCHEMA` | Database and schema for the MCP server |
 | `MY_WH` | Warehouse the agent's queries run on |
 | `MY_DB.DATA_SCHEMA` | Data Devin may read |
 | `MY_USER` | Snowflake user who signs in with OAuth |
 | `MCP_ACCESS_ROLE` | Role Devin runs as. Everything Devin can do comes from this role |
 
-### 1. Create schema and agent
+### 1. Create the schema
 
 ```sql
 CREATE DATABASE IF NOT EXISTS MY_DB;
 CREATE SCHEMA IF NOT EXISTS MY_DB.MCP_SCHEMA;
-
--- Cortex Coding Agent with full toolset
-CREATE OR REPLACE AGENT MY_DB.MCP_SCHEMA.SNOWFLAKE_AGENT
-  FROM SPECIFICATION $$
-models:
-  orchestration: auto
-tools:
-  - tool_spec:
-      type: code_toolset_all
-      name: sandbox
-tool_resources:
-  sandbox:
-    permission_policy:
-      type: always_allow
-$$;
 ```
 
 ### 2. Create the MCP server
+
+The `CODING_AGENT` tool runs a hosted Cortex Code agent with its full toolset (bash, files, SQL, skills). You don't create an agent object: the agent's settings live in the tool's `config`.
 
 ```sql
 CREATE OR REPLACE MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP
@@ -57,10 +44,16 @@ CREATE OR REPLACE MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP
 tools:
   - name: cortex_code_agent
     title: Cortex Code Cloud Agent
-    type: CORTEX_AGENT_RUN
-    identifier: MY_DB.MCP_SCHEMA.SNOWFLAKE_AGENT
+    type: CODING_AGENT
     description: >-
       Delegate authorized tasks to a hosted Cortex Code sandbox.
+    config:
+      models:
+        orchestration: auto
+      tool_resources:
+        code_toolset_all:
+          permission_policy:
+            type: always_allow
 $$;
 ```
 
@@ -74,7 +67,6 @@ GRANT USAGE ON WAREHOUSE MY_WH TO ROLE MCP_ACCESS_ROLE;
 GRANT USAGE ON DATABASE MY_DB TO ROLE MCP_ACCESS_ROLE;
 GRANT USAGE ON SCHEMA MY_DB.MCP_SCHEMA TO ROLE MCP_ACCESS_ROLE;
 GRANT USAGE ON MCP SERVER MY_DB.MCP_SCHEMA.SNOWFLAKE_MCP TO ROLE MCP_ACCESS_ROLE;
-GRANT USAGE ON AGENT MY_DB.MCP_SCHEMA.SNOWFLAKE_AGENT TO ROLE MCP_ACCESS_ROLE;
 
 -- Grant data access as needed
 GRANT USAGE ON SCHEMA MY_DB.DATA_SCHEMA TO ROLE MCP_ACCESS_ROLE;
@@ -85,7 +77,7 @@ GRANT ROLE MCP_ACCESS_ROLE TO USER MY_USER;
 ALTER USER MY_USER SET DEFAULT_WAREHOUSE = 'MY_WH';
 ```
 
-The agent above uses `always_allow`, so Devin's requests run without an approval step. MCP can't pass approvals back, so with `always_ask`, writes don't run. See [Security](#security) for why the role is the control that matters.
+The tool above uses `always_allow`, so Devin's requests run without an approval step. Snowflake's MCP server can accept approvals (`permission_decisions`), but we haven't seen Devin send them, so with `always_ask` writes may not run. See [Security](#security) for why the role is the control that matters.
 
 If Devin should only read, `always_ask` also works: safe reads run, and writes pause instead of running.
 
@@ -347,12 +339,12 @@ After later changes, Devin pushes again, runs `FETCH`, then `ALTER DBT PROJECT M
 
 ## Security
 
-The Snowflake role is the main control. Devin Cloud has no per-tool approval for MCP calls, and the agent above uses `always_allow`, so anything the role can do, Devin can do without asking. That includes DDL and DML: in testing, the agent created tables through this path.
+The Snowflake role is the main control. Devin Cloud has no per-tool approval for MCP calls, and the MCP tool above uses `always_allow`, so anything the role can do, Devin can do without asking. That includes DDL and DML: in testing, the agent created tables through this path.
 
 - **Grant the access role only what Devin needs.** Prefer read-only grants. Add write privileges on specific schemas only when Devin should build objects there.
 - **Never connect as ACCOUNTADMIN.** Use OAuth with the access role, or a role-restricted PAT on a service user.
 - **Limit where the PAT works.** Use the network policy in Prerequisites step 4 so the token only authenticates from Devin's IPs.
-- **`always_ask` isn't a fix.** A write that needs approval doesn't run. Depending on the client, MCP either reports success anyway or keeps re-asking. MCP has no way to pass an approval back.
+- **`always_ask` isn't a fix.** A write that needs approval doesn't run. Depending on the client, the call either reports success anyway or keeps re-asking, because we haven't seen Devin send approvals back.
 - **The agent sandbox has internet access.** Agent-generated code can reach external hosts, so treat prompts and fetched content as untrusted.
 - **Use Devin security profiles for organizations.** They can limit sessions to approved MCP servers and network destinations.
 - **Rotate tokens.** Keep PATs short-lived. Use `SHOW USER PROGRAMMATIC ACCESS TOKENS FOR USER DEVIN_MCP_SVC` to review them.
@@ -384,7 +376,7 @@ The plugin identifies itself to Snowflake as `Cognition_Devin`. Use the same val
 - **Why OAuth isn't in the plugin:** Devin rejects OAuth secrets in plugin files, and it substitutes `${…}` values only in a plugin MCP's URL and headers, not its OAuth client ID or scopes. Each Snowflake account has its own client ID, so the plugin can't ship one. The plugin MCP uses a PAT header, and OAuth uses a custom MCP.
 - **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2). Keep the value exactly `Cognition_Devin` (see [Client identifier](#client-identifier)).
 - **Hostname format:** Use hyphens in the account URL (`my-org-my-account`), not underscores. Underscored hostnames silently break MCP connections.
-- **Admin setup required:** A Snowflake admin must create the agent, the MCP server, and either the OAuth integration or the PAT service user before this plugin can connect.
+- **Admin setup required:** A Snowflake admin must create the MCP server and either the OAuth integration or the PAT service user before this plugin can connect.
 - **Skill portability:** These skills use generic SQL instructions, not CoCo-specific tool calls. They work in any MCP-compatible host.
 - **Response truncation:** MCP tool responses truncate at 250KB. Use LIMIT and aggregation for large result sets.
 
@@ -427,13 +419,13 @@ plugins/snowflake-mcp-devin/
 | "Session failed to initialize" | Set `DEFAULT_WAREHOUSE` on the user (`MY_USER` or `DEVIN_MCP_SVC`) |
 | OAuth MCP fails at startup, or the header shows `${USER_AGENT}` | Save a `USER_AGENT` credential on the custom MCP (value `Cognition_Devin`) |
 | HTTP 401 / login blocked for the service user | The client IP isn't in `DEVIN_EGRESS_RULE`. Check `client_ip` in login history against Devin's published list. Devin CLI and Desktop connect from your machine's IP |
-| Agent re-asks for permission, or loops on "Allow this command" | The agent uses `always_ask`. Approvals can't be sent over MCP. Recreate it with `always_allow` and limit access through the role |
-| A write "succeeds" but nothing changed | The agent uses `always_ask`. Over MCP, approvals can't be relayed, so the write never ran |
+| Agent re-asks for permission, or loops on "Allow this command" | The tool uses `always_ask`, and Devin doesn't send approvals back. Set `always_allow` in the MCP server's `config` and limit access through the role |
+| A write "succeeds" but nothing changed | The tool uses `always_ask`, so the write waited for an approval Devin never sent |
 | Devin push fails with HTTP 403 | Install the Devin GitHub app on the repo owner, and connect it in Devin org settings → Integrations → GitHub |
 | "Connect GitHub Organization" loops back to Connect | The app is already installed. Uninstall it on GitHub (Settings → Applications → Installed GitHub Apps), then connect again from Devin |
 | `CREATE GIT REPOSITORY` rejects the origin | The origin must match `API_ALLOWED_PREFIXES`. Drop the `.git` suffix |
 | Stream or Dynamic Table creation fails on a source table | The source owner must run `ALTER TABLE ... SET CHANGE_TRACKING = TRUE` |
 | Admins can't see objects Devin created | Run `GRANT ROLE MCP_ACCESS_ROLE TO ROLE SYSADMIN` |
-| Tools not visible after connecting | Verify `GRANT USAGE ON MCP SERVER` and `GRANT USAGE ON AGENT` to `MCP_ACCESS_ROLE` |
+| Tools not visible after connecting | Verify `GRANT USAGE ON MCP SERVER` and the `SNOWFLAKE.CORTEX_AGENT_USER` database role on `MCP_ACCESS_ROLE` |
 | `CREATE DBT PROJECT` or `EXECUTE DBT PROJECT` fails on the profile | Add a `profiles.yml` to the project root (see [Set up dbt](#set-up-dbt)), push, and run `FETCH` again |
 | "This plugin's MCP server is disabled or misconfigured" | Don't put `oauthClientId`/`oauthClientSecret` in the plugin manifest. Devin rejects OAuth secrets in plugin files. |

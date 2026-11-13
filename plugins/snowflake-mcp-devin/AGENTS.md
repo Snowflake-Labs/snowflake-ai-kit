@@ -8,7 +8,8 @@ The MCP server exposes one or more tools. Common configurations:
 
 | Tool name pattern | MCP type | What it does |
 |---|---|---|
-| `cortex_code_agent` | CORTEX_AGENT_RUN | Full Cortex Coding Agent — SQL, file ops, bash, skills |
+| `cortex_code_agent` | CODING_AGENT | Full Cortex Coding Agent — SQL, file ops, bash, skills (no stored agent object) |
+| _(admin-named)_ | CORTEX_AGENT_RUN | A stored Cortex Agent, such as a governed business agent |
 | `sql_exec` | SYSTEM_EXECUTE_SQL | Direct SQL execution (often read-only) |
 | `cortex_analyst` | CORTEX_ANALYST_MESSAGE | Natural language to SQL via semantic views |
 | `cortex_search` | CORTEX_SEARCH_SERVICE_QUERY | Semantic search over unstructured data |
@@ -17,7 +18,7 @@ Tool names are set by the admin. Use the MCP tool list to discover what's availa
 
 ## Cortex Agent patterns
 
-When the tool is `CORTEX_AGENT_RUN`, send a `text` message. The agent orchestrates internally (SQL, Cortex Analyst, Search, code execution) and returns results. Use `thread_id` from a previous response to continue a multi-turn conversation.
+When the tool is `CODING_AGENT` or `CORTEX_AGENT_RUN`, send a `text` message. The agent orchestrates internally (SQL, Cortex Analyst, Search, code execution) and returns results. To continue a multi-turn conversation, pass the previous response's `thread_id` and its `message_id` as `parent_message_id`.
 
 ## When to use Cortex Analyst vs raw SQL
 
