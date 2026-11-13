@@ -87,6 +87,17 @@ class DevinPluginManifestTests(unittest.TestCase):
 
 
 class DevinPluginContentTests(unittest.TestCase):
+    def test_setup_uses_coding_agent_without_agent_object(self):
+        readme = read(DEVIN_DIR / "README.md")
+        self.assertIn("type: CODING_AGENT", readme)
+        for stale in ("CREATE OR REPLACE AGENT", "CORTEX_AGENT_RUN", "GRANT USAGE ON AGENT",
+                      "MCP has no way to pass an approval back",
+                      "must create the agent", "the agent above uses"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, readme)
+        agents = read(DEVIN_DIR / "AGENTS.md")
+        self.assertIn("| `cortex_code_agent` | CODING_AGENT |", agents)
+
     def test_expected_skills_present_with_matching_names(self):
         found = {p.parent.name for p in (DEVIN_DIR / "skills").glob("*/SKILL.md")}
         self.assertEqual(found, DEVIN_SKILLS)
