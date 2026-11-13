@@ -94,7 +94,7 @@ Devin CLI loads this plugin as-is, including the prompt hook. Snowflake prompts 
 
 `--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install straight from GitHub without a clone: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
 
-Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup` to install the CLI. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
+Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup`, which installs the CLI, and in Devin also Snowflake AIM. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
 
 On Windows, installing from a local folder fails with `os error 1314` unless Developer Mode is on (Settings → System → For developers), because Devin links the plugin into its cache.
 
@@ -147,7 +147,14 @@ If AIM's tools never load, run `cortex`, open `/mcp`, and enable `snowflake-migr
 
 In Devin CLI, migration prompts route to [Snowflake AIM for Data Warehouses](https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview), the Cortex Code agent that migrates a database to Snowflake: it connects to the source, extracts and converts code with SnowConvert, assesses, deploys wave by wave, migrates data, and validates. Start with `start a database migration`, pick up later with `continue my migration`, or type `/migrate <your prompt>`. Prompts that name a source system (SQL Server, Oracle, Teradata, Redshift, Postgres, MySQL, and others), SnowConvert, SSIS, or Informatica also route.
 
-- **First run:** Cortex Code asks before installing the AIM plugin, and AIM then installs SnowConvert (`scai`) and its other tooling. Devin relays the question; answer it in Devin. To skip that question, install AIM ahead of time: `/snowflake-cortex-code:cortex-setup` does it in Devin CLI, the repo installer does it with `--include-aim` (`-IncludeAim` on Windows), or run `cortex plugin install https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin` followed by `bash ~/.snowflake/cortex/plugins/snowflake-migration/hooks/install-dependencies.sh` (it installs `scai`; routed Cortex sessions don't run the AIM hook that normally does). SnowConvert's terms and source drivers are still set up on the first migration.
+**Installing AIM.** AIM isn't installed by default. Pick one way to install it:
+
+1. **With the installer (recommended):** `bash install.sh --include-aim` (Windows: `.\install.ps1 -IncludeAim`), as in the get-started steps. It installs the Cortex Code CLI, the AIM plugin, and SnowConvert (`scai`).
+2. **From Devin:** run `/snowflake-cortex-code:cortex-setup`. In Devin it installs AIM and `scai` if they're missing, even when Cortex Code is already installed.
+3. **On your first migration:** if AIM isn't installed, a prompt such as `start a database migration` makes Cortex Code ask whether to install it. Devin relays the question; answer it in Devin.
+
+To install it by hand instead, run `cortex plugin install https://github.com/Snowflake-Labs/cortex-code-migrations/tree/main/plugin`, then `bash ~/.snowflake/cortex/plugins/snowflake-migration/hooks/install-dependencies.sh` to install `scai` (routed Cortex sessions don't run the AIM hook that normally does). With any option, SnowConvert's terms and source drivers are still set up on the first migration.
+
 - **Questions and approvals:** AIM asks which project directory and source connection to use, and asks for approval between stages. Devin relays each one and sends your answer with `--resume-last`, so the migration continues in the same Cortex session. Devin doesn't answer for you.
 - **Envelope:** migrations always run with `RW`, because AIM works through its MCP server and writes project files, which `RO` denies. If your `allowed_envelopes` excludes `RW`, the plugin stops before starting Cortex Code.
 - **Long steps:** data migration and test loops can run for many minutes.

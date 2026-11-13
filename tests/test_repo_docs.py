@@ -309,6 +309,19 @@ class DevinCliMigrationDocsTests(unittest.TestCase):
                 with self.subTest(section=name, step=step):
                     self.assertIn(step, text)
 
+    def test_aim_install_options_are_clear(self):
+        migrations = self.plugin.split("#### Database migrations (Snowflake AIM)", 1)[1].split("\n#### ", 1)[0]
+        for text in ("**Installing AIM.**", "AIM isn't installed by default",
+                     "--include-aim", "/snowflake-cortex-code:cortex-setup", "start a database migration"):
+            with self.subTest(text=text):
+                self.assertIn(text, migrations)
+        self.assertIn("installs the CLI, and in Devin also Snowflake AIM", self.plugin)
+        installer = section(self.root, "Installer")
+        for text in ("AIM isn't installed by default", "/snowflake-cortex-code:cortex-setup",
+                     "plugins/cortex-code/README.md#database-migrations-snowflake-aim"):
+            with self.subTest(text=text):
+                self.assertIn(text, installer)
+
     def test_devin_desktop_users_can_get_the_devin_cli(self):
         self.assertIn("#### Devin Desktop", self.plugin)
         desktop = self.plugin.split("#### Devin Desktop", 1)[1].split("\n#### ", 1)[0]
