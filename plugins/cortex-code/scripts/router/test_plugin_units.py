@@ -744,6 +744,32 @@ def test_mcp_conflict_detection():
     results.append(expect("mcp: no snowflake in any scope -> None", r, None))
     _shutil.rmtree(tmp, ignore_errors=True)
 
+    # 17. Opt-out: CORTEX_MCP_CONFLICT_CHECK=off silences both checkers
+    import prompt_filter
+    sf_settings = json.dumps({"mcpServers": {"snowflake-mcp": {"command": "node", "args": []}}})
+    for value in ("off", "OFF", "0", "false", "disabled"):
+        tmp = _setup_home(settings_content=sf_settings)
+        with patch.dict(os.environ, {"CORTEX_MCP_CONFLICT_CHECK": value}):
+            r = _check_with_home(tmp)
+            with patch("prompt_filter.Path.home", return_value=tmp), \
+                 patch("prompt_filter.Path.cwd", return_value=tmp / "project"):
+                pf = prompt_filter._check_mcp_conflict()
+        results.append(expect(f"mcp: opt-out '{value}' -> None (execute_cortex)", r, None))
+        results.append(expect(f"mcp: opt-out '{value}' -> None (prompt_filter)", pf, None))
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+    # 18. Opt-out unset / unrecognised value keeps the check on
+    for value in (None, "", "on", "error"):
+        tmp = _setup_home(settings_content=sf_settings)
+        env = {} if value is None else {"CORTEX_MCP_CONFLICT_CHECK": value}
+        with patch.dict(os.environ, env):
+            if value is None:
+                os.environ.pop("CORTEX_MCP_CONFLICT_CHECK", None)
+            r = _check_with_home(tmp)
+        results.append(expect(f"mcp: opt-out value {value!r} -> conflict still reported",
+                              r is not None and "CONFLICT" in r, True))
+        _shutil.rmtree(tmp, ignore_errors=True)
+
     return results
 
 

@@ -112,6 +112,21 @@ The existing Codex execution path still auto-approves individual tool calls; thi
 change validates configuration and the selected envelope before launching it,
 but does not add per-tool envelope enforcement to that path.
 
+### Running a Snowflake MCP server alongside Cortex Code
+
+By default the plugin refuses to route when any configured MCP server mentions
+"snowflake" in its name, command, args or URL, because a second Snowflake tool
+surface can duplicate tools or confuse auth. That substring match also catches
+unrelated servers (for example a custom read-only query server). If you
+deliberately run one, opt out of the check:
+
+```bash
+export CORTEX_MCP_CONFLICT_CHECK=off   # also accepts 0, false, no, disabled
+```
+
+Set it in your shell profile or the `env` block of Claude Code's `settings.json`.
+Both the `UserPromptSubmit` hook and the executor honor it.
+
 Skill discovery runs automatically on session start. To force a re-discovery, start a new session.
 
 ## Testing
