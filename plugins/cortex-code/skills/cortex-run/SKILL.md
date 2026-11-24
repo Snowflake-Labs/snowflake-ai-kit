@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
   author: Snowflake
-  version: 3.4.0
+  version: 3.7.0
 ---
 
 # Cortex Code (Explicit Invocation)
@@ -22,7 +22,7 @@ Before checking CLI prerequisites, run:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"
 ```
 
- Codex may use `${PLUGIN_ROOT}` instead. Stop on an error.
+Codex may use `${PLUGIN_ROOT}` instead. In Devin, use the absolute plugin root the prompt hook gives you. Stop on an error.
 
 - `remote`: take the text after `$cortex-run` or `/cortex-run` as the task (ask
   for a task if none was provided), then read and follow

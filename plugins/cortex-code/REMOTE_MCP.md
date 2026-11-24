@@ -1,90 +1,78 @@
 # Remote Cortex Code through managed MCP
 
 Remote mode delegates Snowflake-side tasks to a hosted Coding Agent through your
-AI host's native MCP connection. It needs Python for the plugin hooks, but **no
+AI agent's native MCP connection. It needs Python for the plugin hooks, but **no
 local Cortex Code or Snowflake CLI**. Local mode remains the default.
 
 ```text
-Claude Code / Codex + plugin
-  -> host-authenticated Snowflake-managed MCP tool (CORTEX_AGENT_RUN)
-  -> Coding Agent with code_toolset_all
+Claude Code / Codex / Devin CLI or Desktop + plugin
+  -> host-authenticated Snowflake-managed MCP tool (CODING_AGENT)
   -> Snowflake-hosted CoCo sandbox
 ```
 
 This is an opt-in integration, not full local CLI parity. The plugin does not
 host an MCP server, implement OAuth, store tokens, or provision account resources.
+Database migrations (Snowflake AIM) need the local CLI, so they don't run in remote
+mode: a migration prompt stops and asks you to set `CORTEX_PLUGIN_BACKEND=local`.
 
 ## 1. Prepare the server and host
 
-Have your Snowflake administrator configure a named
-[Coding Agent](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-coding-agent)
-with `code_toolset_all`, and expose it as a `CORTEX_AGENT_RUN` tool in a
-[Snowflake-managed MCP server](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp).
-Use a role restricted to the intended data and operations. The caller needs
-access to the MCP server, agent, and underlying resources.
+Have your Snowflake administrator create a
+[Snowflake-managed MCP server](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp)
+with a `CODING_AGENT` tool. It runs the hosted Cortex Code agent with its full
+toolset (bash, files, SQL, skills). You don't create an agent object: the agent's
+settings live in the tool's `config`. Use a role restricted to the intended data
+and operations. The caller needs access to the MCP server and the underlying resources.
 
-### Example specifications
+### Example specification
 
-The two specifications are different layers. This agent specification enables
-the full coding toolset under the instance name `sandbox` (the resource key must
-match that name, not the type):
-
-```yaml
-models:
-  orchestration: auto
-tools:
-  - tool_spec:
-      type: code_toolset_all
-      name: sandbox
-tool_resources:
-  sandbox:
-    permission_policy:
-      type: always_ask
-```
-
-An administrator can use it when creating a named agent using the Coding Agent
-documentation above. No workspace is mounted by this specification. Expose the
-agent through this separate managed MCP specification, substituting its actual
-fully qualified name:
-
-```yaml
+```sql
+CREATE OR REPLACE MCP SERVER <database>.<schema>.<server>
+  FROM SPECIFICATION $$
 tools:
   - name: cortex_code_agent
     title: Cortex Code Cloud Agent
-    type: CORTEX_AGENT_RUN
-    identifier: EXAMPLE_DB.EXAMPLE_SCHEMA.COCO_CLOUD_AGENT
+    type: CODING_AGENT
     description: >-
       Delegate authorized coding tasks to a hosted Cortex Code sandbox.
       Honor the configured approval policy. Approval-requiring operations
-      may pause because this MCP workflow cannot relay permission decisions.
+      may pause because this plugin does not relay permission decisions.
+    config:
+      models:
+        orchestration: auto
+      tool_resources:
+        code_toolset_all:
+          permission_policy:
+            type: always_ask
+$$;
 ```
 
-`code_toolset_all` is an **agent tool type**, not an MCP callable name.
-`CORTEX_AGENT_RUN` is the **MCP tool type**. `cortex_code_agent` is the
-administrator-chosen **MCP wire name**; another name works too. The plugin uses
-the host's namespaced identifier for that wire name, not either type string.
+`CODING_AGENT` is the **MCP tool type**. Snowflake adds the full coding toolset
+(`code_toolset_all`) to every run; `tool_resources.code_toolset_all` sets its approval
+policy. `cortex_code_agent` is the administrator-chosen **MCP wire name**; another
+name works too. The plugin uses the host's namespaced identifier for that wire name,
+not the type string. `CORTEX_AGENT_RUN` also works if you already manage a Cortex
+Agent object; the plugin matches the tool by its input schema, not its type.
 
-### Verify the object chain
+### Verify the server
 
-Before enabling the plugin, an administrator should inspect both deployed
-objects (using DESCRIBE MCP SERVER and DESCRIBE AGENT in Snowflake):
+Before enabling the plugin, an administrator should run `DESCRIBE MCP SERVER` and:
 
-1. Find the intended MCP tool by its exact wire name in the server specification.
-   Verify its type is `CORTEX_AGENT_RUN` and its `identifier` is the intended agent.
-2. Inspect that agent's specification. Verify a tool has type `code_toolset_all`;
-   its instance name can be `sandbox` or another name. Check the matching resource
-   policy and any workspace mounts. Do not infer the type from the agent's name.
-3. Confirm the caller's access and the chosen approval policy. Preserve
+1. Find the intended tool by its exact wire name. Verify its type is `CODING_AGENT`.
+2. Check its `config`: the approval policy and any workspace mounts. Preserve
    `always_ask` unless a different policy has been independently authorized.
+3. Confirm the caller's access.
 
-A tool name, description, or compatible `text` schema is **not proof** of this
-mapping: a data agent can advertise the same interface. The plugin's offline
-checks cannot inspect server object identity. The administrator must verify it.
+A tool name, description, or compatible `text` schema is **not proof** of the tool
+type: a data agent can advertise the same interface. The plugin's offline checks
+cannot inspect server objects. The administrator must verify it.
 
 ### Connect the host
 
-Connect that server in Claude Code or Codex using its native remote MCP setup and
-authenticate there. Prefer OAuth; never place credentials in this plugin's files.
+Connect that server in Claude Code, Codex, or Devin using its native remote MCP setup and
+authenticate there. In Devin, add it as a custom MCP; the
+[Snowflake Managed MCP plugin guide](../snowflake-mcp-devin/README.md) covers the URL,
+`User-Agent` header, and OAuth or PAT setup. Prefer OAuth; never place credentials in this plugin's files.
 Use the account-specific server URL supplied by your administrator:
 
 ```text
@@ -97,7 +85,7 @@ https://<account-host>/api/v2/databases/<database>/schemas/<schema>/mcp-servers/
 > issues with underscored hostnames.
 
 Confirm the host lists the agent tool and inspect its input schema: it should
-accept `text` as a required string. Copy its **full host-visible tool identifier**,
+accept `text` as a string. Copy its **full host-visible tool identifier**,
 including the server namespace. Do not copy just the server name or its URL.
 Do not point this mode at `cortex mcp serve`: that is a different local transport
 and has a different task-input contract.
@@ -130,7 +118,6 @@ GRANT USAGE ON WAREHOUSE <warehouse> TO ROLE <mcp_access_role>;
 GRANT USAGE ON DATABASE <database> TO ROLE <mcp_access_role>;
 GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE <mcp_access_role>;
 GRANT USAGE ON MCP SERVER <database>.<schema>.<server> TO ROLE <mcp_access_role>;
-GRANT USAGE ON AGENT <database>.<schema>.<agent> TO ROLE <mcp_access_role>;
 
 GRANT ROLE <mcp_access_role> TO USER <username>;
 ```
@@ -205,7 +192,7 @@ macOS/Linux example (replace the example tool identifier with the actual one):
 export CORTEX_PLUGIN_BACKEND=remote
 export CORTEX_PLUGIN_MCP_TOOL=mcp__snowflake__cortex_code_agent
 claude
-# Or launch codex from this environment.
+# Or launch codex or devin from this environment.
 ```
 
 PowerShell:
@@ -214,7 +201,7 @@ PowerShell:
 $env:CORTEX_PLUGIN_BACKEND = "remote"
 $env:CORTEX_PLUGIN_MCP_TOOL = "mcp__snowflake__cortex_code_agent"
 codex
-# Or launch claude from this environment.
+# Or launch claude or devin from this environment.
 ```
 
 Host naming conventions can differ. The example is not an assumed tool name.
@@ -261,12 +248,12 @@ secret detector. Send only task text and minimal context authorized for the
 selected Snowflake destination; use host and Snowflake access controls for
 enforcement.
 
-Do not change the agent to `always_allow` to work around a failed or paused run.
+Do not change the tool's policy to `always_allow` to work around a failed or paused run.
 `always_ask` may automatically execute operations classified as safe, such as
 `SELECT 1` or harmless shell output. It does not mean every call must pause.
 Such probes do not establish that state-changing operations have been tested.
-The current native MCP workflow does not implement the REST `permission_decision`
-approval round trip. If a run pauses for approval, stop and use a supported
+The plugin does not relay approvals: it never sends the tool's
+`permission_decisions` argument, even though `CODING_AGENT` accepts it. If a run pauses for approval, stop and use a supported
 approval workflow rather than sending "approved" as another task. A task labeled
 "read only" and an MCP `readOnlyHint` are not security controls.
 
@@ -274,7 +261,9 @@ approval workflow rather than sending "approved" as another task. A task labeled
 
 - **Continuation is capability-dependent.** When the server advertises optional
   `thread_id` and returns an ID, the host can retain it in the current conversation
-  and pass it on follow-ups to the same tool/account. New topics start fresh.
+  and pass it on follow-ups to the same tool/account, with every field the helper
+  lists in `thread_arguments` (`CODING_AGENT` also needs `parent_message_id`).
+  The thread keeps the hosted sandbox. New topics start fresh.
   The plugin does not persist remote IDs in the CLI session-state file.
 - **Older servers remain stateless.** No advertised/returned ID means no assumed
   continuity. The host explains this and can send a short authorized summary
@@ -308,11 +297,15 @@ host-visible tool's descriptor on stdin. A minimal supported descriptor is:
 ```
 
 Use the actual host identifier and advertised schema, not this example verbatim.
-The helper checks the name, required string `text` and unsupported required
-arguments. It returns `supports_thread_id: false` for this text-only contract.
-This is a valid deployment: call with `{"text": "..."}` and treat every call
-as independent. The helper reports `agent_identity_verified: false` deliberately;
-it does not replace the administrator's object-chain verification.
+The helper checks the name, a string `text` and unsupported required arguments.
+`text` may be optional only when the schema also declares `permission_decisions`,
+as `CODING_AGENT` does, because that argument replaces `text` on an approval reply.
+It returns `supports_thread_id: false` for this text-only contract. This is a
+valid deployment: call with `{"text": "..."}` and treat every call as independent.
+For a `CODING_AGENT` tool it returns `supports_thread_id: true`,
+`thread_id_type: "string"` and `thread_arguments: ["thread_id", "parent_message_id"]`:
+a follow-up sends both, with the `thread_id` and `message_id` from the prior result. The helper reports `agent_identity_verified: false` deliberately;
+it does not replace the administrator's server verification.
 
 ## Validation checklist
 

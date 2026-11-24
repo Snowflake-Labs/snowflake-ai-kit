@@ -208,6 +208,8 @@ class RepoDocsTests(unittest.TestCase):
         self.assertEqual(codex, self.version)
         self.assertEqual(entry["version"], self.version)
         self.assertIn(f"version: {self.version}", router)
+        run = read(CORTEX_DIR / "skills" / "cortex-run" / "SKILL.md")
+        self.assertIn(f"version: {self.version}", run)
 
     def test_codeowners_names_at_least_two_owners(self):
         path = REPO_ROOT / ".github" / "CODEOWNERS"
@@ -650,6 +652,43 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
             result = self.run_check(Path(tmp), "codex")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("OK", result.stdout)
+
+
+class RemoteBackendDocsTests(unittest.TestCase):
+    """Remote mode is set up with a CODING_AGENT tool, like the Managed MCP plugin."""
+
+    def test_remote_setup_uses_coding_agent_without_agent_object(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("type: CODING_AGENT", guide)
+        for stale in ("identifier: EXAMPLE_DB", "GRANT USAGE ON AGENT", "DESCRIBE AGENT",
+                      "type: CORTEX_AGENT_RUN"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, guide)
+        self.assertIn("`CORTEX_AGENT_RUN` also works", guide)
+
+    def test_remote_workflow_and_helper_name_coding_agent(self):
+        workflow = read(CORTEX_DIR / "skills" / "cortex-router" / "references" / "remote-mcp.md")
+        self.assertIn("CODING_AGENT", workflow)
+        self.assertIn("CODING_AGENT", read(CORTEX_DIR / "scripts" / "router" / "backend.py"))
+
+    def test_agents_md_lists_remote_backend_files(self):
+        arch = section(read(REPO_ROOT / "AGENTS.md"), "Architecture")
+        for entry in ("REMOTE_MCP.md", "backend.py", "test_remote_backend.py", "remote-mcp.md"):
+            with self.subTest(entry=entry):
+                self.assertIn(entry, arch)
+
+    def test_remote_workflow_follows_the_helper_thread_arguments(self):
+        workflow = read(CORTEX_DIR / "skills" / "cortex-router" / "references" / "remote-mcp.md")
+        self.assertIn("thread_arguments", workflow)
+        self.assertIn("message_id", workflow)
+        self.assertNotIn("positive integer `thread_id`", workflow)
+        self.assertNotIn("Omit `parent_message_id` for ordinary continuation", workflow)
+        self.assertNotIn("cannot send the REST", workflow)
+
+    def test_remote_guide_covers_devin_and_migrations(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("Devin", guide)
+        self.assertIn("CORTEX_PLUGIN_BACKEND=local", guide)
 
 
 if __name__ == "__main__":

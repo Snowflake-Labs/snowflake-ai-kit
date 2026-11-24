@@ -1,7 +1,7 @@
 {
   "name": "snowflake-cortex-code",
   "displayName": "Snowflake Cortex Code (CoCo CLI + AIM)",
-  "version": "3.6.1",
+  "version": "3.7.0",
   "description": "Route Snowflake prompts to the Cortex Code CLI on your machine, including database migrations with Snowflake AIM",
   "shortDescription": "Snowflake work with CoCo CLI + AIM",
   "setup": {

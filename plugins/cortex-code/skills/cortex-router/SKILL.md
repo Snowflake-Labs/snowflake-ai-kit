@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.6.1
+  version: 3.7.0
   compatibility: Requires Python and either Cortex Code CLI or a host-authenticated managed MCP tool
 ---
 
@@ -21,7 +21,7 @@ Before any CLI check or routing script, run:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"
 ```
 
- Codex may use `${PLUGIN_ROOT}` instead of
+Codex may use `${PLUGIN_ROOT}` instead of
 `${CLAUDE_PLUGIN_ROOT}`. In Devin, use the absolute plugin root the prompt hook gives you. Stop on an error; do not guess a backend.
 
 - `remote`: read and follow [Remote MCP delegation](references/remote-mcp.md),

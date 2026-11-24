@@ -39,6 +39,22 @@ TEXT_ONLY_SCHEMA = {
 }
 
 
+CODING_AGENT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "text": {"type": "string"},
+        "thread_id": {"type": "string"},
+        "parent_message_id": {"type": "string"},
+        "background": {"type": "boolean"},
+        "permission_decisions": {"type": "array", "maxItems": 20, "items": {
+            "type": "object", "required": ["tool_use_id", "decision"],
+            "properties": {"tool_use_id": {"type": "string"}, "decision": {"type": "string"},
+                           "reason": {"type": "string"}}}},
+        "content_cel_filter": {"type": "string"},
+    },
+}
+
+
 class RemoteToolContractTests(unittest.TestCase):
     def descriptor(self, schema=None):
         return {"name": REMOTE_SETTINGS["CORTEX_PLUGIN_MCP_TOOL"],
@@ -61,10 +77,39 @@ class RemoteToolContractTests(unittest.TestCase):
         self.assertTrue(self.check(self.descriptor(schema))["supports_thread_id"])
 
     def test_wrong_thread_type_is_not_used(self):
+        for kind in ("boolean", "object", "array"):
+            schema = dict(TEXT_ONLY_SCHEMA, properties={
+                "text": {"type": "string"}, "thread_id": {"type": kind},
+            })
+            with self.subTest(kind=kind):
+                self.assertFalse(self.check(self.descriptor(schema))["supports_thread_id"])
+
+    def test_live_coding_agent_schema_is_compatible(self):
+        # Trimmed from a live CODING_AGENT tools/list (2026-11): no "required" array,
+        # because permission_decisions can replace text; ids are strings.
+        result = self.check(self.descriptor(CODING_AGENT_SCHEMA))
+        self.assertEqual(result["tool_check"], "passed")
+        self.assertTrue(result["supports_thread_id"])
+        self.assertEqual(result["thread_id_type"], "string")
+        self.assertEqual(result["thread_arguments"], ["thread_id", "parent_message_id"])
+
+    def test_integer_thread_without_parent_needs_only_thread_id(self):
         schema = dict(TEXT_ONLY_SCHEMA, properties={
-            "text": {"type": "string"}, "thread_id": {"type": "string"},
-        })
-        self.assertFalse(self.check(self.descriptor(schema))["supports_thread_id"])
+            "text": {"type": "string"}, "thread_id": {"type": "integer"}})
+        result = self.check(self.descriptor(schema))
+        self.assertEqual(result["thread_id_type"], "integer")
+        self.assertEqual(result["thread_arguments"], ["thread_id"])
+
+    def test_optional_text_must_still_be_a_string(self):
+        schema = {"type": "object", "properties": {"text": {"type": "integer"}}}
+        with self.assertRaises(ValueError):
+            self.check(self.descriptor(schema))
+
+    def test_optional_text_with_another_required_argument_is_rejected(self):
+        schema = {"type": "object", "properties": {
+            "text": {"type": "string"}, "mode": {"type": "string"}}, "required": ["mode"]}
+        with self.assertRaises(ValueError):
+            self.check(self.descriptor(schema))
 
     def test_wire_name_is_not_confused_with_host_name(self):
         with self.assertRaises(ValueError):
@@ -240,6 +285,36 @@ class HookProcessTests(unittest.TestCase):
                 self.assertIn("CORTEX ROUTER: REMOTE", context)
                 self.assertIn(REMOTE_SETTINGS["CORTEX_PLUGIN_MCP_TOOL"], context)
                 self.assertNotIn("CLI is not installed", context)
+
+    def test_remote_hook_works_without_cli_in_devin(self):
+        # The remote instruction is host-agnostic: absolute workflow path, no ${CLAUDE_PLUGIN_ROOT}.
+        settings = {"DEVIN_PLUGIN_ROOT": str(PLUGIN_DIR), "CLAUDE_PLUGIN_ROOT": None}
+        context = self.hook_context(self.run_script(
+            "prompt_filter.py", {"prompt": "show my Snowflake warehouses"}, settings=settings))
+        self.assertIn("CORTEX ROUTER: REMOTE", context)
+        self.assertIn(REMOTE_SETTINGS["CORTEX_PLUGIN_MCP_TOOL"], context)
+        self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", context)
+        self.assertNotIn("CLI is not installed", context)
+
+    def test_devin_migration_in_remote_mode_stops_instead_of_delegating(self):
+        # Snowflake AIM needs the local CLI; remote mode never falls back to it either.
+        settings = {"DEVIN_PLUGIN_ROOT": str(PLUGIN_DIR), "CLAUDE_PLUGIN_ROOT": None}
+        context = self.hook_context(self.run_script(
+            "prompt_filter.py", {"prompt": "start a database migration from SQL Server"}, settings=settings))
+        self.assertTrue(context.startswith("STOP."), context)
+        self.assertIn("CORTEX_PLUGIN_BACKEND=local", context)
+        self.assertNotIn(REMOTE_SETTINGS["CORTEX_PLUGIN_MCP_TOOL"], context)
+
+    def test_devin_migration_in_local_mode_still_routes_to_aim(self):
+        settings = {"DEVIN_PLUGIN_ROOT": str(PLUGIN_DIR), "CLAUDE_PLUGIN_ROOT": None,
+                    "CORTEX_PLUGIN_BACKEND": None, "CORTEX_PLUGIN_MCP_TOOL": None}
+        (self.home / "empty-bin").mkdir(exist_ok=True)
+        cortex = self.home / "empty-bin" / "cortex"
+        cortex.write_text("#!/bin/sh\nexit 0\n"); cortex.chmod(0o755)
+        context = self.hook_context(self.run_script(
+            "prompt_filter.py", {"prompt": "start a database migration from SQL Server"}, settings=settings))
+        self.assertIn("Snowflake AIM", context)
+        self.assertIn("--envelope \"RW\"", context)
 
     def test_remote_hook_does_not_reject_configured_snowflake_mcp(self):
         (self.home / ".mcp.json").write_text(json.dumps({"mcpServers": {

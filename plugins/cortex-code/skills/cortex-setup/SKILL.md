@@ -9,7 +9,8 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 ## First: Select the backend
 
 Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"` before any other
-check. Codex may use `${PLUGIN_ROOT}` instead.
+check. Codex may use `${PLUGIN_ROOT}` instead. In Devin, use the absolute plugin
+root the prompt hook gives you.
 
 - On invalid settings, explain the error and use the
   [remote setup guide](../../REMOTE_MCP.md) to help the user correct them. Do not

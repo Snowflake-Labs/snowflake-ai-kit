@@ -12,11 +12,12 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.6.1)
+  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.7.0)
     .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
     .devin-plugin/plugin.json                 ← Devin manifest (Devin reads it instead of .claude-plugin); setup notice for the Marketplace
     logo.svg                                  ← Devin Marketplace logo: official Snowflake bug (snowflake.com/brand-guidelines), same file in both Devin plugins
+    REMOTE_MCP.md                             ← opt-in remote backend: CODING_AGENT setup, approval boundaries, live checklist
     hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)
     scripts/router/
       prompt_filter.py                        ← keyword detection, fires additionalContext
@@ -27,8 +28,10 @@ plugins/
       discover_cortex.py                      ← finds Cortex CLI + discovers skills
       execute_cortex.py                       ← spawns cortex CLI, credential blocking
       route_request.py                        ← indicator scoring + skill trigger matching
+      backend.py                              ← Backend model: local CLI (default) vs remote MCP tool
+      test_remote_backend.py                  ← remote backend tests (no CLI, no live MCP)
     skills/
-      cortex-router/                          ← auto-routing skill
+      cortex-router/                          ← auto-routing skill (references/remote-mcp.md: remote workflow)
       cortex-run/                             ← explicit invocation ($cortex-run)
       cortex-setup/                           ← CLI install + connection setup
   snowflake-mcp-devin/                        ← Devin plugin (Snowflake Managed MCP, no local deps)

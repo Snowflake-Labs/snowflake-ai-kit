@@ -261,7 +261,7 @@ bash tests/run-tests.sh
 bash tests/run-tests.sh --integration
 ```
 
-**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks. `scripts/router/test_hosts.py` pins the exact routing output for Claude Code and Codex and covers Devin CLI detection, instructions, and MCP conflict scans. `scripts/router/test_workloads.py` covers migration detection and Devin CLI's Snowflake AIM routing, and pins that Claude Code and Codex treat migration prompts as before.
+**Structural tests** (always run): file existence checks, config validation, Python syntax, and unit tests for `envelope_policy.py`, `prompt_filter.py`, and plugin hooks. `scripts/router/test_remote_backend.py` covers the remote backend: the backend resolver, tool-contract checks (including the live `CODING_AGENT` schema), execution guards, and hook runs with no Cortex CLI installed. It makes no live MCP calls. `scripts/router/test_hosts.py` pins the exact routing output for Claude Code and Codex and covers Devin CLI detection, instructions, and MCP conflict scans. `scripts/router/test_workloads.py` covers migration detection and Devin CLI's Snowflake AIM routing, and pins that Claude Code and Codex treat migration prompts as before.
 
 CI tests macOS and Windows with and without PyYAML. Launcher/configuration regressions
 are in `scripts/router/test_launcher_config.py`; they do not invoke Cortex or Snowflake.

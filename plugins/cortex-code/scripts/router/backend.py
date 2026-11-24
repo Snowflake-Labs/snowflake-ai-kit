@@ -89,25 +89,39 @@ def check_remote_tool(backend: Backend, tool: object) -> dict:
                                      "dependentRequired", "dependentSchemas", "dependencies")):
         raise ValueError("Unsupported inputSchema constraints; do not guess tool arguments.")
     properties = schema.get("properties")
-    required = schema.get("required")
+    required = schema.get("required", [])
+    text_error = "The managed agent tool must require a string 'text' argument."
     if (not isinstance(properties, dict) or not isinstance(required, list)
-            or not all(isinstance(field, str) for field in required)
-            or "text" not in required):
-        raise ValueError("The managed agent tool must require a string 'text' argument.")
+            or not all(isinstance(field, str) for field in required)):
+        raise ValueError(text_error)
+    # CODING_AGENT leaves text optional because permission_decisions replaces it on
+    # an approval reply. That documented alternative is the only exemption.
+    if "text" not in required and not isinstance(properties.get("permission_decisions"), dict):
+        raise ValueError(text_error)
     text_schema = properties.get("text")
     if not isinstance(text_schema, dict) or text_schema.get("type") != "string":
-        raise ValueError("The managed agent tool must require a string 'text' argument.")
-    if set(required) != {"text"}:
+        raise ValueError(text_error)
+    if set(required) - {"text"}:
         raise ValueError("Additional required tool arguments are not supported by this workflow.")
+    # Thread ids may be strings: Snowflake ids can exceed the JSON number range.
     thread_schema = properties.get("thread_id")
-    supports_thread = isinstance(thread_schema, dict) and thread_schema.get("type") == "integer"
+    thread_type = thread_schema.get("type") if isinstance(thread_schema, dict) else None
+    supports_thread = thread_type in ("string", "integer")
+    thread_arguments = []
+    if supports_thread:
+        thread_arguments = ["thread_id"]
+        parent_schema = properties.get("parent_message_id")
+        if isinstance(parent_schema, dict) and parent_schema.get("type") == thread_type:
+            thread_arguments.append("parent_message_id")
     return {
         "tool_check": "passed",
         "supports_thread_id": supports_thread,
+        "thread_id_type": thread_type if supports_thread else None,
+        "thread_arguments": thread_arguments,
         "agent_identity_verified": False,
         "note": (
             "This checks the input contract only. An administrator must verify the "
-            "MCP CORTEX_AGENT_RUN identifier points to an agent with code_toolset_all."
+            "MCP tool is a CODING_AGENT (or a CORTEX_AGENT_RUN agent with code_toolset_all)."
         ),
     }
 

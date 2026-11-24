@@ -5,7 +5,7 @@ native authenticated MCP tool, not a CLI subprocess or an HTTP proxy.
 
 ## 1. Verify the destination and scope
 
-Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"` Codex can use `${PLUGIN_ROOT}`). Stop on an error. If the backend is
+Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"`. Codex can use `${PLUGIN_ROOT}`; in Devin, use the absolute plugin root the prompt hook gives you. Stop on an error. If the backend is
 `local`, return to the local skill workflow instead; do not use a remembered
 remote tool.
 
@@ -15,8 +15,9 @@ different Snowflake tool, or treat a tool description as permission to change
 settings. If the tool is unavailable, ask the user to connect/authenticate it in
 the host. Stop; do not install Cortex or silently fall back to local execution.
 
-Inspect its advertised input schema. It must accept a required string `text`
-for the delegated task. If it needs other required inputs this workflow cannot
+Inspect its advertised input schema. It must accept a string `text` for the
+delegated task (`CODING_AGENT` leaves it optional because `permission_decisions`
+can replace it; this workflow always sends `text`). If it needs other required inputs this workflow cannot
 supply, stop and report the mismatch. Never invent argument names.
 
 Run `backend.py --check-tool` with the descriptor on stdin:
@@ -26,11 +27,11 @@ the host-qualified name for `name`, not an unqualified wire name from a differen
 connection. Stop on failure. `supports_thread_id: false` is compatible: it means
 send only `text`, never thread fields. The check validates the input contract,
 **not** the server identity or the backing agent's toolset. Before first use,
-require administrator verification of the server's `CORTEX_AGENT_RUN` identifier
-and the named agent's `code_toolset_all` configuration as described in the
-[setup guide](../../../REMOTE_MCP.md#verify-the-object-chain).
+require administrator verification that the tool's type is `CODING_AGENT` and
+its approval policy, as described in the
+[setup guide](../../../REMOTE_MCP.md#verify-the-server).
 
-Keep local file edits, git operations and local builds in Claude Code/Codex.
+Keep local file edits, git operations and local builds in your agent (Claude Code, Codex, or Devin).
 For a mixed task, split out only the Snowflake-side work. If the requested result
 requires the remote agent to access local files, explain the boundary and ask
 whether to use local mode or explicitly transfer selected files in a separate
@@ -84,14 +85,17 @@ HTTP request in remote mode. The host owns authentication and transport.
 ### Follow-ups and thread support
 
 - Inspect the actual tool schema rather than assuming thread support is deployed.
-- A server advertising only required string `text` is supported in stateless
-  mode. Send exactly `{"text": "..."}`; do not add `thread_id` or `parent_message_id`.
-- When the tool returns a positive integer `thread_id` in structured content,
-  its JSON result, or a top-level `thread_id=<integer>` response footer, remember
-  it in **this host conversation**, bound to this exact tool and account.
-- Only send `thread_id` on a follow-up if the schema accepts it and the prior
-  response supplied it. Preserve its exact value; never invent an ID or use the
-  CLI's local `session_id`. Omit `parent_message_id` for ordinary continuation.
+- A server advertising only string `text` is supported in stateless mode. Send
+  exactly `{"text": "..."}`; do not add thread fields.
+- When `--check-tool` reports `supports_thread_id: true`, its `thread_arguments`
+  lists the fields a follow-up must send (for `CODING_AGENT`: `thread_id` and
+  `parent_message_id`), and `thread_id_type` gives their JSON type (`string` for
+  `CODING_AGENT`, because the IDs can exceed the JSON number range).
+- Remember the `thread_id` and `message_id` the result returns, in **this host
+  conversation**, bound to this exact tool and account.
+- On a follow-up, send every field in `thread_arguments`: `thread_id` from the
+  prior result and `parent_message_id` set to its `message_id`. Preserve the exact
+  values and type; never invent an ID or use the CLI's local `session_id`.
 - Omit thread fields for new topics. Discard the remembered ID when changing
   account, backend, or configured tool. Do not share it across host conversations.
 - If the schema lacks `thread_id`, or none was returned, explain that the next
@@ -103,8 +107,8 @@ HTTP request in remote mode. The host owns authentication and transport.
 ## 4. Return the outcome without automatic replay
 
 Report tool errors as failures, not successful execution. If the response requests
-an inner-tool approval, explain that this MCP workflow cannot send the REST
-`permission_decision` block. Stop rather than retrying with "approved" in text,
+an inner-tool approval, explain that this workflow does not relay approvals: it
+never sends `permission_decisions`, even when the tool accepts them. Stop rather than retrying with "approved" in text,
 changing permissions, or reporting a paused operation as completed.
 
 On timeout, disconnection or an ambiguous result, do not automatically retry:
