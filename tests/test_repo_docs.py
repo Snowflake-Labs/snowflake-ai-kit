@@ -685,6 +685,15 @@ class RemoteBackendDocsTests(unittest.TestCase):
         self.assertNotIn("Omit `parent_message_id` for ordinary continuation", workflow)
         self.assertNotIn("cannot send the REST", workflow)
 
+    def test_security_scope_limits_envelopes_to_local_mode(self):
+        scope = section(read(REPO_ROOT / "SECURITY.md"), "Scope")
+        self.assertIn("Envelope enforcement in every host (local mode)", scope)
+
+    def test_remote_guide_notes_codex_mcp_client_limitation(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("Codex's MCP client", guide)
+        self.assertIn("202", guide)
+
     def test_remote_guide_covers_devin_and_migrations(self):
         guide = read(CORTEX_DIR / "REMOTE_MCP.md")
         self.assertIn("Devin", guide)

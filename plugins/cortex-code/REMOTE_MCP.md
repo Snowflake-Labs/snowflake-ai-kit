@@ -69,6 +69,12 @@ cannot inspect server objects. The administrator must verify it.
 
 ### Connect the host
 
+> **Codex:** tested with codex-cli 0.137.0, Codex's MCP client can't connect to
+> Snowflake-managed MCP servers yet. The server answers `notifications/initialized`
+> with HTTP 202 and an empty JSON body, which that client fails to parse, so the
+> tool never appears. The plugin then stops with "tool not available", as designed.
+> Use Claude Code or Devin for remote mode, or local mode in Codex.
+
 Connect that server in Claude Code, Codex, or Devin using its native remote MCP setup and
 authenticate there. In Devin, add it as a custom MCP; the
 [Snowflake Managed MCP plugin guide](../snowflake-mcp-devin/README.md) covers the URL,
