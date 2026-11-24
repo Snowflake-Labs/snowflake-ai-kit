@@ -65,10 +65,10 @@ When querying dbt-managed objects:
 
 DCM is infrastructure-as-code for Snowflake — manifest.yml with DEFINE blocks for databases, schemas, tables, roles.
 
-- `SHOW DBT PROJECTS` — DCM projects also appear here
-- Three-tier role pattern: `<project>_ADMIN`, `<project>_READWRITE`, `<project>_READONLY`
-- CLI: `snow dcm deploy`, `snow dcm execute`, `snow dcm list`
-- SQL: `EXECUTE DBT PROJECT`, `ALTER DBT PROJECT`
+- `SHOW DCM PROJECTS`, `DESCRIBE DCM PROJECT <name>`, `SHOW DEPLOYMENTS IN DCM PROJECT <name>`
+- SQL: `EXECUTE DCM PROJECT <name> PLAN FROM '<path>'` (dry run), then `EXECUTE DCM PROJECT <name> DEPLOY FROM '<path>'`
+- CLI: `snow dcm create`, `snow dcm plan`, `snow dcm deploy` (see `snow dcm --help`)
+- A common pattern is three roles per project: `<project>_ADMIN`, `<project>_READWRITE`, `<project>_READONLY`. DCM doesn't create them for you; define them in the project
 
 ## Governance
 

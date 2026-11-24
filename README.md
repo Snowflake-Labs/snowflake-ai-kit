@@ -1,6 +1,6 @@
 # Snowflake AI Kit
 
-Connect your AI coding agent to Snowflake. One plugin, for **Claude Code**, **OpenAI Codex**, and **Devin CLI**, automatically detects Snowflake prompts and routes them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more. A separate **Devin** plugin connects through a Snowflake Managed MCP Server instead, with no local Cortex Code CLI.
+Connect your AI coding agent to Snowflake. One plugin, for **Claude Code**, **OpenAI Codex**, **Devin CLI**, and **Devin Desktop**, automatically detects Snowflake prompts and routes them to [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) — where 55+ built-in skills handle SQL, data governance, dynamic tables, ML, and more. A separate **Devin** plugin connects through a Snowflake Managed MCP Server instead, with no local Cortex Code CLI.
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Marketplace-8A2BE2)](https://claude.com/plugins/snowflake-cortex-code)
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
@@ -89,7 +89,7 @@ Non-Snowflake prompts ("fix the bug in auth.py", "write a unit test") stay in yo
 ## How It Works
 
 ```
-You → Claude Code / Codex / Devin CLI → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
+You → Claude Code / Codex / Devin CLI or Desktop → [Plugin detects Snowflake intent] → Cortex Code CLI → Snowflake
 ```
 
 1. A lightweight keyword filter runs on every prompt (~50ms, no network)
@@ -103,7 +103,7 @@ To explicitly invoke Cortex Code (bypassing auto-detection):
 $cortex-run show me my warehouses and their current state
 ```
 
-In Devin CLI, use `/snowflake-cortex-code:cortex-run` instead.
+In Devin CLI and Devin Desktop, use `/snowflake-cortex-code:cortex-run` instead.
 
 > *See [`plugins/cortex-code/`](plugins/cortex-code/) for full documentation on security model, envelopes, and configuration.*
 
@@ -121,7 +121,7 @@ Works natively — enable "Third-party skills" in Cursor Settings. No separate p
 
 ## Prerequisites
 
-The plugin requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
+The Cortex Code plugin (Claude Code, Codex, Devin CLI and Desktop) requires [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) on your PATH. Install it from the [official docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli).
 
 It also needs Python 3.9 or later, and on Windows [Git Bash](https://git-scm.com/download/win), which its hooks run in.
 
@@ -143,15 +143,17 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 | Windows | `.\install.ps1` |
 | npx (any) | `npx @snowflake-labs/ai-kit` |
 
+With npx, flags pass through on macOS and Linux only. On Windows, run `.\install.ps1` with its `-Flag` switches instead.
+
 | Flag | Description |
 |---|---|
 | `--check` / `-Check` | Check installation status without installing |
 | `--with-claude` / `-WithClaude` | Also install Claude Code CLI + plugin |
 | `--with-codex` / `-WithCodex` | Also install OpenAI Codex CLI + plugin |
-| `--include-aim` / `-IncludeAim` | Also install the [Snowflake AIM](https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview) plugin for database migrations (used by Devin CLI) |
+| `--include-aim` / `-IncludeAim` | Also install the [Snowflake AIM](https://docs.snowflake.com/en/migrations/aim-for-datawarehouses/overview) plugin for database migrations (used by Devin CLI and Devin Desktop) |
+| `--help` / `-Help` | Show help |
 
 AIM isn't installed by default. Besides `--include-aim`, Devin users can install it with `/snowflake-cortex-code:cortex-setup`, or approve the install when their first migration prompt asks. See [Installing AIM](plugins/cortex-code/README.md#database-migrations-snowflake-aim).
-| `--help` / `-Help` | Show help |
 
 ## Skills
 
@@ -161,7 +163,7 @@ Cortex Code CLI ships with 55+ built-in skills that activate automatically based
 cortex skill list
 ```
 
-Examples: `semantic-view`, `cortex-agent`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-functions`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
+Examples: `agent-studio`, `query-semantic-view`, `data-quality`, `dynamic-tables`, `cost-intelligence`, `machine-learning`, `iceberg`, `data-governance`, `cortex-ai-function-studio`, `deploy-to-spcs`, `lineage`, `dbt-projects-on-snowflake`, `snowflake-notebooks`, `security-investigation`, `workload-performance-analysis`.
 
 Skills are organized by source:
 

@@ -226,8 +226,7 @@ Error: Rate limit exceeded
 
 ## Limitations
 
-- **No Persistent Sessions**: Each invocation is stateless
-- **No `--resume`**: Session resumption not available in headless mode
+- **Sessions**: Each invocation starts a new session unless you resume one. The plugin resumes with `--resume <session_id>` (`--resume-last` in its scripts)
 - **Organization Policies**: Some flags may be blocked (e.g., `--bypass`, `--dangerously-allow-all-tool-calls`)
 - **Tool Restrictions**: Only tools in `--allowed-tools` can be used
 - **Rate Limits**: Subject to Snowflake Cortex AI rate limits

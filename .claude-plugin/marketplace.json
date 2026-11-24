@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "snowflake-cortex-code",
-      "description": "Use Cortex Code from Claude Code — slash commands for reviews and task delegation, plus automatic routing of Snowflake operations to Cortex Code.",
+      "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code, plus $cortex-run for explicit invocation.",
       "version": "3.6.0",
       "source": "./plugins/cortex-code",
       "author": {
@@ -19,7 +19,7 @@
       "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
       "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
       "license": "Apache-2.0",
-      "keywords": ["snowflake", "cortex-code", "code-review", "sql", "dbt", "security", "auto-routing"],
+      "keywords": ["snowflake", "cortex-code", "sql", "security", "auto-routing"],
       "category": "developer-tools"
     }
   ]

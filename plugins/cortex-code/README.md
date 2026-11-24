@@ -1,6 +1,6 @@
-# Cortex Code plugin for Claude Code, OpenAI Codex, and Devin CLI
+# Cortex Code plugin for Claude Code, OpenAI Codex, Devin CLI, and Devin Desktop
 
-Route Snowflake work from Claude Code, OpenAI Codex, or Devin CLI to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
+Route Snowflake work from Claude Code, OpenAI Codex, Devin CLI, or Devin Desktop to Cortex Code automatically. Ask about your data naturally — the plugin detects Snowflake intent and delegates to Cortex Code where 55+ built-in skills handle the work. Non-Snowflake prompts stay in your current agent.
 
 ## How It Works
 
@@ -11,7 +11,7 @@ Route Snowflake work from Claude Code, OpenAI Codex, or Devin CLI to Cortex Code
 A lightweight keyword filter (`prompt_filter.py`) runs on every prompt as a `UserPromptSubmit` hook. When it detects Snowflake-related patterns, it tells your agent how to hand the prompt to Cortex Code:
 
 - **Claude Code** loads the `cortex-router` skill, which runs the routing check and then Cortex Code.
-- **OpenAI Codex** and **Devin CLI** get the same steps as direct commands with the plugin's script paths filled in.
+- **OpenAI Codex**, **Devin CLI**, and **Devin Desktop** get the same steps as direct commands with the plugin's script paths filled in.
 
 Examples that auto-route:
 - "Show me my Snowflake warehouses"
@@ -35,7 +35,7 @@ Type `$cortex-run` followed by your prompt to force routing to Cortex Code, bypa
 $cortex-run analyze query performance for the last 7 days
 ```
 
-In Devin CLI, the command is `/snowflake-cortex-code:cortex-run`.
+In Devin CLI and Devin Desktop, the command is `/snowflake-cortex-code:cortex-run`.
 
 ## Requirements
 
@@ -64,7 +64,7 @@ Or inside Codex, open `/plugins` and install "Snowflake Cortex Code" from the Sn
 
 ### Devin CLI
 
-Devin CLI loads this plugin as-is, including the prompt hook. Snowflake prompts route to the Cortex Code CLI on your machine, and database migrations route to [Snowflake AIM](#database-migrations-snowflake-aim).
+Devin CLI loads this plugin, including the prompt hook, from its `.devin-plugin/plugin.json` (Claude Code reads `.claude-plugin/plugin.json`, and Codex reads `.codex-plugin/plugin.json`). Snowflake prompts route to the Cortex Code CLI on your machine, and database migrations route to [Snowflake AIM](#database-migrations-snowflake-aim).
 
 **Get started**
 
@@ -94,7 +94,7 @@ Devin CLI loads this plugin as-is, including the prompt hook. Snowflake prompts 
 
 `--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install straight from GitHub without a clone: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
 
-Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup`, which installs the CLI, and in Devin also Snowflake AIM. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin". Devin asks for approval before running the plugin's scripts, depending on your permission mode.
+Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup`, which installs the CLI, and in Devin also Snowflake AIM. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin" (in Devin Desktop too). Devin asks for approval before running the plugin's scripts, depending on your permission mode.
 
 On Windows, installing from a local folder fails with `os error 1314` unless Developer Mode is on (Settings → System → For developers), because Devin links the plugin into its cache.
 
@@ -163,7 +163,7 @@ To install it by hand instead, run `cortex plugin install https://github.com/Sno
 - **Headless runs:** with `devin -p`, pass `--model` (for example `--model opus`). Without it Devin can print "No models available" and keep running instead of exiting.
 - **Known AIM issues:** with git off, AIM's deploy step can still ask for `git_main_branch` in `.scai/config/plugin.yml`. Setting `git_main_branch: main` gets past it. Data validation can also stay pending or fail every column, because Postgres column names are lowercase and Snowflake's are uppercase. Adding `columnMappings` to the validation config fixes it.
 
-This applies to Devin CLI and Devin Desktop only for now. In Claude Code and Codex, migration prompts route the same way they did before.
+This applies to Devin CLI and Devin Desktop only for now. In Claude Code and Codex, migration prompts route the same way they did before. Devin Cloud isn't supported, because it has no local Cortex Code CLI; use [`snowflake-mcp-devin`](../snowflake-mcp-devin/) there.
 
 ## Security Model
 
@@ -189,7 +189,7 @@ Hooks and skill commands use `scripts/run_python.sh` in Bash (Git Bash on Window
 The launcher prefers `python3` and accepts `python` only after verifying Python 3.
 It preserves stdin and arguments and never retries a failed script with another interpreter.
 
-The router config file lives at `scripts/router/config.yaml.example`. To customize:
+The router config file lives at `scripts/router/config.yaml.example`. To customize it (the same path applies in every agent):
 
 ```bash
 cp plugins/cortex-code/scripts/router/config.yaml.example ~/.claude/skills/cortex-code/config.yaml

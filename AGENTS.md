@@ -4,7 +4,7 @@
 
 Developer tools for building on Snowflake with AI coding agents. Includes:
 
-- A Claude Code + Codex + Devin CLI plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
+- A Claude Code + Codex + Devin CLI + Devin Desktop plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
 - A Devin plugin (`plugins/snowflake-mcp-devin/`) that connects Devin to a Snowflake Managed MCP Server over HTTPS, with no local dependencies
 - Installers (shell + PowerShell + npx)
 
@@ -12,7 +12,7 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex + Devin CLI plugin (v3.6.0)
+  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.6.0)
     .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
     .devin-plugin/plugin.json                 ← Devin manifest (Devin reads it instead of .claude-plugin); setup notice for the Marketplace
@@ -40,7 +40,6 @@ plugins/
 .agents/plugins/marketplace.json              ← Codex marketplace
 .claude-plugin/marketplace.json               ← Claude Code marketplace
 actions/cortex-code/                          ← GitHub Action
-mcp-servers/cloud-agents/                     ← Cloud Agents MCP server
 install.sh / install.ps1 / bin/install.mjs    ← one-command installers
 tests/
   run-tests.sh                                ← bash test runner (Mac/Linux)
@@ -59,7 +58,7 @@ tests/
 2. **License:** Root LICENSE is Apache 2.0.
 3. **Branch protection:** PRs required on main.
 4. **README uses HTTPS clone URLs** (not SSH) — keep it that way for external users.
-5. **Devin Marketplace pin:** Devin's Marketplace lists `plugins/snowflake-mcp-devin` as **Snowflake (Managed MCP)**, pinned to a commit `sha` in [CognitionAI/devin-marketplace](https://github.com/CognitionAI/devin-marketplace) (`.devin-plugin/plugin.json`). After a change to that plugin merges here, open a PR there that bumps the `sha`, or Marketplace users keep the old version. The same applies to `plugins/cortex-code` (**Snowflake Cortex Code**) once its Marketplace entry is merged there; keep its `.devin-plugin/plugin.json` version in step with the other manifests.
+5. **Devin Marketplace pin:** Devin's Marketplace lists `plugins/snowflake-mcp-devin` as **Snowflake (Managed MCP)**, pinned to a commit `sha` in [CognitionAI/devin-marketplace](https://github.com/CognitionAI/devin-marketplace) (`.devin-plugin/plugin.json`). After a change to that plugin merges here, open a PR there that bumps the `sha`, or Marketplace users keep the old version. The same applies to `plugins/cortex-code` (**Snowflake Cortex Code (CoCo CLI + AIM)**) once its Marketplace entry is merged there; keep its `.devin-plugin/plugin.json` version in step with the other manifests.
 
 ## Plugin Scripts
 
@@ -68,7 +67,7 @@ tests/
 - `workloads.py` — what kind of Cortex work a prompt is, independent of the Host. `GENERAL` is today's routing; `MIGRATION` hands database migrations to Snowflake AIM and requires the `RW` envelope and resumed sessions. Only hosts with `supports_workloads` (Devin CLI) classify prompts, so Claude Code and Codex route exactly as before. `route_request.py --host devin_cli` applies the same rule.
 - `discover_cortex.py` — finds Cortex CLI binary and parses skill output. Has Windows/macOS/Linux path handling.
 - `execute_cortex.py` — spawns `cortex` CLI subprocess. Key behaviors: credential path blocking (`CREDENTIAL_PATTERNS`), break-on-result, `process.terminate()` cleanup. The `stdin=DEVNULL` fix prevents the subprocess from stealing terminal input — do not remove it.
-- `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching at line 88 can produce false positives.
+- `route_request.py` — scores prompts via keyword indicators and skill trigger matching. Known issue: single-word trigger matching in `decide_route` (the `trigger_lower.split()` check) can produce false positives.
 - `scripts/run_python.sh` selects Python 3 before running hooks/skill commands exactly once; never fall back to another interpreter after a script error.
 - Configuration files are mandatory when explicitly selected. Invalid/unreadable files or missing PyYAML with an existing file must stop execution, never silently use defaults.
 
@@ -83,14 +82,14 @@ bash tests/run-tests.sh           # Mac/Linux
 .\tests\run-tests.ps1             # Windows
 ```
 
-**What's covered (~23 structural checks + 75 unit tests):**
+**What's covered (structural checks + unit tests):**
 
 | Section | Checks | What it validates |
 |---------|--------|-------------------|
 | CLIs | 5 | python3, git required; cortex, snow optional (warn — unit tests are pure Python and never invoke these CLIs, so contributors and CI can run the full suite without them installed) |
 | Plugin structure | 7 | plugin.json, 3 skill dirs, 9 router scripts, test files |
 | Content sanity | 8 | Valid JSON, `decide()` defined, `--permission-prompt-tool` usage, session_state functions |
-| Unit tests | 75 | `test_envelope_policy.py` (33): RO/RW/RESEARCH/DEPLOY envelope allow/deny decisions. `test_plugin_units.py` (42): session state CRUD, credential path blocking, envelope prompt building |
+| Unit tests | all | `test_envelope_policy.py`: RO/RW/RESEARCH/DEPLOY envelope allow/deny decisions. `test_plugin_units.py`: session state CRUD, credential path blocking, envelope prompt building |
 | Snowflake connection | 1 | connections.toml or env vars exist (warn — only needed for live integration, not for unit tests) |
 
 Tests exit non-zero on any FAIL. Warnings (marked "warn") are informational only — they flag missing tools that aren't needed for the core test suite.
@@ -119,8 +118,9 @@ connection, skips if the plugin is already installed in Devin, and removes it af
 
 The three installers (`install.sh`, `install.ps1`, `bin/install.mjs`) share the same logic:
 - Install Snow CLI + Cortex Code CLI by default
-- `--with-claude` / `-WithClaude` adds Claude Code CLI + router skill
-- `--check` / `--update` / `--list` flags for status, re-install, and listing
+- `--with-claude` / `-WithClaude` and `--with-codex` / `-WithCodex` add the agent CLI and plugin
+- `--include-aim` / `-IncludeAim` adds Snowflake AIM for database migrations (used by Devin CLI and Desktop)
+- `--check` / `-Check` reports status without installing; `--help` / `-Help` shows usage
 - Skip anything already installed; verify Snowflake connection at the end
 
 Do not convert these to `pip install` or `npm install` patterns — they are intentionally standalone.

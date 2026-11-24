@@ -1,6 +1,6 @@
 ---
 name: cortex-run
-description: "ONLY load this skill when the user explicitly types $cortex-run, /cortex-run, or /snowflake-cortex-code:cortex-run (Devin CLI). NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."
+description: "ONLY load this skill when the user explicitly types $cortex-run, /cortex-run, or /snowflake-cortex-code:cortex-run (Devin CLI and Desktop). NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
@@ -42,7 +42,7 @@ If `cortex` is NOT found or the command fails:
 
 The user's message after the command (`$cortex-run`, or `/snowflake-cortex-code:cortex-run` in Devin CLI) is the prompt to send. If the user typed only the command with no additional text, ask what they want to do in Snowflake.
 
-In Devin CLI, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook supplies the absolute plugin root: use it in place of `${CLAUDE_PLUGIN_ROOT}` in every command below, and add `--host devin_cli` to `execute_cortex.py`.
+In Devin CLI and Devin Desktop, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook supplies the absolute plugin root: use it in place of `${CLAUDE_PLUGIN_ROOT}` in every command below, and add `--host devin_cli` to `execute_cortex.py`.
 
 ### Step 3: Choose Security Envelope
 
@@ -149,4 +149,4 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/script
 
 - This skill is for **explicit** invocation only. Auto-routing is handled separately by the prompt filter hook + cortex-router skill.
 - Use `--resume-last` for follow-up prompts so Cortex retains conversation context. For new topics, omit it and include relevant context in the prompt instead.
-- Security envelope enforcement uses `--permission-prompt-tool stdio` — every tool call is gated by `envelope_policy.decide()` at the process boundary.
+- In Claude Code and Devin, security envelope enforcement uses `--permission-prompt-tool stdio` — every tool call is gated by `envelope_policy.decide()` at the process boundary. In Codex (`--codex`), tool calls are auto-approved and only the envelope selection is validated.
