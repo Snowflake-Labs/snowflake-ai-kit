@@ -10,6 +10,7 @@ import re
 import tempfile
 import subprocess
 import os
+import shutil
 import unittest
 from pathlib import Path
 
@@ -612,6 +613,14 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
     """cortex-setup's MCP conflict check is the hook's check, for every agent."""
 
     def setUp(self):
+        # Same Bash the hooks use: Git Bash on Windows, where plain `bash` may not be on PATH.
+        self.bash = shutil.which("bash")
+        if os.name == "nt":
+            git_bash = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/bin/bash.exe"
+            if git_bash.exists():
+                self.bash = str(git_bash)
+        if not self.bash:
+            self.skipTest("Bash is required for skill commands")
         skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
         # The local-mode prerequisite (remote mode skips it).
         prereq = re.split(r"## (?:Local p|P)rerequisite", skill, maxsplit=1)[1]
@@ -621,7 +630,7 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
         # The agent fills in <host>; its shell supplies CLAUDE_PLUGIN_ROOT (in Devin, the agent pastes the path).
         script = self.snippet.replace("<host>", host)
         env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
-        return subprocess.run(["bash", "-c", script], cwd=home, env=env,
+        return subprocess.run([self.bash, "-c", script], cwd=home, env=env,
                               capture_output=True, text=True, timeout=60)
 
     def test_uses_the_hook_check(self):

@@ -309,8 +309,12 @@ class HookProcessTests(unittest.TestCase):
         settings = {"DEVIN_PLUGIN_ROOT": str(PLUGIN_DIR), "CLAUDE_PLUGIN_ROOT": None,
                     "CORTEX_PLUGIN_BACKEND": None, "CORTEX_PLUGIN_MCP_TOOL": None}
         (self.home / "empty-bin").mkdir(exist_ok=True)
-        cortex = self.home / "empty-bin" / "cortex"
-        cortex.write_text("#!/bin/sh\nexit 0\n"); cortex.chmod(0o755)
+        # A stub the hook's shutil.which finds: Windows needs a PATHEXT extension.
+        if os.name == "nt":
+            (self.home / "empty-bin" / "cortex.cmd").write_text("@exit /b 0\r\n")
+        else:
+            cortex = self.home / "empty-bin" / "cortex"
+            cortex.write_text("#!/bin/sh\nexit 0\n"); cortex.chmod(0o755)
         context = self.hook_context(self.run_script(
             "prompt_filter.py", {"prompt": "start a database migration from SQL Server"}, settings=settings))
         self.assertIn("Snowflake AIM", context)
