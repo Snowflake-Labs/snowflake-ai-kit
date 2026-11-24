@@ -6,7 +6,7 @@ Connect your AI coding agent to Snowflake. One plugin, for **Claude Code**, **Op
 [![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-Marketplace-orange)](https://github.com/Snowflake-Labs/snowflake-ai-kit#openai-codex)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/Snowflake-Labs/snowflake-ai-kit/test.yml?label=CI)](https://github.com/Snowflake-Labs/snowflake-ai-kit/actions)
-[![Plugin](https://img.shields.io/badge/Plugin-v3.6.0-green)](plugins/cortex-code)
+[![Plugin](https://img.shields.io/badge/Plugin-v3.6.1-green)](plugins/cortex-code)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-yellow)](https://python.org)
 
 ## Quick Start
@@ -141,9 +141,6 @@ The bundled installer sets up both Snowflake CLI (`snow`) and Cortex Code CLI (`
 |---|---|
 | macOS / Linux | `bash install.sh` |
 | Windows | `.\install.ps1` |
-| npx (any) | `npx @snowflake-labs/ai-kit` |
-
-With npx, flags pass through on macOS and Linux only. On Windows, run `.\install.ps1` with its `-Flag` switches instead.
 
 | Flag | Description |
 |---|---|

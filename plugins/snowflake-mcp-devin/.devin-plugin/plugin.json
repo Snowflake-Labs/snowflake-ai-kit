@@ -1,7 +1,7 @@
 {
   "name": "snowflake",
   "displayName": "Snowflake (Managed MCP)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connect to Snowflake via Managed MCP Server — governed Cortex Agents, Analyst, Search, and SQL execution. Zero local dependencies.",
   "homepage": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp",
   "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",

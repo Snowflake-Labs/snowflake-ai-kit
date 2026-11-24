@@ -105,7 +105,10 @@ def check_cortex_cli() -> bool:
             capture_output=True, text=True, timeout=5
         )
         return result.returncode == 0
-    except (subprocess.TimeoutExpired, OSError):
+    except subprocess.TimeoutExpired:
+        # A cold start can take ~13s; cortex is on PATH, so treat it as installed.
+        return True
+    except OSError:
         return False
 
 

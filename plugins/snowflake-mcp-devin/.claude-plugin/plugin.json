@@ -1,6 +1,6 @@
 {
   "name": "snowflake",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": { "name": "Snowflake" },
   "description": "Connect to Snowflake via Managed MCP Server — governed Cortex Agents, Analyst, Search, and SQL execution. Zero local dependencies.",
   "mcpServers": {

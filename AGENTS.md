@@ -6,13 +6,13 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 - A Claude Code + Codex + Devin CLI + Devin Desktop plugin (`plugins/cortex-code/`) that auto-routes Snowflake prompts to Cortex Code CLI
 - A Devin plugin (`plugins/snowflake-mcp-devin/`) that connects Devin to a Snowflake Managed MCP Server over HTTPS, with no local dependencies
-- Installers (shell + PowerShell + npx)
+- Installers (shell + PowerShell)
 
 ## Architecture
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.6.0)
+  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.6.1)
     .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
     .devin-plugin/plugin.json                 ← Devin manifest (Devin reads it instead of .claude-plugin); setup notice for the Marketplace
@@ -116,7 +116,7 @@ connection, skips if the plugin is already installed in Devin, and removes it af
 
 ## Installers
 
-The three installers (`install.sh`, `install.ps1`, `bin/install.mjs`) share the same logic:
+The installers (`install.sh`, `install.ps1`) share the same logic. `bin/install.mjs` is an npx entry point that maps flags and runs one of them; the npm package isn't published yet, so the docs don't offer npx:
 - Install Snow CLI + Cortex Code CLI by default
 - `--with-claude` / `-WithClaude` and `--with-codex` / `-WithCodex` add the agent CLI and plugin
 - `--include-aim` / `-IncludeAim` adds Snowflake AIM for database migrations (used by Devin CLI and Desktop)

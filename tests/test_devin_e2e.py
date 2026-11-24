@@ -81,6 +81,15 @@ class DevinCliRoutesToCortexCode(unittest.TestCase):
         devin("plugins", "remove", PLUGIN_NAME, "-y", cwd=cls.project)
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
+    def test_devin_reads_the_devin_manifest(self):
+        # Devin should load .devin-plugin/plugin.json, not fall back to .claude-plugin.
+        manifest = json.loads((PLUGIN_DIR / ".devin-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        info = devin("plugins", "info", PLUGIN_NAME, cwd=self.project).stdout
+        self.assertIn(f"version: {manifest['version']}", info)
+        self.assertIn(manifest["description"][:60], " ".join(info.split()))
+        for skill in ("cortex-run", "cortex-setup", "cortex-router"):
+            self.assertIn(f"/{PLUGIN_NAME}:{skill}", info)
+
     def run_prompt(self, prompt):
         offset = audit_size()
         result = devin("-p", prompt, "--permission-mode", "dangerous",
