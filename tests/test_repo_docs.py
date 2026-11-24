@@ -105,6 +105,12 @@ class CortexCodeDevinManifestTests(unittest.TestCase):
         self.assertFalse(self.devin["description"].endswith("."))
         self.assertTrue((CORTEX_DIR / self.devin["logo"]).is_file(), "logo file missing")
 
+    def test_card_names_coco_cli_and_aim(self):
+        self.assertEqual(self.devin["displayName"], "Snowflake Cortex Code (CoCo CLI + AIM)")
+        self.assertIn("CoCo CLI + AIM", self.devin["shortDescription"])
+        rule = section(read(REPO_ROOT / "AGENTS.md"), "Critical Rules")
+        self.assertIn("**Snowflake Cortex Code (CoCo CLI + AIM)**", rule)
+
     def test_setup_explains_local_cli_and_aim(self):
         setup = self.devin["setup"]
         self.assertEqual(set(setup), {"notice", "steps"})
@@ -188,7 +194,7 @@ class RepoDocsTests(unittest.TestCase):
 
     def test_agents_md_architecture_lists_repo_layout(self):
         arch = section(self.agents, "Architecture")
-        for entry in ("snowflake-mcp-devin/", "actions/", "mcp-servers/", "test_repo_docs.py"):
+        for entry in ("snowflake-mcp-devin/", "actions/", "test_repo_docs.py"):
             self.assertIn(entry, arch)
 
     def test_cortex_code_version_consistent_everywhere(self):
@@ -506,6 +512,78 @@ class ReadmeAccuracyTests(unittest.TestCase):
         testing = section(self.plugin, "Testing")
         self.assertIn("test_hosts.py", testing)
         self.assertIn("--devin-e2e", testing)
+
+
+class DocsAccuracyTests(unittest.TestCase):
+    """Facts every audience (Claude Code, Codex, Devin CLI/Desktop) relies on."""
+
+    def test_intros_name_devin_desktop(self):
+        for path in (REPO_ROOT / "README.md", CORTEX_DIR / "README.md"):
+            with self.subTest(path=path.name):
+                intro = read(path).split("\n## ", 1)[0]
+                self.assertIn("Devin Desktop", intro)
+
+    def test_installer_flag_table_is_contiguous(self):
+        readme = read(REPO_ROOT / "README.md")
+        table = re.search(r"\| Flag \| Description \|\n\|---\|---\|\n((?:\|.*\|\n)+)", readme).group(1)
+        for flag in ("--check", "--with-claude", "--with-codex", "--include-aim", "--help"):
+            self.assertIn(f"`{flag}`", table)
+
+    def test_readme_bundled_skill_examples_exist(self):
+        readme = read(REPO_ROOT / "README.md")
+        for stale in ("`semantic-view`", "`cortex-agent`", "`cortex-ai-functions`"):
+            self.assertNotIn(stale, readme)
+
+    def test_agents_md_matches_repo(self):
+        agents = read(REPO_ROOT / "AGENTS.md")
+        self.assertNotIn("mcp-servers/", agents)
+        self.assertNotIn("--update", agents)
+        self.assertNotIn("75 unit tests", agents)
+        installers = section(agents, "Installers")
+        for flag in ("--with-codex", "--include-aim"):
+            self.assertIn(flag, installers)
+
+    def test_codex_mode_auto_approve_is_stated(self):
+        self.assertIn("auto-approve", section(read(REPO_ROOT / "SECURITY.md"), "Scope"))
+        run = read(CORTEX_DIR / "skills" / "cortex-run" / "SKILL.md")
+        self.assertIn("--codex", run)
+
+    def test_cli_reference_documents_resume(self):
+        ref = read(CORTEX_DIR / "skills" / "cortex-router" / "references" / "cortex-cli-reference.md")
+        self.assertNotIn("No `--resume`", ref)
+
+    def test_cortex_setup_steps_numbered_and_cover_desktop(self):
+        setup = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
+        self.assertNotIn("Step 3a", setup)
+        self.assertIn("Devin Desktop", setup)
+
+    def test_manifest_descriptions_are_current(self):
+        codex = load_json(CORTEX_DIR / ".codex-plugin" / "plugin.json")
+        self.assertIn("55+", codex["interface"]["longDescription"])
+        market = read(REPO_ROOT / ".claude-plugin" / "marketplace.json")
+        self.assertNotIn("code-review", market)
+        self.assertNotIn("reviews and task delegation", market)
+
+    def test_mcp_devin_readme_warns_against_both_devin_plugins(self):
+        readme = read(DEVIN_DIR / "README.md")
+        self.assertIn("snowflake-cortex-code", readme)
+        self.assertIn("Cortex Code (CoCo)", readme)
+
+    def test_dcm_docs_use_dcm_project_commands(self):
+        for path in (DEVIN_DIR / "skills" / "snowflake-dcm" / "SKILL.md", DEVIN_DIR / "AGENTS.md"):
+            with self.subTest(path=path.name):
+                text = read(path)
+                dcm = text if path.name == "SKILL.md" else text.split("## DCM", 1)[1].split("\n## ", 1)[0]
+                self.assertIn("EXECUTE DCM PROJECT", dcm)
+                self.assertNotIn("DBT PROJECT", dcm)
+                self.assertNotIn("snow dcm execute", dcm)
+
+    def test_semantic_view_skill_uses_valid_ddl(self):
+        text = read(DEVIN_DIR / "skills" / "snowflake-semantic-views" / "SKILL.md")
+        self.assertIn("SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML", text)
+        self.assertNotRegex(text, r"SEMANTIC VIEW \S+ AS \$\$")
+        self.assertIn("relationship_type: many_to_one", text)
+        self.assertNotIn("join_type: many_to_one", text)
 
 
 if __name__ == "__main__":

@@ -182,10 +182,12 @@ The Marketplace pins the plugin to a reviewed commit, so it can lag behind this 
 1. From a clone of this repo: `cd plugins && zip -r snowflake-mcp-devin.zip snowflake-mcp-devin -x '*.DS_Store'`
 2. Go to Customize → Plugins → Add plugin → Upload .zip, and upload it to your Personal scope.
 
-**Devin CLI** (from the root of a clone of this repo):
+**Devin CLI or Devin Desktop** (from the root of a clone of this repo; Desktop shares the CLI's plugins):
 ```bash
 devin plugins install --local ./plugins/snowflake-mcp-devin
 ```
+
+Don't install this together with the Snowflake Cortex Code plugin (`snowflake-cortex-code`). If both are installed, Devin may use this plugin's MCP tools instead of routing to the local Cortex Code CLI.
 
 ### 2. Connect the MCP server
 
@@ -377,7 +379,7 @@ The plugin identifies itself to Snowflake as `Cognition_Devin`. Use the same val
 - **User-Agent header required:** Snowflake rejects MCP requests without a User-Agent header (HTTP 400, code 391903). The plugin manifest includes it. For the OAuth custom MCP, you add it yourself (Quick start step 2). Keep the value exactly `Cognition_Devin` (see [Client identifier](#client-identifier)).
 - **Hostname format:** Use hyphens in the account URL (`my-org-my-account`), not underscores. Underscored hostnames silently break MCP connections.
 - **Admin setup required:** A Snowflake admin must create the MCP server and either the OAuth integration or the PAT service user before this plugin can connect.
-- **Skill portability:** These skills use generic SQL instructions, not CoCo-specific tool calls. They work in any MCP-compatible host.
+- **Skill portability:** These skills use generic SQL instructions, not Cortex Code (CoCo)-specific tool calls. They work in any MCP-compatible host.
 - **Response truncation:** MCP tool responses truncate at 250KB. Use LIMIT and aggregation for large result sets.
 
 ## Plugin contents

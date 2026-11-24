@@ -33,11 +33,11 @@ DESCRIBE SEMANTIC VIEW my_db.my_schema.revenue_model;
 
 ## Creating a semantic view
 
-Semantic views are defined in YAML and created with SQL:
+Write the semantic model in YAML and create the view with `SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML`. The view takes its name from `name` in the YAML. Pass `TRUE` as a third argument to validate without creating:
 
 ```sql
-CREATE OR REPLACE SEMANTIC VIEW my_db.my_schema.revenue_model AS $$
-name: Revenue Model
+CALL SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML('my_db.my_schema', $$
+name: REVENUE_MODEL
 tables:
   - name: ORDERS
     base_table:
@@ -67,8 +67,10 @@ tables:
         expr: COUNT(*)
         data_type: NUMBER
         description: Number of orders
-$$;
+$$);
 ```
+
+You can also use the SQL form, `CREATE SEMANTIC VIEW ... TABLES (...) DIMENSIONS (...) METRICS (...)`.
 
 ## Key concepts
 
@@ -87,7 +89,7 @@ VQRs teach Cortex Analyst the correct SQL for specific questions:
 verified_queries:
   - name: monthly_revenue
     question: "What is the monthly revenue?"
-    verified_query: >-
+    sql: >-
       SELECT DATE_TRUNC('month', ORDER_DATE) AS month,
              SUM(AMOUNT) AS revenue
       FROM MY_DB.MY_SCHEMA.ORDERS
@@ -102,7 +104,7 @@ relationships:
   - name: orders_to_customers
     left_table: ORDERS
     right_table: CUSTOMERS
-    join_type: many_to_one
+    relationship_type: many_to_one
     relationship_columns:
       - left_column: CUSTOMER_ID
         right_column: ID

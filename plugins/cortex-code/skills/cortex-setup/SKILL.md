@@ -1,6 +1,6 @@
 ---
 name: cortex-setup
-description: "Install Snowflake CLI and Cortex Code CLI. Use when cortex is not installed, when the user asks to set up Cortex Code, or when routing fails because the CLI is missing. Triggers: setup cortex, install cortex, cortex not found, CLI not installed, set up snowflake."
+description: "Install Snowflake CLI and Cortex Code CLI. Use when cortex is not installed, when the user asks to set up Cortex Code, or when routing fails because the CLI is missing. In Devin, also installs Snowflake AIM for database migrations. Triggers: setup cortex, install cortex, cortex not found, CLI not installed, set up snowflake, install AIM, set up migrations."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 ---
 
@@ -34,7 +34,7 @@ print('OK: No Snowflake MCP server found')
 >
 > 1. Open `~/.claude/settings.json` (Devin CLI: run `devin mcp list`, then `devin mcp disable <name>`)
 > 2. Remove the Snowflake MCP server entry from `"mcpServers"`
-> 3. Restart your agent (Claude Code, Codex, or Devin CLI)
+> 3. Restart your agent (Claude Code, Codex, Devin CLI, or Devin Desktop)
 >
 > Then re-run this setup.
 
@@ -73,7 +73,7 @@ which snow 2>/dev/null && snow --version || echo "snow not installed"
 
 The installer is bundled with the snowflake-ai-kit repo. Find and run it:
 
-**Step 3a — Find the installer:**
+**Step 2a — Find the installer:**
 
 macOS / Linux:
 ```bash
@@ -85,9 +85,9 @@ Windows (PowerShell):
 Get-ChildItem -Path $HOME -Recurse -Depth 4 -Filter "install.ps1" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match "snowflake-ai-kit" } | Select-Object -First 1 -ExpandProperty FullName
 ```
 
-**Step 3b — Run the installer:**
+**Step 2b — Run the installer:**
 
-In Devin CLI, add `--include-aim` (Windows: `-IncludeAim`). It also installs the Snowflake AIM plugin (`snowflake-migration`), which Devin CLI uses for database migrations. In Claude Code and Codex, run the installer without it.
+In Devin CLI or Devin Desktop, add `--include-aim` (Windows: `-IncludeAim`). It also installs the Snowflake AIM plugin (`snowflake-migration`), which Devin uses for database migrations. In Claude Code and Codex, run the installer without it.
 
 If found (macOS/Linux):
 ```bash
@@ -115,7 +115,7 @@ Or follow the official install guide: https://docs.snowflake.com/en/user-guide/c
 
 The installer handles Snowflake CLI, Cortex Code CLI, and connection verification.
 
-**Step 3c — Devin CLI only: make sure the Snowflake AIM plugin is installed.** Do this even when Cortex Code CLI was already installed, and after a direct install. Check first:
+**Step 2c — Devin CLI or Devin Desktop only: make sure the Snowflake AIM plugin is installed.** Do this even when Cortex Code CLI was already installed, and after a direct install. Check first:
 
 ```bash
 cortex plugin list

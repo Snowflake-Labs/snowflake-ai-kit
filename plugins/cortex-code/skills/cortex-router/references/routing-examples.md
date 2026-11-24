@@ -1,6 +1,6 @@
 # Routing Decision Examples
 
-**Principle:** ONLY Snowflake operations → Cortex Code. Everything else → Claude Code.
+**Principle:** ONLY Snowflake operations → Cortex Code. Everything else stays in your current agent (Claude Code, Codex, or Devin). In Devin, migration prompts that name a source system (SQL Server, Oracle, Teradata, …) go to Cortex Code and Snowflake AIM.
 
 ---
 

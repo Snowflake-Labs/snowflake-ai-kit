@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Snowflake Cortex Code",
     "shortDescription": "Auto-route Snowflake prompts to Cortex Code",
-    "longDescription": "Automatically detect Snowflake-related prompts and route them to Cortex Code CLI for execution. Includes 40+ bundled Snowflake skills for SQL, data governance, dynamic tables, and more.",
+    "longDescription": "Automatically detect Snowflake-related prompts and route them to Cortex Code CLI for execution. Includes 55+ bundled Snowflake skills for SQL, data governance, dynamic tables, and more.",
     "developerName": "Snowflake",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],

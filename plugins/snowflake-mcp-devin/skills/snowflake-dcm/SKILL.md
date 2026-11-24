@@ -2,102 +2,126 @@
 name: snowflake-dcm
 description: >-
   Manage Database Change Management (DCM) projects in Snowflake.
-  DCM is infrastructure-as-code for Snowflake objects — databases,
-  schemas, tables, and roles defined in manifest.yml with DEFINE blocks.
+  DCM is infrastructure-as-code for Snowflake objects: databases, schemas,
+  tables, roles, and grants defined with DEFINE statements in SQL definition
+  files, plus a manifest.yml for targets and templating.
 ---
 
 # Snowflake DCM (Database Change Management)
 
-DCM lets you manage Snowflake infrastructure as code — databases, schemas, tables, roles, and grants defined declaratively in YAML manifests and deployed through the Snowflake CLI or SQL.
+DCM lets you manage Snowflake infrastructure as code. A DCM project has a `manifest.yml` (targets and templating) and SQL definition files with `DEFINE` statements. You plan the changes, review them, then deploy through SQL or the Snowflake CLI.
 
 ## When to use
 
 - User asks about infrastructure-as-code for Snowflake
-- User mentions DCM projects, manifest.yml, or DEFINE blocks
-- User wants to deploy, inspect, or manage database objects as code
-- User asks about the three-tier role pattern
+- User mentions DCM projects, manifest.yml, or DEFINE statements
+- User wants to plan, deploy, inspect, or manage database objects as code
+- User asks how to structure roles for a DCM project
 
 ## Discovery
 
-**List deployed DCM/dbt projects:**
+**List DCM projects:**
 ```sql
-SHOW DBT PROJECTS IN ACCOUNT;
+SHOW DCM PROJECTS IN ACCOUNT;
 ```
 
-**Describe a project:**
+**Describe a project and its deployments:**
 ```sql
-DESCRIBE DBT PROJECT my_db.my_schema.my_project;
+DESCRIBE DCM PROJECT my_db.my_schema.my_project;
+SHOW DEPLOYMENTS IN DCM PROJECT my_db.my_schema.my_project;
+SHOW ENTITIES IN DCM PROJECT my_db.my_schema.my_project;
 ```
 
-## Concepts
+## Project layout
 
-### Manifest structure
+```
+my_project/
+├── manifest.yml
+└── sources/
+    └── definitions/
+        └── analytics.sql
+```
 
-DCM projects use `manifest.yml` with DEFINE blocks:
+**manifest.yml** names the targets and the DCM project object for each:
 
 ```yaml
-# manifest.yml
-- DEFINE DATABASE analytics_db:
-    comment: "Analytics database managed by DCM"
+manifest_version: 2
+type: DCM_PROJECT
+default_target: DEV
 
-- DEFINE SCHEMA analytics_db.reporting:
-    comment: "Reporting schema"
-
-- DEFINE TABLE analytics_db.reporting.daily_metrics:
-    columns:
-      - name: METRIC_DATE
-        type: DATE
-        not_null: true
-      - name: METRIC_NAME
-        type: VARCHAR(256)
-      - name: METRIC_VALUE
-        type: NUMBER(18,4)
-    comment: "Daily business metrics"
+targets:
+  DEV:
+    account_identifier: MYORG-MYACCOUNT
+    project_name: MY_DB.MY_SCHEMA.MY_PROJECT
+    project_owner: DCM_PROJECT_OWNER
 ```
 
-### Three-tier role pattern
+**Definition files** declare the objects with `DEFINE`:
 
-DCM automatically creates three roles per project:
+```sql
+DEFINE DATABASE ANALYTICS_DB COMMENT = 'Analytics database managed by DCM';
+DEFINE SCHEMA ANALYTICS_DB.REPORTING;
+DEFINE TABLE ANALYTICS_DB.REPORTING.DAILY_METRICS (
+  METRIC_DATE DATE NOT NULL,
+  METRIC_NAME VARCHAR(256),
+  METRIC_VALUE NUMBER(18,4)
+) COMMENT = 'Daily business metrics';
+```
+
+### Role pattern
+
+A common pattern is three roles per project, defined in the project like any other object:
 - `<project>_ADMIN` — full DDL on project objects
 - `<project>_READWRITE` — DML (INSERT, UPDATE, DELETE) on project tables
 - `<project>_READONLY` — SELECT on project tables and views
 
-### CLI commands
+DCM doesn't create these roles for you.
 
-```bash
-# Deploy a DCM project
-snow dcm deploy --manifest manifest.yml
-
-# Execute a deployed project
-snow dcm execute my_db.my_schema.my_project
-
-# List deployed projects
-snow dcm list
-```
-
-### SQL commands
+## SQL commands
 
 ```sql
--- Execute a deployed project
-EXECUTE DBT PROJECT my_db.my_schema.my_project;
+-- Create the project object (needs CREATE DCM PROJECT on the schema)
+CREATE DCM PROJECT IF NOT EXISTS my_db.my_schema.my_project;
 
--- Alter a project
-ALTER DBT PROJECT my_db.my_schema.my_project SET COMMENT = 'Updated';
+-- Dry run: shows what would be created, altered, or dropped
+EXECUTE DCM PROJECT my_db.my_schema.my_project
+  PLAN
+  FROM '@my_db.my_schema.my_stage/my_project';
 
--- Drop a project
-DROP DBT PROJECT my_db.my_schema.my_project;
+-- Deploy after reviewing the plan
+EXECUTE DCM PROJECT my_db.my_schema.my_project
+  DEPLOY AS "add daily metrics"
+  FROM '@my_db.my_schema.my_stage/my_project';
 ```
+
+`FROM` takes a stage, a Git repository clone in Snowflake, or a workspace path. Always run `PLAN` before `DEPLOY`: a deploy drops objects that are no longer defined.
+
+## CLI commands
+
+From the folder that contains `manifest.yml`:
+
+```bash
+snow dcm create --if-not-exists   # project object for the default target
+snow dcm plan                     # dry run
+snow dcm deploy                   # deploy
+snow dcm plan --target PROD       # another target from the manifest
+```
+
+See `snow dcm --help` for all commands.
 
 ## Drift detection
 
-After deployment, compare the manifest against live state:
-1. `DESCRIBE DBT PROJECT <name>` — see what was deployed
-2. `SHOW TABLES/SCHEMAS/DATABASES` — see current state
-3. Re-deploy to reconcile drift
+To check the account against the last deployment, plan from it:
+
+```sql
+EXECUTE DCM PROJECT my_db.my_schema.my_project PLAN FROM DEPLOYMENT LAST;
+```
+
+An empty changeset means the account matches. Otherwise, deploy again to reconcile.
 
 ## Tips
 
-- DCM projects are idempotent — re-deploying applies only the delta
-- Use version control for manifest.yml — track changes over time
-- Grant the three-tier roles to users/groups as needed for access control
-- DCM works alongside dbt — DCM manages infrastructure, dbt manages transforms
+- Deploys are declarative: re-deploying applies only the difference
+- Keep the manifest and definition files in version control
+- Grant `PLAN` on the project to CI or developer roles that should dry-run but not deploy
+- DCM works alongside dbt: DCM manages infrastructure, dbt manages transforms

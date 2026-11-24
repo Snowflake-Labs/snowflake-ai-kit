@@ -12,11 +12,11 @@ metadata:
 # Cortex Code Router
 
 Route Snowflake operations to Cortex Code CLI, which has specialized bundled skills
-(data-quality, semantic-view, cost-intelligence, ML, governance, etc.).
+(data-quality, semantic views, cost-intelligence, ML, governance, etc.).
 
 **CRITICAL: Follow steps 1 → 2 → 3 in order. Do NOT skip to Step 3.**
 
-In Devin CLI, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook gives
+In Devin CLI and Devin Desktop, `${CLAUDE_PLUGIN_ROOT}` is not set in your shell. The prompt hook gives
 the exact commands with absolute paths: run those instead of the ones below.
 
 ## Step 1: Verify CLI
@@ -45,8 +45,8 @@ Use Bash (Git Bash on Windows). It never retries a failed script under another i
 If routing fails, STOP and report the error; do not bypass a configuration/policy error.
 
 **Read the output carefully:**
-- If output says **"route: cortex"** → proceed to Step 3
-- If output says **"route: claude"** → **STOP**. Handle the request yourself using Claude Code tools (sql_execute, Read, Write, etc.). Do NOT run execute_cortex.py.
+- If the JSON output has **`"route": "cortex"`** → proceed to Step 3
+- If the JSON output has **`"route": "claude"`** → **STOP**. Handle the request yourself with your own tools (sql_execute, Read, Write, etc.). Do NOT run execute_cortex.py.
 
 ## Step 3: Execute via Cortex Code
 
