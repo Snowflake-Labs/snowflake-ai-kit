@@ -629,7 +629,8 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
     def run_check(self, home: Path, host: str):
         # The agent fills in <host>; its shell supplies CLAUDE_PLUGIN_ROOT (in Devin, the agent pastes the path).
         script = self.snippet.replace("<host>", host)
-        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
+        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home),
+               "APPDATA": str(home / "AppData" / "Roaming"), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
         return subprocess.run([self.bash, "-c", script], cwd=home, env=env,
                               capture_output=True, text=True, timeout=60)
 
@@ -649,7 +650,8 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
     def test_finds_devin_server(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
-            cfg = home / ".config" / "devin"
+            # Devin's user-scope MCP config: %APPDATA%/devin on Windows, ~/.config/devin elsewhere.
+            cfg = (home / "AppData" / "Roaming" if os.name == "nt" else home / ".config") / "devin"
             cfg.mkdir(parents=True)
             (cfg / "mcp_config.json").write_text(json.dumps(
                 {"mcpServers": {"sf": {"url": "https://acct.snowflakecomputing.com/api/v2/x/mcp-servers/y"}}}))
