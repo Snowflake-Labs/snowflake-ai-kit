@@ -387,7 +387,7 @@ plugins/snowflake-mcp-devin/
 ├── .devin-plugin/plugin.json              # Devin manifest → HTTP MCP (PAT header)
 ├── .claude-plugin/plugin.json             # Claude Code fallback
 ├── AGENTS.md                              # Always-on Snowflake context
-├── logo.svg                               # Snowflake icon
+├── logo.svg                               # Official Snowflake logo (Marketplace card)
 ├── README.md                              # This file
 └── skills/
     ├── snowflake-query/SKILL.md           # SQL queries

@@ -1,0 +1,20 @@
+{
+  "name": "snowflake-cortex-code",
+  "displayName": "Snowflake Cortex Code",
+  "version": "3.6.0",
+  "description": "Route Snowflake prompts to the Cortex Code CLI on your machine, including database migrations with Snowflake AIM",
+  "shortDescription": "Run Snowflake work with Cortex Code",
+  "setup": {
+    "notice": "Runs the Cortex Code CLI on the machine where Devin runs, with your own Snowflake connection. Use Devin CLI or Devin Desktop; for zero-install access from any Devin, use Snowflake (Managed MCP) instead.",
+    "steps": [
+      "In a Devin session, run `/snowflake-cortex-code:cortex-setup`. It installs the Cortex Code CLI and Snowflake AIM (for database migrations) and walks you through a Snowflake connection.",
+      "Or skip AIM for now: it is offered again the first time you ask for a migration.",
+      "Start a new session and ask a Snowflake question; the plugin routes it to Cortex Code."
+    ]
+  },
+  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
+  "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
+  "logo": "logo.svg",
+  "keywords": ["Databases", "Snowflake", "Cortex", "Migration", "SQL", "Data", "AI"],
+  "skills": "./skills"
+}

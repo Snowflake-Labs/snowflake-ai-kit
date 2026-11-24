@@ -86,6 +86,46 @@ class DevinPluginManifestTests(unittest.TestCase):
             self.assertNotRegex(text, r"oauthClient(Id|Secret)|oauthScopes")
 
 
+class CortexCodeDevinManifestTests(unittest.TestCase):
+    """The Devin Marketplace reads plugins/cortex-code/.devin-plugin/plugin.json."""
+
+    def setUp(self):
+        self.devin = load_json(CORTEX_DIR / ".devin-plugin" / "plugin.json")
+
+    def test_keeps_plugin_name_and_version(self):
+        # Same name as the Claude manifest, so /snowflake-cortex-code:* commands and installs keep working.
+        claude = load_json(CORTEX_DIR / ".claude-plugin" / "plugin.json")
+        self.assertEqual(self.devin["name"], claude["name"])
+        self.assertEqual(self.devin["version"], cortex_code_version())
+
+    def test_has_marketplace_metadata(self):
+        for key in ("displayName", "description", "shortDescription", "repository", "logo"):
+            self.assertTrue(self.devin.get(key), f"missing {key}")
+        self.assertLessEqual(len(self.devin["shortDescription"]), 40)
+        self.assertFalse(self.devin["description"].endswith("."))
+        self.assertTrue((CORTEX_DIR / self.devin["logo"]).is_file(), "logo file missing")
+
+    def test_setup_explains_local_cli_and_aim(self):
+        setup = self.devin["setup"]
+        self.assertEqual(set(setup), {"notice", "steps"})
+        self.assertIn("Cortex Code CLI", setup["notice"])
+        steps = " ".join(setup["steps"])
+        self.assertIn("/snowflake-cortex-code:cortex-setup", steps)
+        self.assertIn("AIM", steps)
+
+    def test_both_devin_plugins_use_the_official_snowflake_bug(self):
+        # From snowflake.com/brand-guidelines: Snowflake Blue bug with the required ® mark.
+        logos = [read(d / "logo.svg") for d in (CORTEX_DIR, DEVIN_DIR)]
+        self.assertEqual(logos[0], logos[1], "Devin plugin logos differ")
+        self.assertIn("#29b5e8", logos[0].lower())
+        self.assertIn('viewBox="0 0 146.36 139.16"', logos[0])
+        self.assertNotRegex(logos[0], r"<script|<image|xlink:href")
+
+    def test_declares_skills_and_no_mcp_servers(self):
+        self.assertEqual(self.devin.get("skills"), "./skills")
+        self.assertNotIn("mcpServers", self.devin)
+
+
 class DevinPluginContentTests(unittest.TestCase):
     def test_setup_uses_coding_agent_without_agent_object(self):
         readme = read(DEVIN_DIR / "README.md")
@@ -215,10 +255,13 @@ class CortexCodeDevinCliDocsTests(unittest.TestCase):
         self.assertIn("plugins/snowflake-mcp-devin", devin)
         self.assertIn("Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code", devin)
 
-    def test_claude_manifest_read_by_devin_names_it(self):
-        # Devin CLI falls back to .claude-plugin/plugin.json and shows its description.
-        description = load_json(CORTEX_DIR / ".claude-plugin" / "plugin.json")["description"]
-        self.assertIn("Devin CLI", description)
+    def test_agents_md_lists_devin_manifest_for_cortex_code(self):
+        # Devin reads .devin-plugin/plugin.json when present, not .claude-plugin.
+        arch = section(read(REPO_ROOT / "AGENTS.md"), "Architecture")
+        cortex = arch.split("snowflake-mcp-devin/", 1)[0]
+        self.assertIn(".devin-plugin/plugin.json", cortex)
+        self.assertNotIn("Devin CLI reads it too", arch)
+        self.assertIn("plugins/cortex-code", section(read(REPO_ROOT / "AGENTS.md"), "Critical Rules"))
 
     def test_agents_md_covers_devin_cli_hosting(self):
         agents = read(REPO_ROOT / "AGENTS.md")

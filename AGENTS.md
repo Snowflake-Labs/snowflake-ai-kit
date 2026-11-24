@@ -13,8 +13,10 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 ```
 plugins/
   cortex-code/                                ← Claude Code + Codex + Devin CLI plugin (v3.6.0)
-    .claude-plugin/plugin.json                ← Claude Code manifest (Devin CLI reads it too)
+    .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
+    .devin-plugin/plugin.json                 ← Devin manifest (Devin reads it instead of .claude-plugin); setup notice for the Marketplace
+    logo.svg                                  ← Devin Marketplace logo: official Snowflake bug (snowflake.com/brand-guidelines), same file in both Devin plugins
     hooks/hooks.json                          ← UserPromptSubmit hook (prompt_filter.py)
     scripts/router/
       prompt_filter.py                        ← keyword detection, fires additionalContext
@@ -33,6 +35,7 @@ plugins/
     .devin-plugin/plugin.json                 ← Devin manifest: HTTP MCP with ${SNOWFLAKE_MCP_URL} + ${SNOWFLAKE_PAT}
     .claude-plugin/plugin.json                ← fallback manifest for Claude Code
     AGENTS.md                                 ← always-on Snowflake context
+    logo.svg                                  ← same official Snowflake logo as cortex-code
     skills/                                   ← 7 skills (/snowflake:snowflake-query, -explore, ...)
 .agents/plugins/marketplace.json              ← Codex marketplace
 .claude-plugin/marketplace.json               ← Claude Code marketplace
@@ -56,7 +59,7 @@ tests/
 2. **License:** Root LICENSE is Apache 2.0.
 3. **Branch protection:** PRs required on main.
 4. **README uses HTTPS clone URLs** (not SSH) — keep it that way for external users.
-5. **Devin Marketplace pin:** Devin's Marketplace lists `plugins/snowflake-mcp-devin` as **Snowflake (Managed MCP)**, pinned to a commit `sha` in [CognitionAI/devin-marketplace](https://github.com/CognitionAI/devin-marketplace) (`.devin-plugin/plugin.json`). After a change to that plugin merges here, open a PR there that bumps the `sha`, or Marketplace users keep the old version.
+5. **Devin Marketplace pin:** Devin's Marketplace lists `plugins/snowflake-mcp-devin` as **Snowflake (Managed MCP)**, pinned to a commit `sha` in [CognitionAI/devin-marketplace](https://github.com/CognitionAI/devin-marketplace) (`.devin-plugin/plugin.json`). After a change to that plugin merges here, open a PR there that bumps the `sha`, or Marketplace users keep the old version. The same applies to `plugins/cortex-code` (**Snowflake Cortex Code**) once its Marketplace entry is merged there; keep its `.devin-plugin/plugin.json` version in step with the other manifests.
 
 ## Plugin Scripts
 
@@ -97,7 +100,7 @@ fail-closed policy loading. CI has PyYAML-present and PyYAML-absent jobs on both
 macOS and Windows; parsing-only tests skip without PyYAML, while missing-dependency
 tests still run. Tests isolate home/config paths and do not call live Cortex.
 
-Both runners also execute `tests/test_repo_docs.py`: the `snowflake-mcp-devin` plugin's manifests,
+Both runners also execute `tests/test_repo_docs.py`: the `snowflake-mcp-devin` plugin's manifests, the cortex-code Devin manifest,
 skills, and placeholder-only credentials, a scan for leftover test-account values, and consistency
 between the docs and the cortex-code version. `snowflake-mcp-devin` has no live tests; verify it by
 installing it in Devin (see its README).
