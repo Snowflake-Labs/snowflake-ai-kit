@@ -12,28 +12,30 @@ Install Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`) using the appropri
 
 Before doing ANYTHING else in this skill, you MUST run this check. This is not optional. Do not skip it even if the CLIs are already installed.
 
+Use the host that's running this skill: `claude_code`, `codex`, or `devin_cli` (also for Devin Desktop). In Devin, `${CLAUDE_PLUGIN_ROOT}` isn't set; replace it with the absolute plugin root the prompt hook gives you.
+
 ```bash
-cat ~/.claude/settings.json 2>/dev/null | bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" -c "
-import sys, json
-try:
-    settings = json.load(sys.stdin)
-    servers = settings.get('mcpServers', {})
-    for name, cfg in servers.items():
-        cmd = cfg.get('command', '') + ' ' + ' '.join(cfg.get('args', []))
-        if 'snowflake' in name.lower() or 'snowflake' in cmd.lower():
-            print(f'CONFLICT: {name}')
-            sys.exit(1)
-except: pass
-print('OK: No Snowflake MCP server found')
-"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" - "${CLAUDE_PLUGIN_ROOT}" <host> <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.path.join(sys.argv[1], "scripts", "router"))
+import hosts
+found = hosts.find_snowflake_mcp_server(hosts.by_name(sys.argv[2]), Path.home(), Path.cwd(), os.environ)
+if found:
+    print(f"CONFLICT: {found[0]} in {found[1]}")
+    sys.exit(1)
+print("OK: No Snowflake MCP server found")
+PY
 ```
+
+This is the same check the plugin's prompt hook runs, so it reads every MCP config file the agent reads.
 
 **If exit code is 1 (conflict found)**, STOP IMMEDIATELY and tell the user:
 
 > ⚠️ **Snowflake MCP Server detected.** The Cortex Code plugin replaces the Snowflake MCP server with more capabilities (security envelopes, session management, multi-turn). Please disable the MCP server before continuing:
 >
-> 1. Open `~/.claude/settings.json` (Devin CLI: run `devin mcp list`, then `devin mcp disable <name>`)
-> 2. Remove the Snowflake MCP server entry from `"mcpServers"`
+> 1. Open the config file named in the CONFLICT line (Devin: run `devin mcp list`, then `devin mcp disable <name>`)
+> 2. Remove or disable that Snowflake MCP server entry
 > 3. Restart your agent (Claude Code, Codex, Devin CLI, or Devin Desktop)
 >
 > Then re-run this setup.
@@ -182,4 +184,4 @@ After setup, the cortex-router skill should work. Tell the user to try their ori
 - Cortex Code CLI installer requires an active internet connection
 - On macOS, Homebrew may be used as a fallback for Snow CLI
 - Do NOT suggest `pip install snowflake-cortex-code` or similar — that package does not exist
-- On Windows, if `bash` is not available, use the PowerShell (`install.ps1`) or npx method
+- On Windows, if `bash` is not available, use the PowerShell installer (`install.ps1`)

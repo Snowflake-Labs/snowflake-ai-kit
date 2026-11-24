@@ -6,6 +6,7 @@ commands on PATH, so nothing is installed. The `cortex` stub records its calls.
 install.ps1 tests run when PowerShell (pwsh) is available.
 """
 
+import json
 import os
 import re
 import shutil
@@ -176,6 +177,39 @@ class InstallPs1Tests(InstallerHarness, unittest.TestCase):
         rc, out, calls = self.run_installer(self.FLAG, aim_listed=True)
         self.assertEqual(rc, 0, out)
         self.assertNotIn("deps", calls)
+
+
+NODE = shutil.which("node")
+
+
+@unittest.skipUnless(NODE, "node not installed")
+class NpxEntryPointTests(unittest.TestCase):
+    """bin/install.mjs maps flags to the right installer and never runs a shell string."""
+
+    def plan(self, os_name, *args):
+        script = (
+            "import(process.argv[1]).then(m => {"
+            " try { console.log(JSON.stringify(m.installPlan(process.argv[2], process.argv.slice(3)))); }"
+            " catch (e) { console.log(JSON.stringify({error: e.message})); } })"
+        )
+        out = subprocess.run(
+            [NODE, "-e", script, (REPO_ROOT / "bin" / "install.mjs").as_uri(), os_name, *args],
+            capture_output=True, text=True, timeout=30, check=True,
+        ).stdout
+        return json.loads(out)
+
+    def test_windows_gets_powershell_switches(self):
+        plan = self.plan("win32", "--include-aim", "--with-codex", "--check")
+        self.assertEqual(plan["file"], "install.ps1")
+        self.assertEqual(plan["args"], ["-IncludeAim", "-WithCodex", "-Check"])
+
+    def test_unix_keeps_bash_flags(self):
+        plan = self.plan("darwin", "--include-aim", "--with-claude")
+        self.assertEqual(plan["file"], "install.sh")
+        self.assertEqual(plan["args"], ["--include-aim", "--with-claude"])
+
+    def test_unknown_flag_is_rejected(self):
+        self.assertIn("error", self.plan("linux", "--include-aim; rm -rf ~"))
 
 
 if __name__ == "__main__":

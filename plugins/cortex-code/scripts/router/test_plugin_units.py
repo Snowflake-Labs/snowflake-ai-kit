@@ -1438,6 +1438,16 @@ def test_windows_cmd_compatibility():
         "win_cmd: check_cortex_cli handles OSError gracefully",
         result, False))
 
+    # A slow cold start still means cortex is installed (it can take ~13s)
+    with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
+        with patch("execute_cortex.platform.system", return_value="Linux"):
+            with patch("execute_cortex.subprocess.run",
+                       side_effect=subprocess.TimeoutExpired(["cortex"], 5)):
+                result = check_cortex_cli()
+    results.append(expect(
+        "win_cmd: check_cortex_cli treats a --version timeout as installed",
+        result, True))
+
     # When subprocess returns non-zero (broken install)
     with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
         with patch("execute_cortex.platform.system", return_value="Linux"):

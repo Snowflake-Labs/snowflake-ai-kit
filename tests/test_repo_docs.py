@@ -7,6 +7,9 @@ Pure Python, no network, no Snowflake connection. Run from anywhere:
 
 import json
 import re
+import tempfile
+import subprocess
+import os
 import unittest
 from pathlib import Path
 
@@ -584,6 +587,68 @@ class DocsAccuracyTests(unittest.TestCase):
         self.assertNotRegex(text, r"SEMANTIC VIEW \S+ AS \$\$")
         self.assertIn("relationship_type: many_to_one", text)
         self.assertNotIn("join_type: many_to_one", text)
+
+
+class ReleaseHygieneTests(unittest.TestCase):
+    """Facts that keep a release consistent for every agent."""
+
+    def test_no_unreferenced_version_file(self):
+        # VERSION was never read by anything and drifted from the plugin version.
+        self.assertFalse((REPO_ROOT / "VERSION").exists())
+
+    def test_docs_do_not_offer_unpublished_npx_package(self):
+        # @snowflake-labs/ai-kit isn't on npm, so `npx @snowflake-labs/ai-kit` fails.
+        for path in (REPO_ROOT / "README.md", REPO_ROOT / "AGENTS.md",
+                     CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md"):
+            with self.subTest(path=path.name):
+                text = read(path)
+                self.assertNotIn("npx @snowflake-labs/ai-kit", text)
+                self.assertNotIn("or npx method", text)
+
+
+class CortexSetupConflictCheckTests(unittest.TestCase):
+    """cortex-setup's MCP conflict check is the hook's check, for every agent."""
+
+    def setUp(self):
+        skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
+        prereq = skill.split("## Prerequisite", 1)[1]
+        self.snippet = re.search(r"```bash\n(.*?)```", prereq, re.S).group(1)
+
+    def run_check(self, home: Path, host: str):
+        # The agent fills in <host>; its shell supplies CLAUDE_PLUGIN_ROOT (in Devin, the agent pastes the path).
+        script = self.snippet.replace("<host>", host)
+        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
+        return subprocess.run(["bash", "-c", script], cwd=home, env=env,
+                              capture_output=True, text=True, timeout=60)
+
+    def test_uses_the_hook_check(self):
+        self.assertIn("find_snowflake_mcp_server", self.snippet)
+        self.assertNotIn("cat ~/.claude/settings.json", self.snippet)
+
+    def test_finds_user_scope_server_in_claude_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            (home / ".claude.json").write_text(json.dumps(
+                {"mcpServers": {"snowflake": {"command": "uvx", "args": ["snowflake-labs-mcp"]}}}))
+            result = self.run_check(home, "claude_code")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("CONFLICT: snowflake", result.stdout)
+
+    def test_finds_devin_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            cfg = home / ".config" / "devin"
+            cfg.mkdir(parents=True)
+            (cfg / "mcp_config.json").write_text(json.dumps(
+                {"mcpServers": {"sf": {"url": "https://acct.snowflakecomputing.com/api/v2/x/mcp-servers/y"}}}))
+            result = self.run_check(home, "devin_cli")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_passes_when_no_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.run_check(Path(tmp), "codex")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("OK", result.stdout)
 
 
 if __name__ == "__main__":
