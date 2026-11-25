@@ -4,6 +4,7 @@
   "version": "3.7.1",
   "description": "Route Snowflake prompts to the Cortex Code CLI on your machine, including database migrations with Snowflake AIM",
   "shortDescription": "Snowflake work with CoCo CLI + AIM",
+  "platforms": ["local"],
   "setup": {
     "notice": "Runs the Cortex Code CLI on the machine where Devin runs, with your own Snowflake connection. Use Devin CLI or Devin Desktop; for zero-install access from any Devin, use Snowflake (Managed MCP) instead.",
     "steps": [
