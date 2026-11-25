@@ -809,6 +809,37 @@ def test_invocation_source_env():
     return results
 
 
+def test_failed_result_is_error():
+    """A `result` event with is_error or an error subtype fails the run (exit 1, audit error)."""
+    from unittest.mock import patch, MagicMock
+    import io
+    from execute_cortex import execute_cortex_streaming, result_error
+
+    results = []
+    failed = {"type": "result", "subtype": "error_during_execution", "is_error": True,
+              "errors": ["Cortex Code is not available for this account"]}
+    results.append(expect("result_error: success event", result_error({"type": "result", "subtype": "success", "result": "ok"}), None))
+    results.append(expect("result_error: error event names the error",
+                          "not available" in (result_error(failed) or ""), True))
+
+    def mock_popen(cmd, **kwargs):
+        process = MagicMock()
+        lines = [json.dumps({"type": "system", "subtype": "init", "session_id": "s1"}), json.dumps(failed)]
+        process.stdout = io.StringIO("\n".join(lines) + "\n")
+        process.stderr = io.StringIO("")
+        process.wait.return_value = 0
+        process.returncode = 0
+        return process
+
+    with patch("execute_cortex.check_cortex_cli", return_value=True), \
+         patch("execute_cortex.check_mcp_conflict", return_value=None), \
+         patch("execute_cortex.save_active_session"), \
+         patch("execute_cortex.subprocess.Popen", side_effect=mock_popen):
+        run = execute_cortex_streaming("list databases", envelope="RO")
+    results.append(expect("failed result: run reports an error", bool(run.get("error")), True))
+    return results
+
+
 # ── prompt_filter: MCP conflict in hook flow ──────────────────────
 
 def test_prompt_filter_mcp_hook():
@@ -1495,6 +1526,7 @@ def run_tests():
     all_results.extend(test_mcp_conflict_detection())
     all_results.extend(test_prompt_filter_mcp_hook())
     all_results.extend(test_invocation_source_env())
+    all_results.extend(test_failed_result_is_error())
     all_results.extend(test_codex_plugin_manifest())
     all_results.extend(test_codex_marketplace_json())
     all_results.extend(test_codex_hook_input_format())

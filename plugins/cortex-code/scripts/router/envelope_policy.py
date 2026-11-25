@@ -41,7 +41,7 @@ SAFE_BASH_PREFIXES = (
 )
 
 DESTRUCTIVE_BASH_PATTERNS = (
-    re.compile(r"\brm\s+-rf?\b"),
+    re.compile(r"\brm\b[^|;&\n]*\s(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b"),
     re.compile(r"\bsudo\b"),
     re.compile(r"\bchmod\s+777\b"),
     re.compile(r"\bgit\s+push\s+.*--force\b"),
@@ -62,7 +62,10 @@ def _strip_sql(stmt: str) -> str:
 
 
 def _is_read_only_sql(resource: str) -> bool:
-    lowered = _strip_sql(resource)
+    lowered = _strip_sql(resource).rstrip().rstrip(";")
+    # A second statement could be anything; a ';' inside a literal is denied too (fail closed).
+    if ";" in lowered:
+        return False
     return any(lowered.startswith(p) for p in READ_ONLY_SQL_PREFIXES)
 
 
@@ -82,6 +85,10 @@ UNSAFE_SHELL_FRAGMENT_PATTERNS = (
     re.compile(r"\bsudo\b"),                 # privilege escalation
     re.compile(r"\btee\b"),                  # tee writes
     re.compile(r"\bxargs\s+rm\b"),           # piped deletion
+    re.compile(r"\n"),                       # newline runs a second command
+    re.compile(r"\|\s*(?:sh|bash|zsh|dash|ksh|python[\d.]*|perl|ruby|node|xargs)\b"),
+    re.compile(r"\s-(?:delete|exec|execdir|ok|okdir|fprint\w*|fls)\b"),  # find actions
+    re.compile(r"\s--output\b"),             # git diff/log --output writes a file
 )
 
 # Redirect operators that indicate writes. Checked only on unquoted shell
@@ -134,12 +141,31 @@ def _has_unsafe_fragments(command: str) -> bool:
     return any(p.search(command) for p in UNSAFE_SHELL_FRAGMENT_PATTERNS)
 
 
+def _snow_sql_is_read_only(command: str) -> bool:
+    """`snow sql` is safe only when every query it runs is read-only SQL."""
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return False
+    queries = []
+    for i, token in enumerate(tokens[2:], start=2):
+        if token in ("-q", "--query") and i + 1 < len(tokens):
+            queries.append(tokens[i + 1])
+        elif token.startswith("--query="):
+            queries.append(token.split("=", 1)[1])
+        elif token in ("-f", "--filename", "-i", "--stdin") or token.startswith("--filename="):
+            return False  # SQL from a file or stdin cannot be checked here
+    return bool(queries) and all(_is_read_only_sql(q) for q in queries)
+
+
 def _is_safe_bash(command: str) -> bool:
     stripped = command.strip()
     if any(re.search(p, stripped) for p in DESTRUCTIVE_BASH_PATTERNS):
         return False
     if _has_unsafe_fragments(stripped):
         return False
+    if stripped == "snow sql" or stripped.startswith("snow sql "):
+        return _snow_sql_is_read_only(stripped)
     return any(stripped.startswith(p) for p in SAFE_BASH_PREFIXES)
 
 
