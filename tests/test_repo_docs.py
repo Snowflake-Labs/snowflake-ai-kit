@@ -665,6 +665,29 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
         self.assertIn("OK", result.stdout)
 
 
+class ReadOnlyDefaultTests(unittest.TestCase):
+    """Every agent and both routing skills default to the RO envelope."""
+
+    def test_skills_default_to_ro(self):
+        for name in ("cortex-router", "cortex-run"):
+            skill = read(CORTEX_DIR / "skills" / name / "SKILL.md")
+            with self.subTest(skill=name):
+                self.assertIn("Default to **RO**", skill)
+                self.assertNotIn("Default to **RW**", skill)
+
+    def test_every_host_instruction_defaults_to_ro(self):
+        import sys
+        sys.path.insert(0, str(CORTEX_DIR / "scripts" / "router"))
+        import hosts
+        for host in (hosts.CLAUDE_CODE, hosts.CODEX, hosts.DEVIN_CLI):
+            text = host.routing_instruction("/plugin")
+            with self.subTest(host=host.name):
+                # Claude Code's instruction defers to the cortex-router skill (checked above).
+                if "--envelope" in text:
+                    self.assertIn('--envelope "RO"', text)
+                    self.assertNotIn('--envelope "RW"', text)
+
+
 class RemoteBackendDocsTests(unittest.TestCase):
     """Remote mode is set up with a CODING_AGENT tool, like the Managed MCP plugin."""
 

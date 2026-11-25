@@ -211,6 +211,16 @@ def _check_envelope_allowed(envelope: str, config=None) -> Optional[str]:
     return None
 
 
+def result_error(event: dict) -> Optional[str]:
+    """Error text for a stream `result` event that reports failure, else None."""
+    subtype = str(event.get("subtype") or "")
+    if not event.get("is_error") and not subtype.startswith("error"):
+        return None
+    errors = event.get("errors") or []
+    detail = "; ".join(str(e) for e in errors) if isinstance(errors, list) else str(errors)
+    return f"Cortex run failed ({subtype or 'is_error'}): {detail or event.get('result') or 'no details'}"
+
+
 def _send_control_response(stdin, request_id: str, behavior: str, message: str = "") -> None:
     """Write a control_response back to cortex's stdin. Safe no-op if pipe is closed."""
     payload = {
@@ -440,6 +450,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
             elif event_type == "result":
                 results["final_result"] = event.get("result")
+                results["error"] = result_error(event)
                 print(f"[Cortex] Result received.", file=sys.stderr)
                 break
 
@@ -611,6 +622,7 @@ def _run_codex_mode(args):
                     print(f"[Cortex] Using tool: {item.get('name')}", flush=True)
         elif event_type == "result":
             results["final_result"] = event.get("result")
+            results["error"] = result_error(event)
             print("[Cortex] Done.", flush=True)
 
     if completed.returncode != 0 and not results["final_result"]:

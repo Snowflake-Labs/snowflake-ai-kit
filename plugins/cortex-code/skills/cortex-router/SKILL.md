@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.7.0
+  version: 3.7.1
   compatibility: Requires Python and either Cortex Code CLI or a host-authenticated managed MCP tool
 ---
 
@@ -75,16 +75,16 @@ Only reach this step if Step 2 confirmed routing to Cortex.
 
 Choose a security envelope based on the operation:
 - **RO**: Read-only queries (SELECT, SHOW, DESCRIBE) — won't run DDL or DML
-- **RW**: Data modifications, DDL (CREATE, ALTER, DROP) — default for most operations
+- **RW**: Data modifications, DDL (CREATE, ALTER, DROP), only when the user asked for a change
 - **RESEARCH**: Read + web access, no writes
 - **DEPLOY**: Full access (use sparingly)
 
-Default to **RW** unless the request is clearly read-only.
+Default to **RO**. Use **RW** only when the user asked to create, alter, load or delete something.
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RW"
+  --envelope "RO"
 ```
 
 Add `--connection CONNECTION_NAME` if a specific Snowflake connection is needed.

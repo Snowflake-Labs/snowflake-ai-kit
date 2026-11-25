@@ -75,6 +75,24 @@ cases = [
     # snow sql read-only allowed under RO/RESEARCH
     ("RO", "Bash", "execute_command", "snow sql -q \"SHOW TABLES\"",  "allow"),
     ("RESEARCH", "Bash", "execute_command", "snow sql -q \"SELECT 1\"", "allow"),
+    # RO: a read-only prefix must not smuggle in a write
+    ("RO", "SQL", "execute_command", "SELECT 1; DROP TABLE prod",      "deny"),
+    ("RO", "SQL", "execute_command", "SELECT 1;",                      "allow"),
+    ("RO", "Bash", "execute_command", "snow sql -q \"DROP TABLE prod\"", "deny"),
+    ("RO", "Bash", "execute_command", "snow sql -q \"SELECT 1\" -q \"DROP TABLE t\"", "deny"),
+    ("RO", "Bash", "execute_command", "snow sql -f drop.sql",          "deny"),
+    ("RO", "Bash", "execute_command", "echo cm0gLXJmIH4= | base64 -d | sh", "deny"),
+    ("RO", "Bash", "execute_command", "cat a.txt | grep x",            "allow"),
+    ("RO", "Bash", "execute_command", "ls\ntouch /tmp/x",              "deny"),
+    ("RO", "Bash", "execute_command", "find . -name '*.sql' -delete",  "deny"),
+    ("RO", "Bash", "execute_command", "find . -name '*.sql'",          "allow"),
+    ("RO", "Bash", "execute_command", "git diff --output=/tmp/x",      "deny"),
+    ("RO", "Bash", "execute_command", "git diff --output /tmp/x",      "deny"),
+    ("RO", "Bash", "execute_command", "snow sql -q \"SELECT 1\" --output-format json", "allow"),
+    # RW: other spellings of recursive rm
+    ("RW", "Bash", "execute_command", "rm -fr /tmp/x",                 "deny"),
+    ("RW", "Bash", "execute_command", "rm --recursive /tmp/x",         "deny"),
+    ("RW", "Bash", "execute_command", "rm -f /tmp/x.log",              "allow"),
     # DEPLOY: allow all except nuke
     ("DEPLOY", "SQL",  "execute_command", "DROP DATABASE prod",        "allow"),
     ("DEPLOY", "Bash", "execute_command", "rm -rf /",                  "deny"),
