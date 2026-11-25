@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: false
 metadata:
   author: Snowflake Integration Team
-  version: 3.7.0
+  version: 3.7.1
   compatibility: Requires Python and either Cortex Code CLI or a host-authenticated managed MCP tool
 ---
 

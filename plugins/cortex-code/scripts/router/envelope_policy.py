@@ -88,7 +88,7 @@ UNSAFE_SHELL_FRAGMENT_PATTERNS = (
     re.compile(r"\n"),                       # newline runs a second command
     re.compile(r"\|\s*(?:sh|bash|zsh|dash|ksh|python[\d.]*|perl|ruby|node|xargs)\b"),
     re.compile(r"\s-(?:delete|exec|execdir|ok|okdir|fprint\w*|fls)\b"),  # find actions
-    re.compile(r"\s--output\b"),             # git diff/log --output writes a file
+    re.compile(r"\s--output(?:=|\s|$)"),     # git diff/log --output writes a file (not --output-format)
 )
 
 # Redirect operators that indicate writes. Checked only on unquoted shell

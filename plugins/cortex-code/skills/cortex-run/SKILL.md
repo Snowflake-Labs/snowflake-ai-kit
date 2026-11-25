@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
   author: Snowflake
-  version: 3.7.0
+  version: 3.7.1
 ---
 
 # Cortex Code (Explicit Invocation)
@@ -74,7 +74,7 @@ Pick the envelope based on what the operation needs:
 | **RESEARCH** | Exploration + web access | Edit, Write, destructive Bash |
 | **DEPLOY** | Full access needed | Nothing |
 
-Default to **RW** unless the request is clearly read-only.
+Default to **RO**. Use **RW** only when the user asked to create, alter, load or delete something.
 
 ### Step 4: Execute via Cortex Code
 
@@ -88,15 +88,15 @@ or bypass the plugin.
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RW"
+  --envelope "RO"
 ```
 
-For read-only queries:
+When the user asked for a change (create, alter, load or delete):
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RO"
+  --envelope "RW"
 ```
 
 To specify a Snowflake connection:
@@ -104,7 +104,7 @@ To specify a Snowflake connection:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RW" \
+  --envelope "RO" \
   --connection "connection_name"
 ```
 

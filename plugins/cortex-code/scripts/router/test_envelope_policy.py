@@ -87,6 +87,8 @@ cases = [
     ("RO", "Bash", "execute_command", "find . -name '*.sql' -delete",  "deny"),
     ("RO", "Bash", "execute_command", "find . -name '*.sql'",          "allow"),
     ("RO", "Bash", "execute_command", "git diff --output=/tmp/x",      "deny"),
+    ("RO", "Bash", "execute_command", "git diff --output /tmp/x",      "deny"),
+    ("RO", "Bash", "execute_command", "snow sql -q \"SELECT 1\" --output-format json", "allow"),
     # RW: other spellings of recursive rm
     ("RW", "Bash", "execute_command", "rm -fr /tmp/x",                 "deny"),
     ("RW", "Bash", "execute_command", "rm --recursive /tmp/x",         "deny"),

@@ -11,7 +11,7 @@
     {
       "name": "snowflake-cortex-code",
       "description": "Route Snowflake work to Cortex Code through the local CLI or an opt-in managed MCP Coding Agent.",
-      "version": "3.7.0",
+      "version": "3.7.1",
       "source": "./plugins/cortex-code",
       "author": {
         "name": "Snowflake"

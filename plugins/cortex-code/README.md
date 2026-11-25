@@ -194,7 +194,7 @@ The router wraps Cortex execution with a security layer. Three approval modes:
 | `auto` | Auto-approve | Required | Automated workflows |
 | `envelope_only` | Auto-approve, no tool prediction | Required | Low latency, trusted envs |
 
-**Security envelopes** control what Cortex can do:
+**Security envelopes** control what Cortex can do (the routing skills and hook instructions default to **RO**; the agent picks **RW** only when you ask for a change):
 - **RO**: Read-only — blocks Edit, Write, destructive Bash
 - **RW**: Read-write — blocks destructive operations
 - **RESEARCH**: Read + web access
