@@ -1,16 +1,39 @@
 ---
 name: cortex-setup
-description: "Install Snowflake CLI and Cortex Code CLI. Use when cortex is not installed, when the user asks to set up Cortex Code, or when routing fails because the CLI is missing. In Devin, also installs Snowflake AIM for database migrations. Triggers: setup cortex, install cortex, cortex not found, CLI not installed, set up snowflake, install AIM, set up migrations."
+description: "Sets up the selected Cortex Code backend: local CLI or host-authenticated remote MCP. Use when cortex is not installed, when the user asks to set up Cortex Code, when routing fails because the CLI is missing, or when the configured remote tool is missing or needs authentication. In Devin, also installs Snowflake AIM for database migrations (local mode). Triggers: setup cortex, install cortex, cortex not found, CLI not installed, set up snowflake, install AIM, set up migrations, configure remote MCP."
 license: Proprietary. See LICENSE-SKILLS.md for complete terms
 ---
 
 # Cortex Code Setup
 
+## First: Select the backend
+
+Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"` before any other
+check. Codex may use `${PLUGIN_ROOT}` instead. In Devin, use the absolute plugin
+root the prompt hook gives you.
+
+- On invalid settings, explain the error and use the
+  [remote setup guide](../../REMOTE_MCP.md) to help the user correct them. Do not
+  fall back to local mode or install anything.
+- For `remote`, follow that guide: have the user/admin configure a Coding Agent
+  and managed MCP server, connect and authenticate it in the host, then select
+  the exact exposed tool identifier. Do not handle credentials yourself. Confirm
+  the tool's schema is compatible using the
+  [remote workflow](../cortex-router/references/remote-mcp.md). Explain the approval
+  boundary and use a read-only smoke task only with user consent. **Stop here:
+  do not run the local MCP conflict check or install the CLI.**
+- For `local`, follow the existing local setup below. If the user specifically
+  requested remote mode but settings still show local, help them select remote
+  using the guide instead of installing the CLI.
+
+## Local CLI setup
+
 Install Snowflake CLI (`snow`) and Cortex Code CLI (`cortex`) using the appropriate installer for the current OS.
 
-## Prerequisite — ALWAYS run this FIRST, unconditionally
+## Local prerequisite — run before installation
 
-Before doing ANYTHING else in this skill, you MUST run this check. This is not optional. Do not skip it even if the CLIs are already installed.
+For local mode only, run this check before checking or installing CLIs, even if
+the CLIs are already installed. It does not apply to remote mode.
 
 Use the host that's running this skill: `claude_code`, `codex`, or `devin_cli` (also for Devin Desktop). In Devin, `${CLAUDE_PLUGIN_ROOT}` isn't set; replace it with the absolute plugin root the prompt hook gives you.
 
@@ -32,7 +55,9 @@ This is the same check the plugin's prompt hook runs, so it reads every MCP conf
 
 **If exit code is 1 (conflict found)**, STOP IMMEDIATELY and tell the user:
 
-> ⚠️ **Snowflake MCP Server detected.** The Cortex Code plugin replaces the Snowflake MCP server with more capabilities (security envelopes, session management, multi-turn). Please disable the MCP server before continuing:
+> **Snowflake MCP Server detected in local mode.** The local plugin path does not
+> support this configuration. Keep the connection if you want remote mode and
+> follow the remote setup guide; otherwise, disable it before local setup:
 >
 > 1. Open the config file named in the CONFLICT line (Devin: run `devin mcp list`, then `devin mcp disable <name>`)
 > 2. Remove or disable that Snowflake MCP server entry

@@ -10,6 +10,7 @@ import re
 import tempfile
 import subprocess
 import os
+import shutil
 import unittest
 from pathlib import Path
 
@@ -208,6 +209,8 @@ class RepoDocsTests(unittest.TestCase):
         self.assertEqual(codex, self.version)
         self.assertEqual(entry["version"], self.version)
         self.assertIn(f"version: {self.version}", router)
+        run = read(CORTEX_DIR / "skills" / "cortex-run" / "SKILL.md")
+        self.assertIn(f"version: {self.version}", run)
 
     def test_codeowners_names_at_least_two_owners(self):
         path = REPO_ROOT / ".github" / "CODEOWNERS"
@@ -610,15 +613,25 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
     """cortex-setup's MCP conflict check is the hook's check, for every agent."""
 
     def setUp(self):
+        # Same Bash the hooks use: Git Bash on Windows, where plain `bash` may not be on PATH.
+        self.bash = shutil.which("bash")
+        if os.name == "nt":
+            git_bash = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/bin/bash.exe"
+            if git_bash.exists():
+                self.bash = str(git_bash)
+        if not self.bash:
+            self.skipTest("Bash is required for skill commands")
         skill = read(CORTEX_DIR / "skills" / "cortex-setup" / "SKILL.md")
-        prereq = skill.split("## Prerequisite", 1)[1]
+        # The local-mode prerequisite (remote mode skips it).
+        prereq = re.split(r"## (?:Local p|P)rerequisite", skill, maxsplit=1)[1]
         self.snippet = re.search(r"```bash\n(.*?)```", prereq, re.S).group(1)
 
     def run_check(self, home: Path, host: str):
         # The agent fills in <host>; its shell supplies CLAUDE_PLUGIN_ROOT (in Devin, the agent pastes the path).
         script = self.snippet.replace("<host>", host)
-        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
-        return subprocess.run(["bash", "-c", script], cwd=home, env=env,
+        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home),
+               "APPDATA": str(home / "AppData" / "Roaming"), "CLAUDE_PLUGIN_ROOT": str(CORTEX_DIR)}
+        return subprocess.run([self.bash, "-c", script], cwd=home, env=env,
                               capture_output=True, text=True, timeout=60)
 
     def test_uses_the_hook_check(self):
@@ -637,7 +650,8 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
     def test_finds_devin_server(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
-            cfg = home / ".config" / "devin"
+            # Devin's user-scope MCP config: %APPDATA%/devin on Windows, ~/.config/devin elsewhere.
+            cfg = (home / "AppData" / "Roaming" if os.name == "nt" else home / ".config") / "devin"
             cfg.mkdir(parents=True)
             (cfg / "mcp_config.json").write_text(json.dumps(
                 {"mcpServers": {"sf": {"url": "https://acct.snowflakecomputing.com/api/v2/x/mcp-servers/y"}}}))
@@ -649,6 +663,52 @@ class CortexSetupConflictCheckTests(unittest.TestCase):
             result = self.run_check(Path(tmp), "codex")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("OK", result.stdout)
+
+
+class RemoteBackendDocsTests(unittest.TestCase):
+    """Remote mode is set up with a CODING_AGENT tool, like the Managed MCP plugin."""
+
+    def test_remote_setup_uses_coding_agent_without_agent_object(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("type: CODING_AGENT", guide)
+        for stale in ("identifier: EXAMPLE_DB", "GRANT USAGE ON AGENT", "DESCRIBE AGENT",
+                      "type: CORTEX_AGENT_RUN"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, guide)
+        self.assertIn("`CORTEX_AGENT_RUN` also works", guide)
+
+    def test_remote_workflow_and_helper_name_coding_agent(self):
+        workflow = read(CORTEX_DIR / "skills" / "cortex-router" / "references" / "remote-mcp.md")
+        self.assertIn("CODING_AGENT", workflow)
+        self.assertIn("CODING_AGENT", read(CORTEX_DIR / "scripts" / "router" / "backend.py"))
+
+    def test_agents_md_lists_remote_backend_files(self):
+        arch = section(read(REPO_ROOT / "AGENTS.md"), "Architecture")
+        for entry in ("REMOTE_MCP.md", "backend.py", "test_remote_backend.py", "remote-mcp.md"):
+            with self.subTest(entry=entry):
+                self.assertIn(entry, arch)
+
+    def test_remote_workflow_follows_the_helper_thread_arguments(self):
+        workflow = read(CORTEX_DIR / "skills" / "cortex-router" / "references" / "remote-mcp.md")
+        self.assertIn("thread_arguments", workflow)
+        self.assertIn("message_id", workflow)
+        self.assertNotIn("positive integer `thread_id`", workflow)
+        self.assertNotIn("Omit `parent_message_id` for ordinary continuation", workflow)
+        self.assertNotIn("cannot send the REST", workflow)
+
+    def test_security_scope_limits_envelopes_to_local_mode(self):
+        scope = section(read(REPO_ROOT / "SECURITY.md"), "Scope")
+        self.assertIn("Envelope enforcement in every host (local mode)", scope)
+
+    def test_remote_guide_notes_codex_mcp_client_limitation(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("Codex's MCP client", guide)
+        self.assertIn("202", guide)
+
+    def test_remote_guide_covers_devin_and_migrations(self):
+        guide = read(CORTEX_DIR / "REMOTE_MCP.md")
+        self.assertIn("Devin", guide)
+        self.assertIn("CORTEX_PLUGIN_BACKEND=local", guide)
 
 
 if __name__ == "__main__":

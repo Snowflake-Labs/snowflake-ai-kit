@@ -19,7 +19,7 @@ We will acknowledge receipt within 48 hours and provide a timeline for a fix.
 
 This repository contains markdown skills, shell scripts, a Claude Code + Codex + Devin (CLI and Desktop) plugin, and a Devin plugin. Security concerns include:
 
-- **Envelope enforcement in every host** — Claude Code and Devin CLI run Cortex Code with `--permission-prompt-tool stdio`, so each tool call is checked against the security envelope. Host instructions must not add `--codex` (auto-approve) for any host other than Codex. In Codex (`--codex`), Cortex Code auto-approves individual tool calls, and only the envelope selection is validated
+- **Envelope enforcement in every host (local mode)** — In the default local mode, Claude Code and Devin CLI run Cortex Code with `--permission-prompt-tool stdio`, so each tool call is checked against the security envelope. Host instructions must not add `--codex` (auto-approve) for any host other than Codex. In Codex (`--codex`), Cortex Code auto-approves individual tool calls, and only the envelope selection is validated
 - **Credential leakage** — skills, templates, and scripts must never contain real tokens, keys, or passwords
 - **Devin plugin manifests** — the MCP server config may only reference `${SNOWFLAKE_MCP_URL}` and `${SNOWFLAKE_PAT}` placeholders, which Devin fills from the user's saved credentials. Never commit a real token, account URL, or OAuth client ID
 - **Supply chain** — the install script downloads files from this GitHub repo; verify you're using the official `Snowflake-Labs/snowflake-ai-kit` source
@@ -31,3 +31,12 @@ This repository contains markdown skills, shell scripts, a Claude Code + Codex +
 - Use synthetic/example data in all templates and references
 - Review generated code patterns for OWASP Top 10 vulnerabilities
 - Use environment variables for any sensitive configuration in examples
+
+## Remote MCP delegation
+
+The optional remote backend delegates through the host's native MCP connection.
+It does not enforce the local CLI's per-command security envelopes or audit remote
+inner tool calls. Its consent and context-handling instructions are host-agent
+workflow guidance, not a programmatic authorization boundary. Enforce access in
+the host and Snowflake; organizations requiring local envelope controls should
+not enable remote mode. See the [remote approval and data boundaries](plugins/cortex-code/REMOTE_MCP.md#approval-and-data-boundaries).
