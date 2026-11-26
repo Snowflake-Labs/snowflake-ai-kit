@@ -36,6 +36,61 @@ function Write-Step { param([string]$Text) Write-Host ""; Write-Host "$Text" -Fo
 
 function Test-Command { param([string]$Name) return [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 
+function Write-HookPrerequisiteStatus {
+    $git = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+
+    $gitBashCandidates = @()
+    if ($git) {
+        $gitBin = Split-Path -Parent $git.Source
+        $gitRoot = Split-Path -Parent $gitBin
+        $gitBashCandidates += Join-Path $gitRoot 'bin\bash.exe'
+    }
+
+    foreach ($programFiles in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+        if ($programFiles) {
+            $gitBashCandidates += Join-Path $programFiles 'Git\bin\bash.exe'
+        }
+    }
+
+    $gitBash = $gitBashCandidates |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+        Select-Object -First 1
+
+    if (-not $gitBash) {
+        Write-Warn "Git Bash not found in the Git for Windows locations checked. Python hook check skipped."
+        return
+    }
+
+    Write-Ok "Git Bash found ($gitBash)"
+
+    $launcher = (Join-Path $PSScriptRoot 'plugins\cortex-code\scripts\run_python.sh').Replace('\', '/')
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+        Write-Warn "Cortex Code Python launcher not found. Run this check from a full repository checkout."
+        return
+    }
+
+    try {
+        $versionText = & $gitBash $launcher -B -c 'import platform; print(platform.python_version())' 2>$null
+        $probeExitCode = $LASTEXITCODE
+    }
+    catch {
+        Write-Warn "Could not run the Cortex Code Python launcher through Git Bash."
+        return
+    }
+
+    $version = $null
+    if ($probeExitCode -ne 0 -or -not [version]::TryParse([string]$versionText, [ref]$version)) {
+        Write-Warn "The Cortex Code Python launcher could not report a Python version."
+    }
+    elseif ($version -lt [version]'3.9') {
+        Write-Warn "Cortex Code launcher selected Python $version. Python 3.9 or newer is required."
+    }
+    else {
+        Write-Ok "Cortex Code launcher selected Python $version"
+    }
+}
+
 function Test-SnowflakeAuth {
     $connToml = Join-Path $env:USERPROFILE ".snowflake\connections.toml"
     $cfgToml  = Join-Path $env:USERPROFILE ".snowflake\config.toml"
@@ -227,6 +282,7 @@ if ($Check) {
     if ($IncludeAim) {
         if ((Test-Command "cortex") -and (Test-AimInstalled)) { Write-Ok "Snowflake AIM plugin installed" } else { Write-Warn "Snowflake AIM plugin not found" }
     }
+    Write-HookPrerequisiteStatus
     Test-SnowflakeAuth | Out-Null
     Write-Host ""
     return
