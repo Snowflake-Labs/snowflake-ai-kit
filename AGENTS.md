@@ -12,7 +12,7 @@ Developer tools for building on Snowflake with AI coding agents. Includes:
 
 ```
 plugins/
-  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.7.1)
+  cortex-code/                                ← Claude Code + Codex + Devin (CLI and Desktop) plugin (v3.7.2)
     .claude-plugin/plugin.json                ← Claude Code manifest
     .codex-plugin/plugin.json                 ← Codex manifest
     .devin-plugin/plugin.json                 ← Devin manifest (Devin reads it instead of .claude-plugin); setup notice for the Marketplace
