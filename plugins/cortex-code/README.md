@@ -111,7 +111,7 @@ Devin CLI loads this plugin, including the prompt hook, from its `.devin-plugin/
 
 5. Start `devin` in a project folder and try `list my Snowflake databases`, or `start a database migration`.
 
-`--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins, where there is no local Cortex Code CLI to route to. To install straight from GitHub without a clone: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
+`--local` installs it on this machine only. Without it, Devin also adds it to your personal Devin Cloud plugins; the plugin declares `"platforms": ["local"]`, so Devin loads it only in Devin CLI and Devin Desktop, where the Cortex Code CLI runs. To install straight from GitHub without a clone: `devin plugins install Snowflake-Labs/snowflake-ai-kit#plugins/cortex-code --local`.
 
 Skills are namespaced: use `/snowflake-cortex-code:cortex-run` for explicit invocation and `/snowflake-cortex-code:cortex-setup`, which installs the CLI, and in Devin also Snowflake AIM. Routed prompts run with the same enforced security envelopes as Claude Code, and Cortex Code records the entrypoint as "Devin CLI Plugin" (in Devin Desktop too). Devin asks for approval before running the plugin's scripts, depending on your permission mode.
 

@@ -115,6 +115,10 @@ class CortexCodeDevinManifestTests(unittest.TestCase):
         rule = section(read(REPO_ROOT / "AGENTS.md"), "Critical Rules")
         self.assertIn("**Snowflake Cortex Code (CoCo CLI + AIM)**", rule)
 
+    def test_loads_only_in_devin_cli_and_desktop(self):
+        # The plugin runs the CoCo CLI on the user's machine, so it must not load in Devin cloud sessions.
+        self.assertEqual(self.devin.get("platforms"), ["local"])
+
     def test_setup_explains_local_cli_and_aim(self):
         setup = self.devin["setup"]
         self.assertEqual(set(setup), {"notice", "steps"})

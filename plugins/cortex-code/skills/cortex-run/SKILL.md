@@ -5,7 +5,7 @@ license: Proprietary. See LICENSE-SKILLS.md for complete terms
 user-invocable: true
 metadata:
   author: Snowflake
-  version: 3.7.1
+  version: 3.7.2
 ---
 
 # Cortex Code (Explicit Invocation)
